@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { MobileNav } from "./mobile-nav";
 
 const navigation = [
   {
@@ -65,6 +66,11 @@ export function Navbar() {
           >
             Get Started
           </Link>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="md:hidden">
+          <MobileNav />
         </div>
       </div>
     </header>
