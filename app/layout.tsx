@@ -41,12 +41,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
-      >
-        {children}
-      </body>
+    <html
+      lang="en"
+      className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
+    >
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }
