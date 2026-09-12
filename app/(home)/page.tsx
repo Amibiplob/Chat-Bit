@@ -1,5 +1,6 @@
 import { Footer } from "@/components/footer/footer";
 import { Navbar } from "@/components/header/navbar";
+import { FeaturesSection } from "@/components/home/features-section";
 import { HeroSection } from "@/components/home/hero-section";
 
 export default function HomePage() {
@@ -9,6 +10,7 @@ export default function HomePage() {
 
       <main>
         <HeroSection />
+        <FeaturesSection />
       </main>
 
       <Footer />
