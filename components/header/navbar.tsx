@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+
 import { MobileNav } from "./mobile-nav";
 
 const navigation = [
@@ -10,6 +11,10 @@ const navigation = [
   {
     label: "About",
     href: "#about",
+  },
+  {
+    label: "Security",
+    href: "#security",
   },
 ];
 
