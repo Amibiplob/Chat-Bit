@@ -1,5 +1,6 @@
 import { Footer } from "@/components/footer/footer";
 import { Navbar } from "@/components/header/navbar";
+import { CTASection } from "@/components/home/cta-section";
 import { FeaturesSection } from "@/components/home/features-section";
 import { HeroSection } from "@/components/home/hero-section";
 import { ProductShowcase } from "@/components/home/product-showcase";
@@ -15,6 +16,7 @@ export default function HomePage() {
         <FeaturesSection />
         <ProductShowcase />
         <SecuritySection />
+        <CTASection />
       </main>
 
       <Footer />
