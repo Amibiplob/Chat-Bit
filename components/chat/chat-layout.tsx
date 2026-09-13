@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AppSidebar } from "./app-sidebar";
 import { ConversationSidebar } from "./conversation-sidebar";
+import { ChatWindow } from "./chat-window";
 
 export function ChatLayout() {
   const [activeSection, setActiveSection] = useState("chats");
@@ -15,6 +16,8 @@ export function ChatLayout() {
       />
 
       <ConversationSidebar />
+
+      <ChatWindow />
     </div>
   );
 }
