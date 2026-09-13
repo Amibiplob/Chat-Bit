@@ -68,7 +68,7 @@ function DesktopPreview() {
           </div>
         </div>
 
-        <div className="grid min-h-[420px] grid-cols-[150px_1fr]">
+        <div className="grid min-h-105 grid-cols-[150px_1fr]">
           {/* Sidebar */}
           <aside className="border-r bg-muted/20 p-3">
             <div className="mb-5 flex items-center gap-2">
@@ -134,11 +134,11 @@ function DesktopPreview() {
               </div>
 
               <div className="ml-auto w-fit max-w-[70%] rounded-xl rounded-tr-sm bg-primary px-3 py-2 text-xs text-primary-foreground">
-                Going great! I'm almost finished.
+                Going great! I&apos;m almost finished.
               </div>
 
               <div className="w-fit max-w-[70%] rounded-xl rounded-tl-sm border bg-background px-3 py-2 text-xs">
-                Nice! Let me know when it's ready.
+                Nice! Let me know when it&apos;s ready.
               </div>
             </div>
 
