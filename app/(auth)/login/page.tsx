@@ -1,4 +1,3 @@
-
 import { LoginForm } from "@/components/auth/login-form";
 import Link from "next/link";
 
@@ -19,7 +18,7 @@ export default function LoginPage() {
         Don&apos;t have an account?
         <Link
           href="/signup"
-          className="font-semibold text-blue-500 hover:text-blue-600 hover:underline"
+          className="font-semibold text-blue-500 hover:text-blue-600 hover:underline ml-1"
         >
           Create one
         </Link>

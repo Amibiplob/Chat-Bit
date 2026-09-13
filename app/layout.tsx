@@ -45,7 +45,7 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
     >
-      <body className="min-h-full flex flex-col container">{children}</body>
+      <body className="min-h-full flex flex-col container mx-auto">{children}</body>
     </html>
   );
 }

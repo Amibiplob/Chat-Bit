@@ -17,10 +17,10 @@ export default function SignupPage() {
       <SignupForm />
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
+        Already have an account?
         <Link
           href="/login"
-          className="font-semibold text-blue-500 hover:text-blue-600 hover:underline"
+          className="font-semibold text-blue-500 hover:text-blue-600 hover:underline ml-1"
         >
           Sign in
         </Link>
