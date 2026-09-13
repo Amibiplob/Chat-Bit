@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageCirclePlus, Search, SlidersHorizontal } from "lucide-react";
-
+import { ConversationList } from "./conversation-list";
 
 export function ConversationSidebar() {
   return (
@@ -68,7 +68,7 @@ export function ConversationSidebar() {
         </button>
       </div>
 
-     
+      <ConversationList />
     </aside>
   );
 }
