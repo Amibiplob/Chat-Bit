@@ -144,7 +144,7 @@ export function MessageBubble({
                 : "rounded-2xl rounded-bl-md border bg-background px-4 py-2.5 text-sm shadow-sm"
             }
           >
-            <p className="whitespace-pre-wrap break-words leading-6">
+            <p className="whitespace-pre-wrap wrap-break-word leading-6">
               {message.content}
             </p>
 

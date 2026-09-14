@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { CheckCheck, Pin } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 const conversations = [
@@ -76,9 +78,9 @@ export function ConversationList() {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       {conversations.map((conversation) => (
-        <button
+        <Link
           key={conversation.id}
-          type="button"
+          href={`/chat/${conversation.id}`}
           className={cn(
             "flex w-full gap-3 border-b px-4 py-3.5 text-left transition-colors hover:bg-muted/50",
             conversation.id === 1 && "bg-muted/40",
@@ -143,7 +145,7 @@ export function ConversationList() {
               )}
             </div>
           </div>
-        </button>
+        </Link>
       ))}
     </div>
   );
