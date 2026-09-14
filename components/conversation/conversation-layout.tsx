@@ -10,6 +10,7 @@ import {
 } from "./conversation-data";
 import { ConversationHeader } from "./conversation-header";
 import { MessageArea } from "./message-area";
+import { MessageComposer } from "./message-composer";
 
 interface ConversationLayoutProps {
   conversationId: string;
@@ -47,6 +48,47 @@ export function ConversationLayout({
     );
   }
 
+  function handleSend(content: string) {
+    const trimmedContent = content.trim();
+
+    if (!trimmedContent) {
+      return;
+    }
+
+    if (editingMessage) {
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === editingMessage.id
+            ? {
+                ...message,
+                content: trimmedContent,
+                edited: true,
+              }
+            : message,
+        ),
+      );
+
+      setEditingMessage(null);
+      return;
+    }
+
+    const newMessage: Message = {
+      id: crypto.randomUUID(),
+      conversationId,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      content: trimmedContent,
+      createdAt: new Date().toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      status: "read",
+    };
+
+    setMessages((current) => [...current, newMessage]);
+    setReplyingTo(null);
+  }
+
   function handleReply(message: Message) {
     setReplyingTo(message);
     setEditingMessage(null);
@@ -63,6 +105,11 @@ export function ConversationLayout({
     );
   }
 
+  function handleCancelAction() {
+    setReplyingTo(null);
+    setEditingMessage(null);
+  }
+
   return (
     <main className="flex h-svh min-w-0 flex-1 flex-col bg-muted/20">
       <ConversationHeader conversation={conversation} />
@@ -73,6 +120,13 @@ export function ConversationLayout({
         onReply={handleReply}
         onEdit={handleEdit}
         onDelete={handleDelete}
+      />
+
+      <MessageComposer
+        onSend={handleSend}
+        replyingTo={replyingTo}
+        editingMessage={editingMessage}
+        onCancel={handleCancelAction}
       />
     </main>
   );
