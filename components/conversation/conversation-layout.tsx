@@ -1,9 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import { conversations } from "./conversation-data";
+import {
+  conversations,
+  currentUser,
+  messages as initialMessages,
+  type Message,
+} from "./conversation-data";
 import { ConversationHeader } from "./conversation-header";
+import { MessageArea } from "./message-area";
 
 interface ConversationLayoutProps {
   conversationId: string;
@@ -12,9 +18,19 @@ interface ConversationLayoutProps {
 export function ConversationLayout({
   conversationId,
 }: ConversationLayoutProps) {
+  const [messages, setMessages] = useState(initialMessages);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+
   const conversation = useMemo(
     () => conversations.find((item) => item.id === conversationId),
     [conversationId],
+  );
+
+  const conversationMessages = useMemo(
+    () =>
+      messages.filter((message) => message.conversationId === conversationId),
+    [messages, conversationId],
   );
 
   if (!conversation) {
@@ -31,9 +47,33 @@ export function ConversationLayout({
     );
   }
 
+  function handleReply(message: Message) {
+    setReplyingTo(message);
+    setEditingMessage(null);
+  }
+
+  function handleEdit(message: Message) {
+    setEditingMessage(message);
+    setReplyingTo(null);
+  }
+
+  function handleDelete(messageId: string) {
+    setMessages((current) =>
+      current.filter((message) => message.id !== messageId),
+    );
+  }
+
   return (
     <main className="flex h-svh min-w-0 flex-1 flex-col bg-muted/20">
       <ConversationHeader conversation={conversation} />
+
+      <MessageArea
+        messages={conversationMessages}
+        currentUserId={currentUser.id}
+        onReply={handleReply}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
     </main>
   );
 }
