@@ -5,6 +5,7 @@ import { SettingsSidebar } from "./settings-sidebar";
 import { ProfileSettings } from "./profile-settings";
 import { AccountSettings } from "./account-settings";
 import { AppearanceSettings } from "./appearance-settings";
+import { NotificationSettings } from "./notification-settings";
 
 export type SettingsSection =
   | "profile"
@@ -28,6 +29,9 @@ export function SettingsLayout() {
 
       case "appearance":
         return <AppearanceSettings />;
+
+      case "notifications":
+        return <NotificationSettings />;
 
       default:
         return <ProfileSettings />;
