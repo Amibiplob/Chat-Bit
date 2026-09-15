@@ -1,7 +1,5 @@
-import React from 'react'
+import { SettingsLayout } from "@/components/settings/settings-layout";
 
-export default function page() {
-  return (
-    <div>page</div>
-  )
+export default function SettingsPage() {
+  return <SettingsLayout />;
 }
