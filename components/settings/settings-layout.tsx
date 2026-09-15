@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SettingsSidebar } from "./settings-sidebar";
 import { ProfileSettings } from "./profile-settings";
+import { AccountSettings } from "./account-settings";
 
 export type SettingsSection =
   | "profile"
@@ -20,6 +21,9 @@ export function SettingsLayout() {
     switch (activeSection) {
       case "profile":
         return <ProfileSettings />;
+
+      case "account":
+        return <AccountSettings />;
 
       default:
         return <ProfileSettings />;
