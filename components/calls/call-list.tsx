@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 
 import { recentCalls, type Call } from "./call-data";
-
+import { CallListItem } from "./call-list-item";
 import { CallEmptyState } from "./call-empty-state";
 
 interface CallListProps {
@@ -13,7 +13,12 @@ interface CallListProps {
   onMore: (call: Call) => void;
 }
 
-export function CallList({ search }: CallListProps) {
+export function CallList({
+  search,
+  onVoiceCall,
+  onVideoCall,
+  onMore,
+}: CallListProps) {
   const filteredCalls = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -50,11 +55,21 @@ export function CallList({ search }: CallListProps) {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      {Object.entries(groupedCalls).map(([date]) => (
+      {Object.entries(groupedCalls).map(([date, calls]) => (
         <section key={date}>
           <div className="sticky top-0 z-10 border-b bg-muted/50 px-5 py-2 text-xs font-medium text-muted-foreground backdrop-blur">
             {date}
           </div>
+
+          {calls.map((call) => (
+            <CallListItem
+              key={call.id}
+              call={call}
+              onVoiceCall={onVoiceCall}
+              onVideoCall={onVideoCall}
+              onMore={onMore}
+            />
+          ))}
         </section>
       ))}
     </div>

@@ -1,9 +1,4 @@
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  PhoneMissed,
-  Video,
-} from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, PhoneMissed, Video } from "lucide-react";
 
 export type CallType = "voice" | "video";
 export type CallDirection = "incoming" | "outgoing" | "missed";
