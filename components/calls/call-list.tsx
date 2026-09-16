@@ -4,6 +4,8 @@ import { useMemo } from "react";
 
 import { recentCalls, type Call } from "./call-data";
 
+import { CallEmptyState } from "./call-empty-state";
+
 interface CallListProps {
   search: string;
   onVoiceCall: (call: Call) => void;
@@ -28,6 +30,10 @@ export function CallList({ search }: CallListProps) {
       );
     });
   }, [search]);
+
+  if (filteredCalls.length === 0) {
+    return <CallEmptyState search={search} />;
+  }
 
   const groupedCalls = filteredCalls.reduce<Record<string, Call[]>>(
     (groups, call) => {
