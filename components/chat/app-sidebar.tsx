@@ -82,13 +82,13 @@ export function AppSidebar({
           <Bell className="size-5" />
         </button>
 
-        <button
-          type="button"
+        <Link
+          href="/settings"
           title="Settings"
           className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Settings className="size-5" />
-        </button>
+        </Link>
       </nav>
 
       {/* Current user */}
