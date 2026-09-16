@@ -4,10 +4,28 @@ import { useState } from "react";
 import { Phone, Video, X } from "lucide-react";
 
 import type { Call } from "./call-data";
+import { CallList } from "./call-list";
+
 
 export function CallsPage() {
+  const [search, setSearch] = useState("");
   const [selectedCall, setSelectedCall] = useState<Call | null>(null);
   const [callAction, setCallAction] = useState<"voice" | "video" | null>(null);
+
+  const handleVoiceCall = (call: Call) => {
+    setSelectedCall(call);
+    setCallAction("voice");
+  };
+
+  const handleVideoCall = (call: Call) => {
+    setSelectedCall(call);
+    setCallAction("video");
+  };
+
+  const handleMore = (call: Call) => {
+    setSelectedCall(call);
+    setCallAction(null);
+  };
 
   const closeDialog = () => {
     setSelectedCall(null);
@@ -16,6 +34,14 @@ export function CallsPage() {
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-background">
+
+      <CallList
+        search={search}
+        onVoiceCall={handleVoiceCall}
+        onVideoCall={handleVideoCall}
+        onMore={handleMore}
+      />
+
       {/* Action dialog */}
       {selectedCall && (
         <div
