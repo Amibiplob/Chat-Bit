@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Phone, Video, X } from "lucide-react";
 
 import type { Call } from "./call-data";
+import { CallsHeader } from "./calls-header";
 import { CallList } from "./call-list";
-
 
 export function CallsPage() {
   const [search, setSearch] = useState("");
@@ -34,6 +34,7 @@ export function CallsPage() {
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-background">
+      <CallsHeader search={search} onSearchChange={setSearch} />
 
       <CallList
         search={search}
