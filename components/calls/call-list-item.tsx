@@ -1,13 +1,16 @@
 "use client";
 
-import { MoreVertical, Phone, Video } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  MoreVertical,
+  Phone,
+  PhoneMissed,
+  Video,
+} from "lucide-react";
 
 import type { Call } from "./call-data";
-import {
-  getCallDirectionIcon,
-  getCallDirectionLabel,
-  getCallTypeLabel,
-} from "./call-data";
+import { getCallDirectionLabel, getCallTypeLabel } from "./call-data";
 
 interface CallListItemProps {
   call: Call;
@@ -22,8 +25,6 @@ export function CallListItem({
   onVideoCall,
   onMore,
 }: CallListItemProps) {
-  const DirectionIcon = getCallDirectionIcon(call.direction);
-
   const isMissed = call.direction === "missed";
 
   return (
@@ -56,11 +57,13 @@ export function CallListItem({
         </div>
 
         <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <DirectionIcon
-            className={`size-3.5 ${
-              isMissed ? "text-red-500" : "text-muted-foreground"
-            }`}
-          />
+          {isMissed ? (
+            <PhoneMissed className="size-3.5 text-red-500" />
+          ) : call.direction === "incoming" ? (
+            <ArrowDownLeft className="size-3.5 text-muted-foreground" />
+          ) : (
+            <ArrowUpRight className="size-3.5 text-muted-foreground" />
+          )}
 
           <span>{getCallDirectionLabel(call.direction)}</span>
 

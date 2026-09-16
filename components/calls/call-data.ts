@@ -1,5 +1,3 @@
-import { ArrowDownLeft, ArrowUpRight, PhoneMissed, Video } from "lucide-react";
-
 export type CallType = "voice" | "video";
 export type CallDirection = "incoming" | "outgoing" | "missed";
 
@@ -83,14 +81,6 @@ export const recentCalls: Call[] = [
   },
 ];
 
-export function getCallDirectionIcon(direction: CallDirection) {
-  if (direction === "missed") {
-    return PhoneMissed;
-  }
-
-  return direction === "incoming" ? ArrowDownLeft : ArrowUpRight;
-}
-
 export function getCallDirectionLabel(direction: CallDirection) {
   if (direction === "missed") {
     return "Missed call";
@@ -102,5 +92,3 @@ export function getCallDirectionLabel(direction: CallDirection) {
 export function getCallTypeLabel(type: CallType) {
   return type === "video" ? "Video call" : "Voice call";
 }
-
-export { Video };
