@@ -16,6 +16,14 @@ model Profile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  conversationMembers ConversationMember[]
+  sentMessages        Message[]
+
+  contacts  Contact[] @relation("UserContacts")
+  contactOf Contact[] @relation("ContactOwner")
+
+  initiatedCalls Call[] @relation("CallInitiator")
+
   @@map("profiles")
 }
 
@@ -27,6 +35,10 @@ model Conversation {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  members  ConversationMember[]
+  messages Message[]
+  calls    Call[]
 
   @@map("conversations")
 }
@@ -64,6 +76,8 @@ model Message {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       Profile      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  attachments Attachment[]
 
   @@index([conversationId, createdAt])
   @@index([senderId])
@@ -155,4 +169,19 @@ model Call {
   @@index([initiatedBy])
   @@index([status])
   @@map("calls")
+}
+
+model CallParticipant {
+  callId String @db.Uuid
+  userId String @db.Uuid
+
+  joinedAt DateTime?
+  leftAt   DateTime?
+
+  call Call    @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([callId, userId])
+  @@index([userId])
+  @@map("call_participants")
 }
