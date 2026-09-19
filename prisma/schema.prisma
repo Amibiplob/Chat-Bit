@@ -22,7 +22,10 @@ model Profile {
   contacts  Contact[] @relation("UserContacts")
   contactOf Contact[] @relation("ContactOwner")
 
-  initiatedCalls Call[] @relation("CallInitiator")
+  initiatedCalls  Call[] @relation("CallInitiator")
+  callParticipants CallParticipant[]
+
+  notifications Notification[]
 
   @@map("profiles")
 }
