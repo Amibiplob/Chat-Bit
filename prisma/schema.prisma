@@ -6,6 +6,48 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  SYSTEM
+}
+
+enum ContactStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+enum CallType {
+  VOICE
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ONGOING
+  ENDED
+  MISSED
+  DECLINED
+}
+
+enum NotificationType {
+  MESSAGE
+  MENTION
+  CALL
+  CONTACT_REQUEST
+  CONTACT_ACCEPTED
+  SYSTEM
+}
+
 model Profile {
   id          String   @id @db.Uuid
   username    String   @unique @db.VarChar(30)
@@ -46,11 +88,6 @@ model Conversation {
   @@map("conversations")
 }
 
-enum ConversationType {
-  DIRECT
-  GROUP
-}
-
 model ConversationMember {
   conversationId String   @db.Uuid
   userId         String   @db.Uuid
@@ -64,7 +101,6 @@ model ConversationMember {
   @@id([conversationId, userId])
   @@map("conversation_members")
 }
-
 
 model Message {
   id             String      @id @default(uuid()) @db.Uuid
@@ -87,15 +123,6 @@ model Message {
   @@map("messages")
 }
 
-enum MessageType {
-  TEXT
-  IMAGE
-  VIDEO
-  AUDIO
-  FILE
-  SYSTEM
-}
-
 model Attachment {
   id        String   @id @default(uuid()) @db.Uuid
   messageId String   @db.Uuid
@@ -111,12 +138,6 @@ model Attachment {
 
   @@index([messageId])
   @@map("attachments")
-}
-
-enum ContactStatus {
-  PENDING
-  ACCEPTED
-  BLOCKED
 }
 
 model Contact {
@@ -139,19 +160,6 @@ model Contact {
   @@map("contacts")
 }
 
-enum CallType {
-  VOICE
-  VIDEO
-}
-
-enum CallStatus {
-  RINGING
-  ONGOING
-  ENDED
-  MISSED
-  DECLINED
-}
-
 model Call {
   id             String     @id @default(uuid()) @db.Uuid
   conversationId String     @db.Uuid
@@ -167,6 +175,8 @@ model Call {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   initiator   Profile      @relation("CallInitiator", fields: [initiatedBy], references: [id], onDelete: Cascade)
+
+  participants CallParticipant[]
 
   @@index([conversationId, createdAt])
   @@index([initiatedBy])
@@ -187,15 +197,6 @@ model CallParticipant {
   @@id([callId, userId])
   @@index([userId])
   @@map("call_participants")
-}
-
-enum NotificationType {
-  MESSAGE
-  MENTION
-  CALL
-  CONTACT_REQUEST
-  CONTACT_ACCEPTED
-  SYSTEM
 }
 
 model Notification {
