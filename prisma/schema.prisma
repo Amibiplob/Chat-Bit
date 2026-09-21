@@ -49,11 +49,11 @@ enum NotificationType {
 }
 
 model Profile {
-  id          String   @id @db.Uuid
-  username    String   @unique @db.VarChar(30)
-  displayName String   @db.VarChar(100)
+  id          String  @id @db.Uuid
+  username    String  @unique @db.VarChar(30)
+  displayName String  @db.VarChar(100)
   avatarUrl   String?
-  bio         String?  @db.VarChar(500)
+  bio         String? @db.VarChar(500)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -64,7 +64,7 @@ model Profile {
   contacts  Contact[] @relation("UserContacts")
   contactOf Contact[] @relation("ContactOwner")
 
-  initiatedCalls  Call[] @relation("CallInitiator")
+  initiatedCalls   Call[]            @relation("CallInitiator")
   callParticipants CallParticipant[]
 
   notifications Notification[]
@@ -89,8 +89,8 @@ model Conversation {
 }
 
 model ConversationMember {
-  conversationId String   @db.Uuid
-  userId         String   @db.Uuid
+  conversationId String @db.Uuid
+  userId         String @db.Uuid
 
   joinedAt   DateTime  @default(now())
   lastReadAt DateTime?
@@ -103,9 +103,9 @@ model ConversationMember {
 }
 
 model Message {
-  id             String      @id @default(uuid()) @db.Uuid
-  conversationId String      @db.Uuid
-  senderId       String      @db.Uuid
+  id             String @id @default(uuid()) @db.Uuid
+  conversationId String @db.Uuid
+  senderId       String @db.Uuid
 
   content String?     @db.Text
   type    MessageType @default(TEXT)
@@ -124,8 +124,8 @@ model Message {
 }
 
 model Attachment {
-  id        String   @id @default(uuid()) @db.Uuid
-  messageId String   @db.Uuid
+  id        String @id @default(uuid()) @db.Uuid
+  messageId String @db.Uuid
 
   storagePath String
   fileName    String
@@ -161,9 +161,9 @@ model Contact {
 }
 
 model Call {
-  id             String     @id @default(uuid()) @db.Uuid
-  conversationId String     @db.Uuid
-  initiatedBy    String     @db.Uuid
+  id             String @id @default(uuid()) @db.Uuid
+  conversationId String @db.Uuid
+  initiatedBy    String @db.Uuid
 
   type   CallType
   status CallStatus @default(RINGING)
@@ -174,7 +174,7 @@ model Call {
   createdAt DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  initiator   Profile      @relation("CallInitiator", fields: [initiatedBy], references: [id], onDelete: Cascade)
+  initiator    Profile      @relation("CallInitiator", fields: [initiatedBy], references: [id], onDelete: Cascade)
 
   participants CallParticipant[]
 
@@ -204,8 +204,8 @@ model Notification {
   userId String @db.Uuid
 
   type  NotificationType
-  title String            @db.VarChar(150)
-  body  String?           @db.Text
+  title String           @db.VarChar(150)
+  body  String?          @db.Text
 
   readAt DateTime?
 
