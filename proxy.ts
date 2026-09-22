@@ -32,7 +32,20 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isProtectedRoute = request.nextUrl.pathname.startsWith("/chat");
+
+  if (isProtectedRoute && !user) {
+    const url = request.nextUrl.clone();
+
+    url.pathname = "/login";
+    url.searchParams.set("redirectTo", request.nextUrl.pathname);
+
+    return NextResponse.redirect(url);
+  }
 
   return response;
 }
