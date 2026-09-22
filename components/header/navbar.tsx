@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { MobileNav } from "./mobile-nav";
 
-import { logout } from "@/lib/auth/logout";
+import { AuthNav } from "../layout/auth-nav";
 const navigation = [
   {
     label: "Features",
@@ -59,21 +59,7 @@ export function Navbar() {
 
         {/* Desktop Actions */}
         <div className="hidden items-center gap-3 md:flex">
-          <Link
-            href="/login"
-            className="rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            Login
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md"
-          >
-            Get Started
-          </Link>
-          <button type="button" onClick={logout}>
-            Logout
-          </button>
+          <AuthNav />
         </div>
 
         {/* Mobile Navigation */}

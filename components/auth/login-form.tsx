@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useState } from "react";
 import { FaGoogle } from "react-icons/fa6";
@@ -8,6 +9,8 @@ import { FaGoogle } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
+  const router = useRouter();
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +45,8 @@ export function LoginForm() {
       return;
     }
 
-    window.location.href = "/chat";
+    router.push("/chat");
+    router.refresh();
   }
 
   return (
@@ -120,20 +124,6 @@ export function LoginForm() {
         </div>
       </div>
 
-      {/* Remember */}
-      <div className="flex items-center gap-2">
-        <input
-          id="remember"
-          name="remember"
-          type="checkbox"
-          className="size-4 rounded border accent-blue-500"
-        />
-
-        <label htmlFor="remember" className="text-sm text-muted-foreground">
-          Remember me
-        </label>
-      </div>
-
       {/* Submit */}
       <button
         type="submit"
@@ -159,7 +149,8 @@ export function LoginForm() {
       {/* Google */}
       <button
         type="button"
-        className="flex h-11 w-full items-center justify-center gap-3 rounded-lg border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        disabled
+        className="flex h-11 w-full items-center justify-center gap-3 rounded-lg border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
       >
         <FaGoogle />
         Continue with Google
