@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import type { Message } from "./conversation-data";
+import type { Message } from "@/types/message";
 import { MessageBubble } from "./message-bubble";
 import { TypingIndicator } from "./typing-indicator";
 
