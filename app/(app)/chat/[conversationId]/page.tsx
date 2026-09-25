@@ -1,4 +1,7 @@
+import { redirect } from "next/navigation";
+
 import { ConversationLayout } from "@/components/conversation/conversation-layout";
+import { createClient } from "@/lib/supabase/server";
 
 interface ConversationPageProps {
   params: Promise<{
@@ -11,5 +14,20 @@ export default async function ConversationPage({
 }: ConversationPageProps) {
   const { conversationId } = await params;
 
-  return <ConversationLayout conversationId={conversationId} />;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  return (
+    <ConversationLayout
+      conversationId={conversationId}
+      currentUserId={user.id}
+    />
+  );
 }

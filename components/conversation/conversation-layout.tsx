@@ -14,10 +14,12 @@ import { MessageComposer } from "./message-composer";
 
 interface ConversationLayoutProps {
   conversationId: string;
+  currentUserId: string;
 }
 
 export function ConversationLayout({
   conversationId,
+  currentUserId,
 }: ConversationLayoutProps) {
   const [messages, setMessages] = useState(initialMessages);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -75,7 +77,7 @@ export function ConversationLayout({
     const newMessage: Message = {
       id: crypto.randomUUID(),
       conversationId,
-      senderId: currentUser.id,
+      senderId: currentUserId,
       senderName: currentUser.name,
       content: trimmedContent,
       createdAt: new Date().toLocaleTimeString([], {
@@ -116,7 +118,7 @@ export function ConversationLayout({
 
       <MessageArea
         messages={conversationMessages}
-        currentUserId={currentUser.id}
+        currentUserId={currentUserId}
         onReply={handleReply}
         onEdit={handleEdit}
         onDelete={handleDelete}
