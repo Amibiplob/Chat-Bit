@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 
 import {
   conversations,
-  currentUser,
   messages as initialMessages,
   type Message,
 } from "./conversation-data";
@@ -14,12 +13,16 @@ import { MessageComposer } from "./message-composer";
 
 interface ConversationLayoutProps {
   conversationId: string;
-  currentUserId: string;
+  currentUser: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
 }
 
 export function ConversationLayout({
   conversationId,
-  currentUserId,
+  currentUser,
 }: ConversationLayoutProps) {
   const [messages, setMessages] = useState(initialMessages);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -77,7 +80,7 @@ export function ConversationLayout({
     const newMessage: Message = {
       id: crypto.randomUUID(),
       conversationId,
-      senderId: currentUserId,
+      senderId: currentUser.id,
       senderName: currentUser.name,
       content: trimmedContent,
       createdAt: new Date().toLocaleTimeString([], {
@@ -118,7 +121,7 @@ export function ConversationLayout({
 
       <MessageArea
         messages={conversationMessages}
-        currentUserId={currentUserId}
+        currentUserId={currentUser.id}
         onReply={handleReply}
         onEdit={handleEdit}
         onDelete={handleDelete}

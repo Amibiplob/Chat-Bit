@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { ConversationLayout } from "@/components/conversation/conversation-layout";
 import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
 
 interface ConversationPageProps {
   params: Promise<{
@@ -24,10 +25,30 @@ export default async function ConversationPage({
     redirect("/login");
   }
 
+  const profile = await prisma.profile.findUnique({
+    where: {
+      id: user.id,
+    },
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+    },
+  });
+
+  if (!profile) {
+    redirect("/profile/create");
+  }
+
   return (
     <ConversationLayout
       conversationId={conversationId}
-      currentUserId={user.id}
+      currentUser={{
+        id: profile.id,
+        name: profile.displayName ?? profile.username,
+        avatar: profile.avatarUrl ?? undefined,
+      }}
     />
   );
 }
