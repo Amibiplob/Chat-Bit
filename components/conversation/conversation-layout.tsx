@@ -1,101 +1,66 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import type { Message } from "./conversation-data";
+import {
+  conversations,
+  messages as initialMessages,
+  type Message,
+} from "./conversation-data";
 import { ConversationHeader } from "./conversation-header";
 import { MessageArea } from "./message-area";
 import { MessageComposer } from "./message-composer";
 
 interface ConversationLayoutProps {
   conversationId: string;
-
   currentUser: {
     id: string;
     name: string;
     avatar?: string;
-  };
-
-  conversation: {
-    id: string;
-    type: "DIRECT" | "GROUP";
-    name: string | null;
-    avatarUrl: string | null;
-
-    messages: Array<{
-      id: string;
-      conversationId: string;
-      senderId: string;
-      content: string | null;
-      type: string;
-      createdAt: Date;
-      updatedAt: Date;
-      sender: {
-        id: string;
-        displayName: string;
-        avatarUrl: string | null;
-      };
-    }>;
   };
 }
 
 export function ConversationLayout({
   conversationId,
   currentUser,
-  conversation,
 }: ConversationLayoutProps) {
-  const [messages, setMessages] = useState<Message[]>(
-    conversation.messages.map((message) => ({
-      id: message.id,
-      conversationId: message.conversationId,
-      senderId: message.senderId,
-      senderName: message.sender.displayName,
-      content: message.content ?? "",
-      createdAt: message.createdAt.toLocaleTimeString([], {
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-      status: "read",
-      edited:
-        message.updatedAt.getTime() !== message.createdAt.getTime(),
-    })),
-  );
-
+  const [messages, setMessages] = useState(initialMessages);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [sending, setSending] = useState(false);
 
-  const headerConversation = {
-    id: conversation.id,
-    name:
-      conversation.name ??
-      (conversation.type === "DIRECT"
-        ? "Direct Conversation"
-        : "Group Conversation"),
-    initials: getInitials(
-      conversation.name ??
-        (conversation.type === "DIRECT"
-          ? "Direct Conversation"
-          : "Group Conversation"),
-    ),
-    color: "bg-muted text-muted-foreground",
-    online: false,
-    message: "",
-    time: "",
-    unread: 0,
-    pinned: false,
-  };
-
-  const conversationMessages = messages.filter(
-    (message) => message.conversationId === conversationId,
+  const conversation = useMemo(
+    () => conversations.find((item) => item.id === conversationId),
+    [conversationId],
   );
 
-  function handleSend(content: string) {
+  const conversationMessages = useMemo(
+    () =>
+      messages.filter((message) => message.conversationId === conversationId),
+    [messages, conversationId],
+  );
+
+  if (!conversation) {
+    return (
+      <main className="flex h-svh min-w-0 flex-1 items-center justify-center bg-muted/20">
+        <div className="px-6 text-center">
+          <h1 className="text-lg font-semibold">Conversation not found</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            The conversation you are looking for does not exist.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  async function handleSend(content: string) {
     const trimmedContent = content.trim();
 
-    if (!trimmedContent) {
+    if (!trimmedContent || sending) {
       return;
     }
 
+    // Editing will be implemented later.
     if (editingMessage) {
       setMessages((current) =>
         current.map((message) =>
@@ -113,21 +78,48 @@ export function ConversationLayout({
       return;
     }
 
-    const newMessage: Message = {
-      id: crypto.randomUUID(),
-      conversationId,
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      content: trimmedContent,
-      createdAt: new Date().toLocaleTimeString([], {
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-      status: "read",
-    };
+    try {
+      setSending(true);
 
-    setMessages((current) => [...current, newMessage]);
-    setReplyingTo(null);
+      const response = await fetch(
+        `/api/conversations/${conversationId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            content: trimmedContent,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send message");
+      }
+
+      const newMessage: Message = {
+        id: data.id,
+        conversationId: data.conversationId,
+        senderId: data.senderId,
+        senderName: data.sender.displayName,
+        content: data.content ?? "",
+        createdAt: new Date(data.createdAt).toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+        status: "sent",
+      };
+
+      setMessages((current) => [...current, newMessage]);
+      setReplyingTo(null);
+    } catch (error) {
+      console.error("Send message error:", error);
+    } finally {
+      setSending(false);
+    }
   }
 
   function handleReply(message: Message) {
@@ -153,7 +145,7 @@ export function ConversationLayout({
 
   return (
     <main className="flex h-svh min-w-0 flex-1 flex-col bg-muted/20">
-      <ConversationHeader conversation={headerConversation} />
+      <ConversationHeader conversation={conversation} />
 
       <MessageArea
         messages={conversationMessages}
@@ -171,13 +163,4 @@ export function ConversationLayout({
       />
     </main>
   );
-}
-
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
 }
