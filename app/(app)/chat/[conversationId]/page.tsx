@@ -41,14 +41,57 @@ export default async function ConversationPage({
     redirect("/profile/create");
   }
 
+  const conversation = await prisma.conversation.findFirst({
+    where: {
+      id: conversationId,
+      members: {
+        some: {
+          userId: user.id,
+        },
+      },
+    },
+    select: {
+      id: true,
+      type: true,
+      name: true,
+      avatarUrl: true,
+
+      messages: {
+        orderBy: {
+          createdAt: "asc",
+        },
+        select: {
+          id: true,
+          conversationId: true,
+          senderId: true,
+          content: true,
+          type: true,
+          createdAt: true,
+          updatedAt: true,
+          sender: {
+            select: {
+              id: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!conversation) {
+    redirect("/chat");
+  }
   return (
     <ConversationLayout
       conversationId={conversationId}
       currentUser={{
         id: profile.id,
-        name: profile.displayName ?? profile.username,
+        name: profile.displayName,
         avatar: profile.avatarUrl ?? undefined,
       }}
+      conversation={conversation}
     />
   );
 }
