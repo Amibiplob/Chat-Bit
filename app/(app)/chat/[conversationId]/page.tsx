@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { ConversationLayout } from "@/components/conversation/conversation-layout";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 
 interface ConversationPageProps {
   params: Promise<{
@@ -15,6 +15,7 @@ export default async function ConversationPage({
 }: ConversationPageProps) {
   const { conversationId } = await params;
 
+  // 1. Get authenticated user
   const supabase = await createClient();
 
   const {
@@ -25,6 +26,7 @@ export default async function ConversationPage({
     redirect("/login");
   }
 
+  // 2. Get user's profile
   const profile = await prisma.profile.findUnique({
     where: {
       id: user.id,
@@ -41,6 +43,8 @@ export default async function ConversationPage({
     redirect("/profile/create");
   }
 
+  // 3. Get the conversation
+  //    Only allow users who are members of it.
   const conversation = await prisma.conversation.findFirst({
     where: {
       id: conversationId,
@@ -68,6 +72,7 @@ export default async function ConversationPage({
           type: true,
           createdAt: true,
           updatedAt: true,
+
           sender: {
             select: {
               id: true,
@@ -80,15 +85,18 @@ export default async function ConversationPage({
     },
   });
 
+  // 4. Conversation doesn't exist
+  //    OR current user isn't a member.
   if (!conversation) {
     redirect("/chat");
   }
+
   return (
     <ConversationLayout
       conversationId={conversationId}
       currentUser={{
         id: profile.id,
-        name: profile.displayName,
+        name: profile.displayName ?? profile.username,
         avatar: profile.avatarUrl ?? undefined,
       }}
       conversation={conversation}

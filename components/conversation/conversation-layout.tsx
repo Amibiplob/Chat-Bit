@@ -1,57 +1,103 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
-import {
-  conversations,
-  messages as initialMessages,
-  type Message,
-} from "./conversation-data";
+import type { Message } from "./conversation-data";
 import { ConversationHeader } from "./conversation-header";
 import { MessageArea } from "./message-area";
 import { MessageComposer } from "./message-composer";
 
 interface ConversationLayoutProps {
   conversationId: string;
+
   currentUser: {
     id: string;
     name: string;
     avatar?: string;
+  };
+
+  conversation: {
+    id: string;
+    type: "DIRECT" | "GROUP";
+    name: string | null;
+    avatarUrl: string | null;
+
+    messages: Array<{
+      id: string;
+      conversationId: string;
+      senderId: string;
+      content: string | null;
+      type: string;
+      createdAt: Date;
+      updatedAt: Date;
+
+      sender: {
+        id: string;
+        displayName: string;
+        avatarUrl: string | null;
+      };
+    }>;
   };
 }
 
 export function ConversationLayout({
   conversationId,
   currentUser,
+  conversation,
 }: ConversationLayoutProps) {
-  const [messages, setMessages] = useState(initialMessages);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [sending, setSending] = useState(false);
 
-  const conversation = useMemo(
-    () => conversations.find((item) => item.id === conversationId),
-    [conversationId],
-  );
+  /*
+   * Convert Prisma messages into the format
+   * your existing MessageArea expects.
+   */
+  const messages: Message[] = conversation.messages.map((message) => ({
+    id: message.id,
+    conversationId: message.conversationId,
+    senderId: message.senderId,
+    senderName: message.sender.displayName,
+    content: message.content ?? "",
+    createdAt: message.createdAt.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+    status: "read",
+    edited:
+      message.updatedAt.getTime() !== message.createdAt.getTime(),
+  }));
 
-  const conversationMessages = useMemo(
-    () =>
-      messages.filter((message) => message.conversationId === conversationId),
-    [messages, conversationId],
-  );
+  /*
+   * Temporary header object.
+   *
+   * Your current ConversationHeader still expects
+   * the old conversation shape, so we adapt the
+   * database conversation to it here.
+   */
+const headerConversation = {
+  id: conversation.id,
+  name:
+    conversation.name ??
+    (conversation.type === "DIRECT" ? "Conversation" : "Group"),
+  avatar: conversation.avatarUrl ?? undefined,
+  type: conversation.type,
+  online: false,
 
-  if (!conversation) {
-    return (
-      <main className="flex h-svh min-w-0 flex-1 items-center justify-center bg-muted/20">
-        <div className="px-6 text-center">
-          <h1 className="text-lg font-semibold">Conversation not found</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The conversation you are looking for does not exist.
-          </p>
-        </div>
-      </main>
-    );
-  }
+  initials: (
+    conversation.name ??
+    (conversation.type === "DIRECT" ? "C" : "G")
+  )
+    .slice(0, 2)
+    .toUpperCase(),
+
+  color: "bg-muted",
+
+  message: "",
+  time: "",
+  unread: 0,
+  pinned: false,
+};
 
   async function handleSend(content: string) {
     const trimmedContent = content.trim();
@@ -60,20 +106,8 @@ export function ConversationLayout({
       return;
     }
 
-    // Editing will be implemented later.
+    // Editing will be connected to the database later.
     if (editingMessage) {
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === editingMessage.id
-            ? {
-                ...message,
-                content: trimmedContent,
-                edited: true,
-              }
-            : message,
-        ),
-      );
-
       setEditingMessage(null);
       return;
     }
@@ -100,20 +134,16 @@ export function ConversationLayout({
         throw new Error(data.error || "Failed to send message");
       }
 
-      const newMessage: Message = {
-        id: data.id,
-        conversationId: data.conversationId,
-        senderId: data.senderId,
-        senderName: data.sender.displayName,
-        content: data.content ?? "",
-        createdAt: new Date(data.createdAt).toLocaleTimeString([], {
-          hour: "numeric",
-          minute: "2-digit",
-        }),
-        status: "sent",
-      };
+      /*
+       * The message is already saved in PostgreSQL.
+       *
+       * We don't add it manually here because this
+       * component currently receives messages from
+       * the server. Realtime will handle live updates
+       * in a later step.
+       */
+      console.log("Message created:", data);
 
-      setMessages((current) => [...current, newMessage]);
       setReplyingTo(null);
     } catch (error) {
       console.error("Send message error:", error);
@@ -133,9 +163,7 @@ export function ConversationLayout({
   }
 
   function handleDelete(messageId: string) {
-    setMessages((current) =>
-      current.filter((message) => message.id !== messageId),
-    );
+    console.log("Delete message:", messageId);
   }
 
   function handleCancelAction() {
@@ -145,10 +173,10 @@ export function ConversationLayout({
 
   return (
     <main className="flex h-svh min-w-0 flex-1 flex-col bg-muted/20">
-      <ConversationHeader conversation={conversation} />
+      <ConversationHeader conversation={headerConversation} />
 
       <MessageArea
-        messages={conversationMessages}
+        messages={messages}
         currentUserId={currentUser.id}
         onReply={handleReply}
         onEdit={handleEdit}
