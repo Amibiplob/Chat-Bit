@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu } from "lucide-react";
+import { Menu, MessageCircle } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -9,7 +9,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { AuthNav } from "../layout/auth-nav";
 
 const navigation = [
   { label: "Features", href: "#features" },
@@ -66,7 +65,25 @@ export function MobileNav() {
           ))}
         </nav>
         <div className="mt-auto flex flex-col gap-3 border-t pt-6">
-          <AuthNav />
+          <Link
+            href="/chat"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <MessageCircle className="size-4" />
+            Chat
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex h-11 w-full items-center justify-center rounded-lg border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Login
+          </Link>
+          <Link
+            href="/signup"
+            className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Get Started
+          </Link>
         </div>
       </SheetContent>
     </Sheet>
