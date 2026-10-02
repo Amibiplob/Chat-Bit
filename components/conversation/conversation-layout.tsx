@@ -117,6 +117,7 @@ export function ConversationLayout({
       <MessageArea
         messages={conversationMessages}
         currentUserId={currentUser.id}
+        conversationInitials={conversation.initials}
         onReply={handleReply}
         onEdit={handleEdit}
         onDelete={handleDelete}

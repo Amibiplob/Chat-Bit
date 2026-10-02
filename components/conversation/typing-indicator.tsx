@@ -1,8 +1,12 @@
-export function TypingIndicator() {
+interface TypingIndicatorProps {
+  initials: string;
+}
+
+export function TypingIndicator({ initials }: TypingIndicatorProps) {
   return (
     <div className="flex items-end gap-2">
       <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold text-violet-600">
-        SJ
+        {initials}
       </div>
 
       <div className="rounded-2xl rounded-bl-md border bg-background px-4 py-3 shadow-sm">

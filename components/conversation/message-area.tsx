@@ -9,6 +9,7 @@ import { TypingIndicator } from "./typing-indicator";
 interface MessageAreaProps {
   messages: Message[];
   currentUserId: string;
+  conversationInitials: string;
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (messageId: string) => void;
@@ -17,6 +18,7 @@ interface MessageAreaProps {
 export function MessageArea({
   messages,
   currentUserId,
+  conversationInitials,
   onReply,
   onEdit,
   onDelete,
@@ -44,6 +46,7 @@ export function MessageArea({
             key={message.id}
             message={message}
             isOwn={message.senderId === currentUserId}
+            senderInitials={conversationInitials}
             onReply={onReply}
             onEdit={onEdit}
             onDelete={onDelete}
@@ -51,7 +54,7 @@ export function MessageArea({
         ))}
 
         {/* Demo typing indicator */}
-        <TypingIndicator />
+        <TypingIndicator initials={conversationInitials} />
 
         <div ref={bottomRef} />
       </div>

@@ -16,6 +16,7 @@ import type { Message } from "./conversation-data";
 interface MessageBubbleProps {
   message: Message;
   isOwn: boolean;
+  senderInitials: string;
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (messageId: string) => void;
@@ -24,6 +25,7 @@ interface MessageBubbleProps {
 export function MessageBubble({
   message,
   isOwn,
+  senderInitials,
   onReply,
   onEdit,
   onDelete,
@@ -45,7 +47,7 @@ export function MessageBubble({
         {/* Other user's avatar */}
         {!isOwn && (
           <div className="mb-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold text-violet-600">
-            SJ
+            {senderInitials}
           </div>
         )}
 
