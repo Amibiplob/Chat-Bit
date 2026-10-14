@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { AlertTriangle, ChevronRight, LogOut } from "lucide-react";
+import { LogoutButton } from "@/components/auth/logout-button";
+import type { AuthUser } from "@/lib/auth-types";
 
-export function AccountSettings() {
+export function AccountSettings({ user }: { user: AuthUser }) {
   const [language, setLanguage] = useState("English");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
@@ -33,12 +35,12 @@ export function AccountSettings() {
               <div>
                 <p className="text-sm font-medium">Email address</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  biplob@example.com
+                  {user.email}
                 </p>
               </div>
 
               <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-600">
-                Verified
+                Signed in
               </span>
             </div>
 
@@ -46,7 +48,7 @@ export function AccountSettings() {
               <div>
                 <p className="text-sm font-medium">Account ID</p>
                 <p className="mt-1 font-mono text-xs text-muted-foreground">
-                  chatbit-user-001
+                  {user.id}
                 </p>
               </div>
             </div>
@@ -89,7 +91,7 @@ export function AccountSettings() {
                 <p className="text-sm font-medium">Current browser</p>
 
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Linux · Chrome · Active now
+                  Session expires after 7 days
                 </p>
               </div>
 
@@ -110,6 +112,7 @@ export function AccountSettings() {
         </section>
 
         {/* Danger zone */}
+        <LogoutButton />
         <section className="rounded-xl border border-destructive/30 p-5">
           <div className="flex gap-3">
             <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />

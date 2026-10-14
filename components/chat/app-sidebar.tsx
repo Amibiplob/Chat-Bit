@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { Bell, MessageCircle, Phone, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoutButton } from "@/components/auth/logout-button";
+import type { AuthUser } from "@/lib/auth-types";
 
 interface AppSidebarProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
+  user: AuthUser;
 }
 
 const navigation = [
@@ -30,6 +33,7 @@ const navigation = [
 export function AppSidebar({
   activeSection,
   onSectionChange,
+  user,
 }: AppSidebarProps) {
   return (
     <aside className="hidden w-18 shrink-0 flex-col border-r bg-muted/20 md:flex">
@@ -95,11 +99,13 @@ export function AppSidebar({
       <div className="border-t p-3">
         <button
           type="button"
-          title="Your profile"
+          title={user.displayName}
+          aria-label={`Signed in as ${user.displayName}`}
           className="flex size-11 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600 transition-opacity hover:opacity-80 dark:bg-blue-950 dark:text-blue-300"
         >
-          MB
+          {user.displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
         </button>
+        <LogoutButton compact />
       </div>
     </aside>
   );

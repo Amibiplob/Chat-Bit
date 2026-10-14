@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { MobileNav } from "./mobile-nav";
 import { MessageCircle } from "lucide-react";
+import { getCurrentUser } from "@/lib/server/auth";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 const navigation = [
   {
@@ -19,7 +21,8 @@ const navigation = [
   },
 ];
 
-export function Navbar() {
+export async function Navbar() {
+  const user = await getCurrentUser();
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -66,23 +69,29 @@ export function Navbar() {
             <MessageCircle className="size-4" />
             Chat
           </Link>
-          <Link
-            href="/login"
-            className="rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            Login
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md"
-          >
-            Get Started
-          </Link>
+          {user ? (
+            <LogoutButton />
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                Login
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Navigation */}
         <div className="md:hidden">
-          <MobileNav />
+          <MobileNav authenticated={Boolean(user)} />
         </div>
       </div>
     </header>

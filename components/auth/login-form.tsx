@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { useState } from "react";
-import { FaGoogle } from "react-icons/fa6";
+import { useActionState, useState } from "react";
+import { loginAction, type AuthState } from "@/app/actions/auth";
 
 export function LoginForm() {
+  const [state, action, pending] = useActionState<AuthState, FormData>(loginAction, {});
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form className="space-y-5">
+    <form action={action} className="space-y-5" aria-busy={pending}>
+      {state.error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{state.error}</p>}
       {/* Email */}
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium">
@@ -24,6 +26,7 @@ export function LoginForm() {
             name="email"
             type="email"
             placeholder="you@example.com"
+            maxLength={254}
             autoComplete="email"
             required
             className="h-11 w-full rounded-lg border bg-background pl-10 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
@@ -54,6 +57,7 @@ export function LoginForm() {
             name="password"
             type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
+            maxLength={128}
             autoComplete="current-password"
             required
             className="h-11 w-full rounded-lg border bg-background pl-10 pr-11 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
@@ -74,49 +78,17 @@ export function LoginForm() {
         </div>
       </div>
 
-      {/* Remember */}
-      <div className="flex items-center gap-2">
-        <input
-          id="remember"
-          name="remember"
-          type="checkbox"
-          className="size-4 rounded border accent-blue-500"
-        />
-
-        <label htmlFor="remember" className="text-sm text-muted-foreground">
-          Remember me
-        </label>
-      </div>
+      <p className="text-xs text-muted-foreground">Your session lasts 7 days. Sign out on shared devices.</p>
 
       {/* Submit */}
       <button
         type="submit"
+        disabled={pending}
         className="h-11 w-full rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        Sign in
+        {pending ? "Signing in…" : "Sign in"}
       </button>
 
-      {/* Divider */}
-      <div className="relative py-1">
-        <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t" />
-        </div>
-
-        <div className="relative flex justify-center">
-          <span className="bg-background px-3 text-xs text-muted-foreground">
-            OR
-          </span>
-        </div>
-      </div>
-
-      {/* Google */}
-      <button
-        type="button"
-        className="flex h-11 w-full items-center justify-center gap-3 rounded-lg border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <FaGoogle />
-        Continue with Google
-      </button>
     </form>
   );
 }

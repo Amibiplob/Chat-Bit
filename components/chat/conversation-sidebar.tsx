@@ -2,6 +2,7 @@
 
 import { MessageCirclePlus, Search, SlidersHorizontal } from "lucide-react";
 import { ConversationList } from "./conversation-list";
+import { LogoutButton } from "@/components/auth/logout-button";
 
 export function ConversationSidebar() {
   return (
@@ -69,6 +70,9 @@ export function ConversationSidebar() {
       </div>
 
       <ConversationList />
+      <div className="border-t p-3 md:hidden">
+        <LogoutButton />
+      </div>
     </aside>
   );
 }

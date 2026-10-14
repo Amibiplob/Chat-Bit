@@ -27,11 +27,11 @@ from milestone commits.
 
 ## Milestones
 
-1. **Database foundation (this milestone):** additive relational schema, bounded
+1. **Database foundation (implemented):** additive relational schema, bounded
    verified-TLS pg pool, transaction helper, migration lock/checksums, internal
    membership-scoped message/attachment reads, unit and real PostgreSQL tests.
    These helpers are not exposed to clients or connected to mock UI yet.
-2. **Authentication:** Argon2id, opaque random tokens with hashed session records,
+2. **Authentication (implemented):** Argon2id, opaque random tokens with hashed session records,
    HTTP-only cookies, expiry/revocation, same-origin mutation protection, shared
    persistent rate limiting, validated forms, protected layout and route checks.
 3. **Conversations/messaging:** authenticated user context at every API boundary,
@@ -58,7 +58,30 @@ for integration tests. Never migrate an unknown database automatically during a
 build. Do not promise free-tier availability, no-card account signup, TURN
 coverage or deployed reliability without checking the selected providers.
 
-No deployed backend is verified. Authentication and later milestones remain open.
+No deployed backend is verified. Authentication is now implemented locally;
+messaging and later milestones remain open. See [authentication](authentication.md).
+
+## Authentication milestone
+
+Reused users/sessions without editing migration 001. Added migration 002 for
+persistent atomic rate limits, Argon2id hashing, hashed seven-day session tokens,
+Server Actions, secure cookies, login/signup/logout integration, page/layout guards
+and session-derived data-access authorization. Public navigation and account UI
+now use the signed-in identity. Password recovery is explicitly unavailable.
+
+The HTTP harness uses a separate Next.js output directory and TypeScript config
+to preserve the already-running development server. Next.js generated AGENTS.md
+and CLAUDE.md during development; their version-specific guide instructions were
+read and retained. Existing conversation-list edits and local env files remain
+outside the milestone commit. No application database was migrated.
+
+Verification: 37 unit, isolated PostgreSQL and real Next.js HTTP tests passed.
+TypeScript, lint for milestone files and diff whitespace checks passed.
+Repository-wide lint retains the two pre-existing React effect errors and one
+icon accessibility warning. The standard build reproduced the Turbopack
+PostCSS worker port restriction (`Operation not permitted`); the supported
+`pnpm exec next build --webpack` fallback completed successfully. No deployment
+or production browser/device verification was performed.
 
 ## Database milestone verification
 

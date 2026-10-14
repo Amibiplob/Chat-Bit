@@ -1,4 +1,7 @@
-export default function ChatPage() {
+import { requireUser } from "@/lib/server/auth";
+
+export default async function ChatPage() {
+  await requireUser();
   return (
     <div className="flex flex-1 items-center justify-center">
       <div className="px-6 text-center">

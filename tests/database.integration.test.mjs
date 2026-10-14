@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -24,15 +24,21 @@ test('PostgreSQL migrations, constraints, transactions and private data access',
     await admin.query(`CREATE SCHEMA ${schema}`);
     schemaCreated = true;
     pool = new pg.Pool({ ...settings, options: `-c search_path=${schema}` });
+    const migrationDirectory = new URL('../db/migrations/', import.meta.url);
+    const migrationFiles = (await readdir(migrationDirectory)).filter((name) => name.endsWith('.sql'));
+    async function copyMigrations(directory) {
+      for (const name of migrationFiles) await writeFile(join(directory, name), await readFile(new URL(name, migrationDirectory)));
+    }
     await t.test('migration applies once and concurrent runs are serialized', async () => {
       const outcomes = await Promise.all([migrate(pool), migrate(pool)]);
-      assert.equal(outcomes.flat().length, 1);
+      assert.equal(outcomes.flat().length, migrationFiles.length);
       assert.deepEqual(await migrate(pool), []);
-      assert.equal((await pool.query('SELECT count(*) FROM chatbit_schema_migrations')).rows[0].count, '1');
+      assert.equal((await pool.query('SELECT count(*) FROM chatbit_schema_migrations')).rows[0].count, String(migrationFiles.length));
     });
     await t.test('migration checksum detects edited files', async () => {
       const directory = await mkdtemp(join(tmpdir(), 'chatbit-migrations-'));
       try {
+        await copyMigrations(directory);
         const sql = await readFile(new URL('../db/migrations/001_initial.sql', import.meta.url), 'utf8');
         await writeFile(join(directory, '001_initial.sql'), `${sql}\n-- changed`);
         await assert.rejects(migrate(pool, pathToFileURL(`${directory}/`)), /modified/);
@@ -41,12 +47,11 @@ test('PostgreSQL migrations, constraints, transactions and private data access',
     await t.test('failed migrations rollback both DDL and migration records', async () => {
       const directory = await mkdtemp(join(tmpdir(), 'chatbit-migrations-'));
       try {
-        const sql = await readFile(new URL('../db/migrations/001_initial.sql', import.meta.url), 'utf8');
-        await writeFile(join(directory, '001_initial.sql'), sql);
-        await writeFile(join(directory, '002_failure.sql'), 'CREATE TABLE rollback_probe (id integer); SELECT * FROM nonexistent_probe;');
+        await copyMigrations(directory);
+        await writeFile(join(directory, '999_failure.sql'), 'CREATE TABLE rollback_probe (id integer); SELECT * FROM nonexistent_probe;');
         await assert.rejects(migrate(pool, pathToFileURL(`${directory}/`)), { code: '42P01' });
         assert.equal((await pool.query("SELECT to_regclass('rollback_probe') AS table_name")).rows[0].table_name, null);
-        assert.equal((await pool.query('SELECT count(*) FROM chatbit_schema_migrations')).rows[0].count, '1');
+        assert.equal((await pool.query('SELECT count(*) FROM chatbit_schema_migrations')).rows[0].count, String(migrationFiles.length));
       } finally { await rm(directory, { recursive: true }); }
     });
     const [a, b, c] = [randomUUID(), randomUUID(), randomUUID()].sort();

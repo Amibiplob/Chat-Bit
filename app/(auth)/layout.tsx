@@ -1,11 +1,14 @@
 import { Navbar } from "@/components/header/navbar";
 import type { ReactNode } from "react";
+import { getCurrentUser } from "@/lib/server/auth";
+import { redirect } from "next/navigation";
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
+  if (await getCurrentUser()) redirect("/chat");
   return (
     <div className="min-h-svh bg-muted/30">
       <Navbar />

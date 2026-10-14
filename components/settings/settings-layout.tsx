@@ -8,6 +8,7 @@ import { AppearanceSettings } from "./appearance-settings";
 import { NotificationSettings } from "./notification-settings";
 import { PrivacySettings } from "./privacy-settings";
 import { SecuritySettings } from "./security-settings";
+import type { AuthUser } from "@/lib/auth-types";
 
 export type SettingsSection =
   | "profile"
@@ -17,7 +18,7 @@ export type SettingsSection =
   | "privacy"
   | "security";
 
-export function SettingsLayout() {
+export function SettingsLayout({ user }: { user: AuthUser }) {
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("profile");
 
@@ -27,7 +28,7 @@ export function SettingsLayout() {
         return <ProfileSettings />;
 
       case "account":
-        return <AccountSettings />;
+        return <AccountSettings user={user} />;
 
       case "appearance":
         return <AppearanceSettings />;

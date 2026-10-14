@@ -5,12 +5,14 @@ import { useState } from "react";
 import { AppSidebar } from "./app-sidebar";
 import { ConversationSidebar } from "./conversation-sidebar";
 import { CallsPage } from "@/components/calls/calls-page";
+import type { AuthUser } from "@/lib/auth-types";
 
 interface ChatLayoutProps {
   children: React.ReactNode;
+  user: AuthUser;
 }
 
-export function ChatLayout({ children }: ChatLayoutProps) {
+export function ChatLayout({ children, user }: ChatLayoutProps) {
   const [activeSection, setActiveSection] = useState("chats");
 
   return (
@@ -18,6 +20,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
       <AppSidebar
         activeSection={activeSection}
         onSectionChange={setActiveSection}
+        user={user}
       />
 
       {activeSection === "chats" && (

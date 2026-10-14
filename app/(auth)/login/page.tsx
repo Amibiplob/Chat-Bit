@@ -1,7 +1,10 @@
 import { LoginForm } from "@/components/auth/login-form";
 import Link from "next/link";
+import { getCurrentUser } from "@/lib/server/auth";
+import { redirect } from "next/navigation";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  if (await getCurrentUser()) redirect("/chat");
   return (
     <>
       <div className="mb-6 text-center">

@@ -3,8 +3,9 @@
 ChatBit is a portfolio communication application with an existing responsive
 landing page, authentication screens, chat interface, calls page and settings.
 The UI currently uses demonstration conversations, messages and calls.
-The first backend milestone adds PostgreSQL infrastructure; it does **not**
-make authentication, realtime messaging, uploads or WebRTC functional yet.
+The database foundation and secure authentication are implemented. Registration,
+login, logout and protected application routes use PostgreSQL-backed sessions.
+Realtime messaging, uploads and WebRTC remain future milestones.
 
 ## Stack and architecture
 
@@ -14,15 +15,15 @@ No ORM or Supabase integration is used by the new backend.
 
 The intended deployment has Next.js UI/HTTP APIs on Vercel, a PostgreSQL database,
 a separately hosted persistent WebSocket service, private object storage and
-WebRTC media between browsers. Only the database foundation is implemented.
+WebRTC media between browsers. Database infrastructure and authentication are implemented.
 Ordinary Vercel functions cannot host the persistent WebSocket service.
 
 Server-only modules live in `lib/server`. The database pool initializes lazily,
 uses a small connection limit and verifies TLS certificates. Transactions acquire
 one pg client and release it after commit/rollback. Internal message and file
 queries join conversation membership before returning private data. These
-primitives require a user ID from a future verified server session; they are
-not public endpoints. SQL is parameterized and credentials are never logged.
+server-only wrappers derive the user ID from a validated session on every data
+access; callers cannot supply an arbitrary user ID. They are not public endpoints. SQL is parameterized and credentials are never logged.
 
 Implementation references: [pg transactions](https://node-postgres.com/features/transactions),
 [pg TLS configuration](https://node-postgres.com/features/ssl), and
@@ -37,13 +38,14 @@ Next.js requires Node.js 20.9 or newer. If using nvm, run `nvm use 24`.
 
 ```bash
 pnpm install --frozen-lockfile
-cp .env.example .env.local
+cp -n .env.example .env.local
 pnpm dev
 ```
 
-Open http://localhost:3000. The existing demo UI does not require a database.
-Do not publish the current prototype as a secure messaging service: application
-routes are not yet protected and forms/settings still need backend integration.
+Open http://localhost:3000. Public pages work without a database; authentication
+and protected application pages require a configured, migrated PostgreSQL database.
+The chat and call UI still uses sample data, and profile/settings persistence
+remains unfinished. See [authentication setup and security](docs/authentication.md).
 
 ## PostgreSQL setup and migrations
 
@@ -94,6 +96,8 @@ PostgreSQL row-level security. Never expose database credentials to browsers.
 | `DATABASE_SSL` | `verify` (default); `disable` only for local loopback development |
 | `DATABASE_SSL_CA` | Optional PEM CA certificate for verified TLS |
 | `DATABASE_POOL_MAX` | Integer 1–20, default 3; budget across all serverless instances |
+| `AUTH_RATE_LIMIT_SECRET` | Required in production, at least 32 random characters, shared across instances |
+| `TEST_AUTH_HTTP` | Set to `1` with the test database to run real Next.js form/route tests |
 | `TEST_DATABASE_URL` | Separate PostgreSQL database used only by integration tests |
 | `TEST_DATABASE_SSL` | Test TLS policy, default `verify` |
 
@@ -103,8 +107,9 @@ verification. TLS cannot be disabled for remote hosts or production. No variable
 above may use a `NEXT_PUBLIC_` prefix. Keep `.env` and `.env.local` out of Git.
 `.env.example` contains placeholders only.
 
-Authentication/session, realtime, file storage and TURN variables will be added
-with their implementations; they are not consumed by the current code.
+Generate `AUTH_RATE_LIMIT_SECRET` with `openssl rand -hex 32` and configure it in
+Vercel. Development uses a local fallback when it is unset; production fails
+closed. Realtime, file storage and TURN configuration remain future work.
 
 ## Testing
 
@@ -130,7 +135,19 @@ only that newly created schema afterward. They check migration idempotency,
 concurrent migration locking, checksum protection, transaction rollback,
 conversation membership, duplicate messages, cross-conversation replies,
 attachment restrictions, read states, call participants and soft deletion.
-No authentication, browser, realtime, upload or call integration is verified yet.
+Authentication integration tests cover registration, duplicate races, login,
+expiry, logout/revocation and concurrent database rate limits. To also test real
+Next.js Server Action forms, cookies, redirects and cross-origin mutation rejection:
+
+```bash
+TEST_DATABASE_URL=postgresql://chatbit:local-password@127.0.0.1:5432/chatbit_test TEST_DATABASE_SSL=disable TEST_AUTH_HTTP=1 pnpm test
+```
+
+The HTTP harness starts its own server with an isolated output directory under
+`.next/auth-http-test`, without stopping an existing development server. Tests
+use temporary database schemas and never migrate the configured application
+database. Full browser/device tests and realtime/upload/call integrations are
+still unverified.
 The audited baseline has two React effect lint errors and one accessibility
 warning; these are recorded in the audit for subsequent UI work.
 
@@ -168,8 +185,8 @@ After completing the remaining milestones:
 3. Configure Vercel with the pinned pnpm version, install with the frozen lockfile,
    build with `pnpm build`, and set server-only environment variables.
 4. Provision and configure external WebSocket hosting, private storage and TURN.
-5. Complete authentication, cross-account authorization tests, security headers,
-   persistent rate limiting and request/upload limits before opening the service.
+5. Set `AUTH_RATE_LIMIT_SECRET`, run authentication and cross-account tests, and
+   complete messaging, security headers and upload limits before opening the service.
 6. Smoke-test two accounts, reconnects, private downloads and calls on real devices.
 
 No deployment was performed by this milestone. Free infrastructure may sleep,

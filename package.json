@@ -13,6 +13,7 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@hookform/resolvers": "^5.9.1",
+    "@node-rs/argon2": "^2.2.2",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.5",
     "dotenv": "^18.0.0",

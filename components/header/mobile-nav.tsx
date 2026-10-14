@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, MessageCircle } from "lucide-react";
+import { LogoutButton } from "@/components/auth/logout-button";
 import {
   Sheet,
   SheetContent,
@@ -16,7 +17,7 @@ const navigation = [
   { label: "Security", href: "#security" },
 ];
 
-export function MobileNav() {
+export function MobileNav({ authenticated }: { authenticated: boolean }) {
   return (
     <Sheet>
       <SheetTrigger
@@ -72,18 +73,24 @@ export function MobileNav() {
             <MessageCircle className="size-4" />
             Chat
           </Link>
-          <Link
-            href="/login"
-            className="inline-flex h-11 w-full items-center justify-center rounded-lg border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Login
-          </Link>
-          <Link
-            href="/signup"
-            className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            Get Started
-          </Link>
+          {authenticated ? (
+            <LogoutButton />
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="inline-flex h-11 w-full items-center justify-center rounded-lg border bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Login
+              </Link>
+              <Link
+                href="/signup"
+                className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>

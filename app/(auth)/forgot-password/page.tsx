@@ -2,18 +2,8 @@
 
 import Link from "next/link";
 import { Mail, ArrowLeft } from "lucide-react";
-import { useState } from "react";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    // TODO: Connect Supabase password reset later
-    console.log("Reset password for:", email);
-  }
-
   return (
     <>
       <div className="mb-6 text-center">
@@ -22,11 +12,11 @@ export default function ForgotPasswordPage() {
         </h1>
 
         <p className="mt-2 text-sm text-muted-foreground">
-          Enter your email and we&apos;ll send you a link to reset your password.
+          Password recovery is not available yet. You can return to sign in or create an account.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form className="space-y-5">
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium">
             Email address
@@ -40,8 +30,7 @@ export default function ForgotPasswordPage() {
               name="email"
               type="email"
               placeholder="you@example.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              disabled
               required
               autoComplete="email"
               className="h-11 w-full rounded-lg border bg-background pl-10 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
@@ -51,9 +40,10 @@ export default function ForgotPasswordPage() {
 
         <button
           type="submit"
+          disabled
           className="h-11 w-full rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
         >
-          Send reset link
+          Recovery unavailable
         </button>
       </form>
 

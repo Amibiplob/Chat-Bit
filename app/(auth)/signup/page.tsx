@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { SignupForm } from "@/components/auth/signup-form";
+import { getCurrentUser } from "@/lib/server/auth";
+import { redirect } from "next/navigation";
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  if (await getCurrentUser()) redirect("/chat");
   return (
     <>
       <div className="mb-6 text-center">
