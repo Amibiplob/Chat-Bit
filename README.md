@@ -1,949 +1,180 @@
-ChatBit
+# ChatBit
 
-<p align="center">
-  <strong>Modern real-time communication platform built with Next.js, TypeScript, PostgreSQL, Supabase, and Prisma.</strong>
-</p>
+ChatBit is a portfolio communication application with an existing responsive
+landing page, authentication screens, chat interface, calls page and settings.
+The UI currently uses demonstration conversations, messages and calls.
+The first backend milestone adds PostgreSQL infrastructure; it does **not**
+make authentication, realtime messaging, uploads or WebRTC functional yet.
 
-<p align="center">
-  A portfolio-focused full-stack application designed to demonstrate real-world application architecture, authentication, real-time communication, scalable data modeling, and modern React development.
-</p>
+## Stack and architecture
 
-<p align="center">
-  <a href="https://chat-bit-rouge.vercel.app">Live Demo</a>
-  ·
-  <a href="https://github.com/Amibiplob/Chat-Bit">Source Code</a>
-</p>
+Next.js App Router 16.3.4, React 19.2.8, TypeScript, Tailwind CSS 4,
+Base UI/shadcn, and PostgreSQL accessed with direct parameterized SQL using `pg`.
+No ORM or Supabase integration is used by the new backend.
 
-Overview
+The intended deployment has Next.js UI/HTTP APIs on Vercel, a PostgreSQL database,
+a separately hosted persistent WebSocket service, private object storage and
+WebRTC media between browsers. Only the database foundation is implemented.
+Ordinary Vercel functions cannot host the persistent WebSocket service.
 
-ChatBit is a full-stack real-time communication platform inspired by modern messaging applications such as WhatsApp and Telegram.
+Server-only modules live in `lib/server`. The database pool initializes lazily,
+uses a small connection limit and verifies TLS certificates. Transactions acquire
+one pg client and release it after commit/rollback. Internal message and file
+queries join conversation membership before returning private data. These
+primitives require a user ID from a future verified server session; they are
+not public endpoints. SQL is parameterized and credentials are never logged.
 
-The goal of ChatBit is not simply to build another chat UI. The project is being developed as a production-oriented portfolio application that demonstrates how a modern communication product can be structured across the frontend, backend, database, authentication, real-time infrastructure, file storage, and peer-to-peer communication layers.
+Implementation references: [pg transactions](https://node-postgres.com/features/transactions),
+[pg TLS configuration](https://node-postgres.com/features/ssl), and
+[PostgreSQL constraints](https://www.postgresql.org/docs/16/ddl-constraints.html).
 
-The application uses Next.js App Router as the application framework, TypeScript for type safety, Supabase for managed PostgreSQL, authentication, realtime capabilities and storage, and Prisma ORM for database access and type-safe data modeling.
+See [the repository audit and remaining milestones](docs/implementation-plan.md).
 
-Project Goals
+## Local development
 
-ChatBit is being built to demonstrate practical full-stack engineering skills, including:
+Use Node.js 24 LTS and the pinned pnpm version in package.json.
+Next.js requires Node.js 20.9 or newer. If using nvm, run `nvm use 24`.
 
-Modern React and Next.js architecture
-
-Type-safe application development
-
-Authentication and authorization
-
-Relational database design
-
-ORM-based database access
-
-Real-time application architecture
-
-Server-side API design
-
-File upload and storage workflows
-
-WebRTC-based voice and video communication
-
-Responsive UI development
-
-Component-driven frontend architecture
-
-Form validation and error handling
-
-Secure handling of user data
-
-Production-oriented project organization
-
-Core Features
-
-Authentication
-
-ChatBit includes dedicated authentication flows designed around a modern application structure.
-
-User registration
-
-User login
-
-Forgot-password flow
-
-Protected application routes
-
-Authentication-aware navigation
-
-Server-side authentication integration
-
-Authentication is designed around Supabase Auth and the Next.js server/client architecture.
-
-Real-Time Messaging
-
-The main product experience is centered around real-time communication.
-
-Planned/core messaging capabilities include:
-
-One-to-one conversations
-
-Message persistence
-
-Real-time message updates
-
-Conversation-based UI
-
-Message timestamps
-
-User presence
-
-Conversation state management
-
-File Sharing
-
-ChatBit is designed to support file sharing directly inside conversations.
-
-The storage layer is planned around Supabase Storage so uploaded files can be associated with users and conversations while keeping application data in PostgreSQL.
-
-Voice Calls
-
-The application includes a dedicated call experience and is being structured to support browser-based audio communication.
-
-The communication layer is intended to use WebRTC for peer-to-peer media connections.
-
-Video Calls
-
-ChatBit also includes a dedicated video-call experience.
-
-The WebRTC architecture is intended to handle:
-
-Camera access
-
-Microphone access
-
-Peer connections
-
-Media streams
-
-Call state
-
-Connection lifecycle
-
-Real-Time Application State
-
-The frontend uses modern state-management patterns to coordinate interactive application state.
-
-Zustand is included for client-side state management where local/global state is required.
-
-Technology Stack
-
-Frontend
-
-Technology
-
-Purpose
-
-Next.js 16
-
-Full-stack React framework
-
-React 19
-
-UI development
-
-TypeScript
-
-Static typing
-
-Tailwind CSS 4
-
-Styling
-
-shadcn/ui / Base UI
-
-Reusable UI components
-
-Lucide React
-
-UI icons
-
-React Icons
-
-Brand and additional icons
-
-Zustand
-
-Client-side state management
-
-React Hook Form
-
-Form management
-
-Zod
-
-Schema validation
-
-Backend
-
-Technology
-
-Purpose
-
-Next.js Route Handlers
-
-Backend API endpoints
-
-Prisma ORM
-
-Type-safe database access
-
-PostgreSQL
-
-Relational application database
-
-Supabase
-
-Managed backend infrastructure
-
-Supabase SSR
-
-Authentication/session integration
-
-Communication
-
-Technology
-
-Purpose
-
-Supabase Realtime
-
-Real-time application events/data
-
-WebRTC
-
-Peer-to-peer voice and video communication
-
-Supabase Storage
-
-File and media storage
-
-Development
-
-Tool
-
-Purpose
-
-pnpm
-
-Package management
-
-ESLint
-
-Code quality
-
-Vercel
-
-Deployment
-
-Architecture
-
-ChatBit follows a full-stack architecture where the Next.js application acts as both the frontend and application backend.
-
-┌─────────────────────────────────────────────┐
-│                  ChatBit UI                 │
-│        Next.js + React + TypeScript         │
-└──────────────────────┬──────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────┐
-│          Application / API Layer             │
-│       Next.js Route Handlers / Server       │
-└───────────────┬───────────────┬─────────────┘
-                │               │
-                ▼               ▼
-       ┌────────────────┐   ┌────────────────┐
-       │  Prisma ORM    │   │ Supabase APIs  │
-       └───────┬────────┘   └───────┬────────┘
-               │                    │
-               ▼                    ├──────────────┐
-       ┌────────────────┐            │              │
-       │  PostgreSQL    │            ▼              ▼
-       │    Database    │      Supabase Auth   Supabase Storage
-       └────────────────┘
-                                      │
-                                      ▼
-                               Realtime Services
-
-                         Browser ↔ WebRTC ↔ Browser
-                              Voice / Video
-
-The architecture keeps the application logic organized while allowing specialized infrastructure to handle authentication, realtime events, storage, and peer-to-peer media communication.
-
-Application Structure
-
-The project uses the Next.js App Router and separates application routes from reusable UI and supporting libraries.
-
-chat-bit/
-│
-├── app/
-│   ├── (marketing)/
-│   │   └── ...
-│   │
-│   ├── (auth)/
-│   │   ├── login/
-│   │   ├── signup/
-│   │   ├── forgot-password/
-│   │   └── ...
-│   │
-│   ├── call/
-│   │   └── ...
-│   │
-│   ├── ...
-│   └── layout.tsx
-│
-├── components/
-│   ├── auth/
-│   ├── layout/
-│   ├── ui/
-│   └── ...
-│
-├── lib/
-│   ├── ...
-│   └── ...
-│
-├── public/
-│   └── ...
-│
-├── prisma.config.ts
-├── components.json
-├── next.config.ts
-├── package.json
-├── pnpm-lock.yaml
-└── tsconfig.json
-
-The exact structure will continue evolving as backend and realtime functionality is implemented.
-
-Database
-
-ChatBit uses PostgreSQL as its primary relational database.
-
-Prisma ORM provides:
-
-Type-safe database queries
-
-Schema-driven development
-
-Database relationships
-
-Migration support
-
-Generated TypeScript types
-
-A structured data-access layer
-
-The database is hosted through Supabase.
-
-The data model is being designed around core communication concepts such as:
-
-User
- │
- ├── Profile
- │
- ├── Conversations
- │      │
- │      ├── Participants
- │      │
- │      └── Messages
- │
- ├── Files
- │
- └── Calls
-
-The schema will evolve as additional communication functionality is implemented.
-
-Authentication
-
-Authentication is integrated with Supabase Auth and the Next.js application architecture.
-
-The project uses @supabase/ssr to support authentication across browser and server environments.
-
-The intended flow is:
-
-Browser
-   │
-   ▼
-Authentication UI
-   │
-   ▼
-Supabase Auth
-   │
-   ▼
-Session
-   │
-   ├── Client Components
-   │
-   └── Server Components / Route Handlers
-
-Protected application routes can then use the authenticated session to determine whether a user is allowed to access application resources.
-
-Real-Time Communication
-
-Real-time functionality is one of the central engineering goals of ChatBit.
-
-Instead of relying entirely on traditional request/response communication, the application is designed to support live updates between connected clients.
-
-For example:
-
-User A
-  │
-  │ sends message
-  ▼
-ChatBit Backend
-  │
-  ▼
-PostgreSQL
-  │
-  ▼
-Realtime Event
-  │
-  ▼
-User B
-  │
-  ▼
-Message appears without page refresh
-
-This architecture allows the application to move toward the experience users expect from modern messaging platforms.
-
-Voice & Video Architecture
-
-Voice and video communication are designed around WebRTC.
-
-A simplified call flow looks like:
-
-Caller                         Receiver
-  │                               │
-  │──── Call Request ────────────►│
-  │                               │
-  │◄──── Signaling Data ─────────►│
-  │                               │
-  │══════ WebRTC Connection ══════│
-  │                               │
-  │◄──── Audio / Video Stream ───►│
-
-WebRTC is responsible for establishing the peer-to-peer media connection, while the application layer handles the surrounding call state and signaling requirements.
-
-Validation & Type Safety
-
-ChatBit uses TypeScript throughout the application.
-
-Form and request validation is handled with Zod, while React Hook Form is used for form state and submission workflows.
-
-This combination helps keep validation close to the data boundary:
-
-User Input
-    │
-    ▼
-React Hook Form
-    │
-    ▼
-Zod Validation
-    │
-    ▼
-Validated Data
-    │
-    ▼
-Server / API
-
-This reduces the chance of invalid data reaching the backend.
-
-UI Architecture
-
-The frontend is built around reusable components rather than putting all UI logic directly inside route files.
-
-The project uses:
-
-Reusable UI primitives
-
-Feature-oriented components
-
-Route-level layouts
-
-Responsive navigation
-
-Mobile-specific navigation patterns
-
-Shared form components
-
-Consistent design tokens
-
-Tailwind CSS
-
-shadcn/Base UI components
-
-The goal is to keep UI components composable and maintainable as the application grows.
-
-Design Direction
-
-ChatBit is designed as a modern communication product rather than a generic dashboard.
-
-The landing experience communicates the major product capabilities:
-
-Messaging
-
-File sharing
-
-Voice calls
-
-Video calls
-
-Real-time communication
-
-Security
-
-Responsive application experience
-
-The application also includes dedicated authentication and communication routes so the public marketing experience and authenticated product experience remain separated.
-
-Performance Considerations
-
-Performance is considered throughout the architecture rather than treated only as a final optimization step.
-
-Areas being considered include:
-
-Next.js Server Components
-
-Client Components only where interaction requires them
-
-Route-level code splitting
-
-Optimized assets
-
-Responsive UI
-
-Efficient database queries
-
-Indexed relational data
-
-Avoiding unnecessary client-side state
-
-Realtime subscription lifecycle management
-
-WebRTC peer-to-peer media communication
-
-As the backend implementation grows, database queries and realtime subscriptions will be profiled and optimized based on actual application behavior.
-
-Security Considerations
-
-Security is treated as part of the application architecture.
-
-Important areas include:
-
-Authentication through Supabase Auth
-
-Server-side session verification
-
-Protected application routes
-
-Input validation with Zod
-
-Database-level access controls
-
-Controlled file access
-
-Environment variables for secrets
-
-Avoiding exposure of server-only credentials
-
-Authorization checks before accessing user-owned resources
-
-Sensitive credentials should never be committed to the repository.
-
-Local Development
-
-Prerequisites
-
-Make sure you have:
-
-Node.js
-
-pnpm
-
-A Supabase project
-
-PostgreSQL database access
-
-Git
-
-1. Clone the repository
-
-git clone https://github.com/Amibiplob/Chat-Bit.git
-
-cd Chat-Bit
-
-2. Install dependencies
-
-pnpm install
-
-3. Configure environment variables
-
-Create a .env.local file in the project root.
-
-Example:
-
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-
-DATABASE_URL=
-DIRECT_URL=
-
-Do not commit .env.local or any file containing private credentials.
-
-The exact environment variables may change as backend functionality is added.
-
-4. Configure the database
-
-After configuring the PostgreSQL connection, generate the Prisma client:
-
-pnpm exec prisma generate
-
-Run the appropriate Prisma database workflow for the current schema.
-
-5. Start the development server
-
+```bash
+pnpm install --frozen-lockfile
+cp .env.example .env.local
 pnpm dev
+```
 
-Open:
+Open http://localhost:3000. The existing demo UI does not require a database.
+Do not publish the current prototype as a secure messaging service: application
+routes are not yet protected and forms/settings still need backend integration.
 
-http://localhost:3000
+## PostgreSQL setup and migrations
 
-Available Scripts
+Use PostgreSQL 16 or newer. Create a dedicated database and database role locally,
+or configure a managed PostgreSQL provider. This milestone does not provision
+an account or verify any provider's free-tier/no-card eligibility.
 
-Command
+```sql
+CREATE ROLE chatbit LOGIN PASSWORD 'replace-with-a-local-password';
+CREATE DATABASE chatbit OWNER chatbit;
+```
 
-Description
+Set `.env.local` with your own connection details. Run migrations deliberately
+against the intended database, separately from builds:
 
-pnpm dev
+```bash
+pnpm db:migrate
+```
 
-Start development server
+The migration runner loads `.env.local` then `.env` without overwriting existing
+process variables. `DATABASE_MIGRATION_URL`, when nonempty, selects a direct
+endpoint for migrations; otherwise `DATABASE_URL` is used. Use the public schema
+in a dedicated database. Migration SQL is additive and creates users, sessions,
+canonical direct conversations, members, messages, attachments, per-message
+read states and calls. UUIDs, timestamps, indexes, foreign keys and checks enforce
+membership and relationships. Deleting messages is intended to use `deleted_at`.
+Attachment-only messages will need a validated caption or a later schema change.
 
-pnpm build
+Migrations run in one transaction under an advisory lock. Completed filenames
+and SHA-256 checksums are recorded in `chatbit_schema_migrations`. Reruns skip
+unchanged files; changed/missing applied files are rejected. Do not edit applied
+migrations. Add the next numbered SQL file instead. There is no automatic reset,
+drop or rollback command. Existing conflicting tables cause migration failure;
+inspect and plan a safe reconciliation rather than removing data.
 
-Create production build
+In production, use a direct connection for migrations and a provider-supported
+pooled endpoint for application queries. Give the application role only needed
+SELECT/INSERT/UPDATE/DELETE permissions; use a separate migration role for DDL.
+The current authorization boundary is server-side membership-scoped SQL, not
+PostgreSQL row-level security. Never expose database credentials to browsers.
 
-pnpm start
+## Environment variables
 
-Start production server
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Server-only PostgreSQL application connection string |
+| `DATABASE_MIGRATION_URL` | Optional direct migration connection string |
+| `DATABASE_SSL` | `verify` (default); `disable` only for local loopback development |
+| `DATABASE_SSL_CA` | Optional PEM CA certificate for verified TLS |
+| `DATABASE_POOL_MAX` | Integer 1–20, default 3; budget across all serverless instances |
+| `TEST_DATABASE_URL` | Separate PostgreSQL database used only by integration tests |
+| `TEST_DATABASE_SSL` | Test TLS policy, default `verify` |
 
+Remove SSL and `uselibpqcompat` URL parameters and configure
+TLS through these variables. This avoids pg URL options overriding certificate
+verification. TLS cannot be disabled for remote hosts or production. No variables
+above may use a `NEXT_PUBLIC_` prefix. Keep `.env` and `.env.local` out of Git.
+`.env.example` contains placeholders only.
+
+Authentication/session, realtime, file storage and TURN variables will be added
+with their implementations; they are not consumed by the current code.
+
+## Testing
+
+```bash
+pnpm test
+pnpm exec tsc --noEmit
 pnpm lint
-
-Run ESLint
-
-pnpm exec prisma generate
-
-Generate Prisma Client
-
-Deployment
-
-ChatBit is designed to be deployable using Vercel for the Next.js application.
-
-The production architecture uses managed services rather than requiring a dedicated server:
-
-                    ┌───────────────┐
-                    │    Vercel     │
-                    │   Next.js     │
-                    └───────┬───────┘
-                            │
-             ┌──────────────┼──────────────┐
-             │              │              │
-             ▼              ▼              ▼
-        Supabase Auth   PostgreSQL     Supabase
-                                      Realtime/Storage
-
-This keeps the infrastructure relatively simple while allowing the application to scale beyond a purely local development environment.
-
-Current Development Status
-
-ChatBit is an actively developed portfolio project.
-
-Implemented / In Progress
-
-Next.js App Router foundation
-
-TypeScript
-
-Responsive marketing/landing structure
-
-Authentication route structure
-
-Login flow UI
-
-Signup flow UI
-
-Forgot-password route
-
-Application route structure
-
-Dedicated call route
-
-Reusable component architecture
-
-Tailwind CSS
-
-shadcn/Base UI components
-
-Supabase integration foundation
-
-Prisma configuration
-
-PostgreSQL architecture
-
-Client-side state management foundation
-
-Complete messaging backend
-
-Complete realtime messaging
-
-File upload/storage workflow
-
-Voice calling
-
-Video calling
-
-Complete WebRTC signaling
-
-Production testing
-
-CI/CD automation
-
-The checklist reflects the development state of the repository and will be updated as features are completed.
-
-Roadmap
-
-Phase 1 — Foundation
-
-Application architecture
-
-Marketing pages
-
-Authentication routes
-
-Shared UI system
-
-Database architecture
-
-Phase 2 — Core Communication
-
-User profiles
-
-Conversation creation
-
-Direct messaging
-
-Message persistence
-
-Realtime message delivery
-
-Online/offline presence
-
-Typing indicators
-
-Phase 3 — Media & Files
-
-File uploads
-
-Image previews
-
-Document sharing
-
-Supabase Storage integration
-
-Message attachments
-
-Phase 4 — Calling
-
-Call signaling
-
-Audio calls
-
-Video calls
-
-Camera/microphone controls
-
-Call status
-
-Call termination
-
-WebRTC connection management
-
-Phase 5 — Production Engineering
-
-Automated tests
-
-GitHub Actions
-
-Error monitoring
-
-Performance profiling
-
-Database query optimization
-
-Security hardening
-
-Production deployment
-
-Engineering Decisions
-
-Why Next.js?
-
-Next.js provides the foundation for both the user interface and server-side application logic.
-
-Using the App Router allows ChatBit to combine:
-
-Server Components
-
-Client Components
-
-Route Handlers
-
-Layouts
-
-Server-side data access
-
-Modern React patterns
-
-Why TypeScript?
-
-A communication platform has many interconnected entities and states.
-
-TypeScript helps make those relationships explicit and reduces runtime errors as the application grows.
-
-Why PostgreSQL?
-
-Messaging applications naturally contain relational data:
-
-Users
-
-Conversations
-
-Participants
-
-Messages
-
-Attachments
-
-Calls
-
-PostgreSQL provides a strong relational model for these relationships.
-
-Why Prisma?
-
-Prisma provides a type-safe interface between the application and PostgreSQL while keeping database models explicit and maintainable.
-
-Why Supabase?
-
-Supabase provides several backend capabilities that fit the project:
-
-PostgreSQL
-
-Authentication
-
-Realtime functionality
-
-File storage
-
-This allows ChatBit to use managed infrastructure without requiring a large custom backend platform.
-
-Why WebRTC?
-
-Voice and video calls require efficient real-time media communication.
-
-WebRTC provides browser-native peer-to-peer communication capabilities, making it suitable for the calling layer.
-
-What This Project Demonstrates
-
-ChatBit is intentionally designed to demonstrate more than frontend development.
-
-A recruiter reviewing the project can see work across:
-
-Frontend Engineering
-
-React
-
-Next.js
-
-TypeScript
-
-Responsive UI
-
-Component architecture
-
-Form handling
-
-Client-side state
-
-Backend Engineering
-
-API route design
-
-Authentication
-
-Authorization
-
-Database access
-
-Validation
-
-Server-side application logic
-
-Database Engineering
-
-PostgreSQL
-
-Relational modeling
-
-Prisma ORM
-
-Data relationships
-
-Query design
-
-Real-Time Engineering
-
-Supabase Realtime
-
-WebRTC
-
-Live application state
-
-Peer-to-peer communication
-
-Production Engineering
-
-Environment configuration
-
-Deployment
-
-Performance considerations
-
-Security considerations
-
-Maintainable project structure
-
-Project Status
-
-ChatBit is currently under active development.
-
-The repository represents an evolving full-stack application rather than a finished commercial product. Features listed in the roadmap are intentionally documented so the development direction remains transparent.
-
-Author
-
-Md Biplob Hosain
-
-Junior Full-Stack / Software Engineer
-
-Portfolio: amibiplob.vercel.app
-
-GitHub: github.com/Amibiplob
-
-LinkedIn: linkedin.com/in/amibiplob
-
-License
-
-This project is currently intended as a personal portfolio and learning project.
-
-See the repository for the current licensing status.
+pnpm build
+git diff --check
+```
+
+The native Node.js test runner needs no additional test framework. Unit tests
+cover configuration and transaction lifecycle. PostgreSQL integration tests
+are skipped unless `TEST_DATABASE_URL` is set. Point it at a dedicated test
+instance, never a production database:
+
+```bash
+TEST_DATABASE_URL=postgresql://chatbit:local-password@127.0.0.1:5432/chatbit_test TEST_DATABASE_SSL=disable pnpm test
+```
+
+Integration tests create a randomly named schema, apply migrations and remove
+only that newly created schema afterward. They check migration idempotency,
+concurrent migration locking, checksum protection, transaction rollback,
+conversation membership, duplicate messages, cross-conversation replies,
+attachment restrictions, read states, call participants and soft deletion.
+No authentication, browser, realtime, upload or call integration is verified yet.
+The audited baseline has two React effect lint errors and one accessibility
+warning; these are recorded in the audit for subsequent UI work.
+
+## Realtime, storage and WebRTC requirements
+
+Realtime remains a future milestone. A persistent external WebSocket service
+must authenticate connections, authorize every conversation subscription,
+relay only committed events, deduplicate by event ID, and support reconnect
+catch-up from PostgreSQL. Presence and typing need expiry and cleanup. A durable
+outbox/shared infrastructure is required; an in-memory event emitter is not a
+production delivery strategy. Hosting and free-tier limits must be documented
+for the actual provider before deployment.
+
+Uploads remain a future milestone. Use private object storage outside Vercel's
+filesystem. The schema currently limits files to 10 MiB and JPEG/PNG/WebP/PDF/plain
+text. Upload handlers must also inspect bytes and validate metadata; SQL MIME
+checks alone do not establish file safety. Authorize upload, preview and download
+access through current conversation membership. Never publish private bucket
+URLs or return storage keys to unauthorized clients. Storage account/bucket
+configuration is still required.
+
+Calls remain a future milestone. WebRTC needs authenticated participant-only
+signaling, STUN/TURN configuration, expiring TURN credentials, explicit media
+permission handling and cleanup of every track/peer connection. TURN relays can
+incur bandwidth costs; a suitable service or self-hosted coturn must be configured.
+Calls cannot be claimed universally reliable without TURN and real-device tests.
+Call-history tables alone do not establish a working call system.
+
+## Vercel deployment
+
+After completing the remaining milestones:
+
+1. Configure the PostgreSQL runtime/migration roles and verified TLS endpoints.
+2. Run migrations against a reviewed target; do not migrate during `next build`.
+3. Configure Vercel with the pinned pnpm version, install with the frozen lockfile,
+   build with `pnpm build`, and set server-only environment variables.
+4. Provision and configure external WebSocket hosting, private storage and TURN.
+5. Complete authentication, cross-account authorization tests, security headers,
+   persistent rate limiting and request/upload limits before opening the service.
+6. Smoke-test two accounts, reconnects, private downloads and calls on real devices.
+
+No deployment was performed by this milestone. Free infrastructure may sleep,
+limit connections or storage, and provide no availability guarantee. Document
+actual selected-provider limits. No AWS, paid service, ORM or Supabase is required
+by the implemented PostgreSQL foundation.
+
+Author: Md Biplob Hosain — [GitHub](https://github.com/Amibiplob).
