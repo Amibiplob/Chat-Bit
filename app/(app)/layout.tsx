@@ -1,5 +1,6 @@
 import { ChatLayout } from "@/components/chat/chat-layout";
 import { requireUser } from "@/lib/server/auth";
+import { getConversationList } from "@/lib/server/messaging";
 
 interface ChatLayoutProps {
   children: React.ReactNode;
@@ -7,5 +8,6 @@ interface ChatLayoutProps {
 
 export default async function ChatRouteLayout({ children }: ChatLayoutProps) {
   const user = await requireUser();
-  return <ChatLayout user={user}>{children}</ChatLayout>;
+  const conversations = await getConversationList();
+  return <ChatLayout user={user} conversations={conversations}>{children}</ChatLayout>;
 }

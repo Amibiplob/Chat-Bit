@@ -1,25 +1,27 @@
 "use client";
 
-import { ArrowLeft, MoreVertical, Phone, Search, Video } from "lucide-react";
-import type { Conversation } from "./conversation-data";
+import { ArrowLeft, MoreVertical, Phone, RefreshCw, Video } from "lucide-react";
+import Link from "next/link";
+import type { Conversation } from "@/lib/messaging-types";
 
 interface ConversationHeaderProps {
   conversation: Conversation;
+  onRefresh: () => Promise<void>;
+  pending: boolean;
 }
 
-export function ConversationHeader({ conversation }: ConversationHeaderProps) {
+export function ConversationHeader({ conversation, onRefresh, pending }: ConversationHeaderProps) {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-5">
       <div className="flex min-w-0 items-center gap-3">
         {/* Mobile back button */}
-        <button
-          type="button"
+        <Link
+          href="/chat"
           aria-label="Back to conversations"
-          onClick={() => window.history.back()}
           className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
         >
           <ArrowLeft className="size-5" />
-        </button>
+        </Link>
 
         {/* Avatar */}
         <div className="relative shrink-0">
@@ -29,9 +31,6 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
             {conversation.initials}
           </div>
 
-          {conversation.online && (
-            <span className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-background bg-emerald-500" />
-          )}
         </div>
 
         {/* User information */}
@@ -40,17 +39,7 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
             {conversation.name}
           </h1>
 
-          <p
-            className={
-              conversation.online
-                ? "text-xs text-emerald-500"
-                : "text-xs text-muted-foreground"
-            }
-          >
-            {conversation.online
-              ? "Online"
-              : (conversation.lastSeen ?? "Offline")}
-          </p>
+          <p className="text-xs text-muted-foreground">Direct conversation</p>
         </div>
       </div>
 
@@ -58,15 +47,20 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
       <div className="flex items-center gap-1">
         <button
           type="button"
-          aria-label="Search messages"
+          aria-label="Refresh messages"
+          title="Refresh messages"
+          disabled={pending}
+          onClick={onRefresh}
           className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <Search className="size-5" />
+          <RefreshCw className={`size-5 ${pending ? "animate-spin" : ""}`} />
         </button>
 
         <button
           type="button"
           aria-label="Start audio call"
+          disabled
+          title="Not available yet"
           className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
         >
           <Phone className="size-5" />
@@ -75,6 +69,8 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
         <button
           type="button"
           aria-label="Start video call"
+          disabled
+          title="Not available yet"
           className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
         >
           <Video className="size-5" />
@@ -83,6 +79,8 @@ export function ConversationHeader({ conversation }: ConversationHeaderProps) {
         <button
           type="button"
           aria-label="More conversation options"
+          disabled
+          title="Not available yet"
           className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <MoreVertical className="size-5" />

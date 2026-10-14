@@ -6,14 +6,19 @@ import { AppSidebar } from "./app-sidebar";
 import { ConversationSidebar } from "./conversation-sidebar";
 import { CallsPage } from "@/components/calls/calls-page";
 import type { AuthUser } from "@/lib/auth-types";
+import type { Conversation } from "@/lib/messaging-types";
+import { usePathname } from "next/navigation";
 
 interface ChatLayoutProps {
   children: React.ReactNode;
   user: AuthUser;
+  conversations: Conversation[];
 }
 
-export function ChatLayout({ children, user }: ChatLayoutProps) {
+export function ChatLayout({ children, user, conversations }: ChatLayoutProps) {
   const [activeSection, setActiveSection] = useState("chats");
+  const pathname = usePathname();
+  const conversationOpen = pathname.startsWith("/chat/");
 
   return (
     <div className="flex h-svh overflow-hidden bg-background">
@@ -21,13 +26,16 @@ export function ChatLayout({ children, user }: ChatLayoutProps) {
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         user={user}
+        hasUnread={conversations.some((conversation) => conversation.unread > 0)}
       />
 
       {activeSection === "chats" && (
         <>
-          <ConversationSidebar />
+          <div className={`${conversationOpen ? "hidden md:flex" : "flex"} ${pathname === "/chat" ? "w-full md:w-auto" : "w-auto"} shrink-0`}>
+            <ConversationSidebar conversations={conversations} />
+          </div>
 
-          <main className="flex min-w-0 flex-1">{children}</main>
+          <main className={`${pathname === "/chat" ? "hidden md:flex" : "flex"} min-w-0 flex-1`}>{children}</main>
         </>
       )}
 

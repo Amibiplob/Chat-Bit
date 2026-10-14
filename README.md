@@ -2,10 +2,10 @@
 
 ChatBit is a portfolio communication application with an existing responsive
 landing page, authentication screens, chat interface, calls page and settings.
-The UI currently uses demonstration conversations, messages and calls.
-The database foundation and secure authentication are implemented. Registration,
-login, logout and protected application routes use PostgreSQL-backed sessions.
-Realtime messaging, uploads and WebRTC remain future milestones.
+Conversations and text messages persist in PostgreSQL. Registration, login,
+logout and protected application routes use secure database-backed sessions.
+Calls and profile/settings still contain demonstration behavior; realtime
+delivery, uploads and WebRTC remain future milestones.
 
 ## Stack and architecture
 
@@ -15,7 +15,8 @@ No ORM or Supabase integration is used by the new backend.
 
 The intended deployment has Next.js UI/HTTP APIs on Vercel, a PostgreSQL database,
 a separately hosted persistent WebSocket service, private object storage and
-WebRTC media between browsers. Database infrastructure and authentication are implemented.
+WebRTC media between browsers. Database infrastructure, authentication and
+persistent conversations/messaging are implemented.
 Ordinary Vercel functions cannot host the persistent WebSocket service.
 
 Server-only modules live in `lib/server`. The database pool initializes lazily,
@@ -23,7 +24,9 @@ uses a small connection limit and verifies TLS certificates. Transactions acquir
 one pg client and release it after commit/rollback. Internal message and file
 queries join conversation membership before returning private data. These
 server-only wrappers derive the user ID from a validated session on every data
-access; callers cannot supply an arbitrary user ID. They are not public endpoints. SQL is parameterized and credentials are never logged.
+access; callers cannot supply an arbitrary user ID. Authenticated HTTP routes
+expose scoped message/conversation DTOs, with no-store responses and origin
+checks on mutations. See [persistent messaging](docs/messaging.md). SQL is parameterized and credentials are never logged.
 
 Implementation references: [pg transactions](https://node-postgres.com/features/transactions),
 [pg TLS configuration](https://node-postgres.com/features/ssl), and
@@ -44,8 +47,8 @@ pnpm dev
 
 Open http://localhost:3000. Public pages work without a database; authentication
 and protected application pages require a configured, migrated PostgreSQL database.
-The chat and call UI still uses sample data, and profile/settings persistence
-remains unfinished. See [authentication setup and security](docs/authentication.md).
+The chat UI reads and writes PostgreSQL; call UI and profile/settings persistence
+remain unfinished. No WebSocket infrastructure is included yet. See [authentication setup and security](docs/authentication.md).
 
 ## PostgreSQL setup and migrations
 
@@ -136,7 +139,9 @@ concurrent migration locking, checksum protection, transaction rollback,
 conversation membership, duplicate messages, cross-conversation replies,
 attachment restrictions, read states, call participants and soft deletion.
 Authentication integration tests cover registration, duplicate races, login,
-expiry, logout/revocation and concurrent database rate limits. To also test real
+expiry, logout/revocation and concurrent database rate limits. Messaging tests
+cover conversation races, author/membership authorization, idempotent sends,
+replies, edits, soft deletion, cursor pagination and read/unread state. To also test real
 Next.js Server Action forms, cookies, redirects and cross-origin mutation rejection:
 
 ```bash
@@ -144,12 +149,19 @@ TEST_DATABASE_URL=postgresql://chatbit:local-password@127.0.0.1:5432/chatbit_tes
 ```
 
 The HTTP harness starts its own server with an isolated output directory under
-`.next/auth-http-test`, without stopping an existing development server. Tests
-use temporary database schemas and never migrate the configured application
-database. Full browser/device tests and realtime/upload/call integrations are
-still unverified.
+`.next/auth-http-test`, without stopping an existing development server. Run
+production builds and HTTP tests sequentially, because build cleanup can remove
+the nested test output directory. Tests use temporary database schemas and never migrate the configured application
+database. To run the additional browser checks, add `CHROME_BIN` pointing to an installed
+Chrome/Chromium binary (for example `/usr/bin/google-chrome`) to that test command.
+They use a separate temporary browser profile and no additional package. Browser
+checks cover refresh persistence, editing, failed-send draft retention, pagination,
+deleting and mobile navigation/overflow. Broader real-device and
+realtime/upload/call integrations remain unverified.
 The audited baseline has two React effect lint errors and one accessibility
-warning; these are recorded in the audit for subsequent UI work.
+warning; these are recorded in the audit for subsequent UI work. Messaging
+integration resolves the composer issues; full lint still reports the unrelated
+effect error in `components/settings/appearance-settings.tsx`.
 
 ## Realtime, storage and WebRTC requirements
 
@@ -186,7 +198,7 @@ After completing the remaining milestones:
    build with `pnpm build`, and set server-only environment variables.
 4. Provision and configure external WebSocket hosting, private storage and TURN.
 5. Set `AUTH_RATE_LIMIT_SECRET`, run authentication and cross-account tests, and
-   complete messaging, security headers and upload limits before opening the service.
+   complete realtime delivery, security headers and upload limits before opening the service.
 6. Smoke-test two accounts, reconnects, private downloads and calls on real devices.
 
 No deployment was performed by this milestone. Free infrastructure may sleep,

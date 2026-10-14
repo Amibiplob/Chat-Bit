@@ -10,6 +10,7 @@ interface AppSidebarProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
   user: AuthUser;
+  hasUnread: boolean;
 }
 
 const navigation = [
@@ -34,6 +35,7 @@ export function AppSidebar({
   activeSection,
   onSectionChange,
   user,
+  hasUnread,
 }: AppSidebarProps) {
   return (
     <aside className="hidden w-18 shrink-0 flex-col border-r bg-muted/20 md:flex">
@@ -69,7 +71,7 @@ export function AppSidebar({
             >
               <Icon className="size-5" />
 
-              {item.id === "chats" && (
+              {item.id === "chats" && hasUnread && (
                 <span className="absolute right-1 top-1 size-2 rounded-full bg-blue-500" />
               )}
             </button>

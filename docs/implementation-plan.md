@@ -34,7 +34,7 @@ from milestone commits.
 2. **Authentication (implemented):** Argon2id, opaque random tokens with hashed session records,
    HTTP-only cookies, expiry/revocation, same-origin mutation protection, shared
    persistent rate limiting, validated forms, protected layout and route checks.
-3. **Conversations/messaging:** authenticated user context at every API boundary,
+3. **Conversations/messaging (implemented):** authenticated user context at every API boundary,
    atomic direct-conversation creation, cursor pagination, persistent send/edit/
    soft-delete/reply/read flows and unread counts. Replace samples after testing.
 4. **Realtime:** external persistent authenticated WebSocket service, conversation
@@ -59,7 +59,8 @@ build. Do not promise free-tier availability, no-card account signup, TURN
 coverage or deployed reliability without checking the selected providers.
 
 No deployed backend is verified. Authentication is now implemented locally;
-messaging and later milestones remain open. See [authentication](authentication.md).
+realtime and later milestones remain open. See [authentication](authentication.md)
+and [persistent messaging](messaging.md).
 
 ## Authentication milestone
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { File, Image, Paperclip, Send, Smile, X } from "lucide-react";
+import { Paperclip, Send, Smile, X } from "lucide-react";
 
-import type { Message } from "./conversation-data";
+import type { Message } from "@/lib/messaging-types";
 
 interface MessageComposerProps {
-  onSend: (content: string) => void;
+  onSend: (content: string) => Promise<boolean>;
+  pending: boolean;
   replyingTo: Message | null;
   editingMessage: Message | null;
   onCancel: () => void;
@@ -29,19 +30,18 @@ const emojis = [
 
 export function MessageComposer({
   onSend,
+  pending,
   replyingTo,
   editingMessage,
   onCancel,
 }: MessageComposerProps) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(editingMessage?.content ?? "");
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [attachmentOpen, setAttachmentOpen] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (editingMessage) {
-      setValue(editingMessage.content);
       textareaRef.current?.focus();
     }
   }, [editingMessage]);
@@ -52,27 +52,28 @@ export function MessageComposer({
     }
   }, [replyingTo]);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const content = value.trim();
 
-    if (!content) {
+    if (!content || pending) {
       return;
     }
 
-    onSend(content);
-    setValue("");
-    setEmojiOpen(false);
-    setAttachmentOpen(false);
+    if (await onSend(content)) {
+      setValue("");
+      setEmojiOpen(false);
+    }
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       handleSubmit();
     }
   }
 
   function handleEmoji(emoji: string) {
+    if (pending) return;
     setValue((current) => `${current}${emoji}`);
     textareaRef.current?.focus();
   }
@@ -80,7 +81,6 @@ export function MessageComposer({
   function handleCancel() {
     setValue("");
     setEmojiOpen(false);
-    setAttachmentOpen(false);
     onCancel();
   }
 
@@ -102,6 +102,7 @@ export function MessageComposer({
           <button
             type="button"
             aria-label="Cancel"
+            disabled={pending}
             onClick={handleCancel}
             className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
           >
@@ -119,6 +120,7 @@ export function MessageComposer({
                 <button
                   key={emoji}
                   type="button"
+                  disabled={pending}
                   onClick={() => handleEmoji(emoji)}
                   className="flex size-9 items-center justify-center rounded-lg text-lg hover:bg-muted"
                 >
@@ -129,35 +131,13 @@ export function MessageComposer({
           </div>
         )}
 
-        {/* Attachment menu */}
-        {attachmentOpen && (
-          <div className="absolute bottom-14 left-10 z-20 w-40 rounded-xl border bg-background p-1 shadow-lg">
-            <button
-              type="button"
-              onClick={() => setAttachmentOpen(false)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted"
-            >
-              <Image className="size-4" />
-              Image
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAttachmentOpen(false)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-muted"
-            >
-              <File className="size-4" />
-              Document
-            </button>
-          </div>
-        )}
-
         {/* Composer */}
         <div className="flex items-end gap-2 rounded-2xl border bg-background p-2 shadow-sm">
           <button
             type="button"
             aria-label="Add attachment"
-            onClick={() => setAttachmentOpen((current) => !current)}
+            disabled
+            title="File sharing is not available yet"
             className="flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Paperclip className="size-5" />
@@ -166,6 +146,7 @@ export function MessageComposer({
           <button
             type="button"
             aria-label="Add emoji"
+            disabled={pending}
             onClick={() => setEmojiOpen((current) => !current)}
             className="hidden size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground sm:flex"
           >
@@ -174,6 +155,9 @@ export function MessageComposer({
 
           <textarea
             ref={textareaRef}
+            aria-label="Message"
+            maxLength={10000}
+            disabled={pending}
             value={value}
             onChange={(event) => setValue(event.target.value)}
             onKeyDown={handleKeyDown}
@@ -181,13 +165,13 @@ export function MessageComposer({
             placeholder={
               editingMessage ? "Edit your message..." : "Write a message..."
             }
-            className="max-h-32 min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-sm outline-none placeholder:text-muted-foreground"
+            className="max-h-32 min-h-9 min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-sm outline-none placeholder:text-muted-foreground"
           />
 
           <button
             type="button"
-            aria-label="Send message"
-            disabled={!value.trim()}
+            aria-label={pending ? "Saving message" : editingMessage ? "Save message" : "Send message"}
+            disabled={pending || !value.trim()}
             onClick={handleSubmit}
             className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >

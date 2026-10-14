@@ -1,12 +1,18 @@
 "use client";
 
-import { MessageCirclePlus, Search, SlidersHorizontal } from "lucide-react";
-import { ConversationList } from "./conversation-list";
+import { Search } from "lucide-react";
+import { useState } from "react";
+import { PersistentConversationList } from "./persistent-conversation-list";
+import { NewConversation } from "./new-conversation";
+import type { Conversation } from "@/lib/messaging-types";
 import { LogoutButton } from "@/components/auth/logout-button";
 
-export function ConversationSidebar() {
+export function ConversationSidebar({ conversations }: { conversations: Conversation[] }) {
+  const [search, setSearch] = useState("");
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const filtered = conversations.filter((conversation) => (!unreadOnly || conversation.unread > 0) && `${conversation.name} ${conversation.lastMessage ?? ""}`.toLowerCase().includes(search.toLowerCase()));
   return (
-    <aside className="flex w-full max-w-90 shrink-0 flex-col border-r bg-background">
+    <aside className="flex h-full w-full shrink-0 flex-col border-r bg-background md:w-90">
       {/* Header */}
       <div className="flex h-16 items-center justify-between border-b px-5">
         <div>
@@ -15,13 +21,7 @@ export function ConversationSidebar() {
           <p className="text-xs text-muted-foreground">Stay connected</p>
         </div>
 
-        <button
-          type="button"
-          aria-label="New conversation"
-          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <MessageCirclePlus className="size-5" />
-        </button>
+        <NewConversation />
       </div>
 
       {/* Search */}
@@ -31,17 +31,13 @@ export function ConversationSidebar() {
 
           <input
             type="search"
+            aria-label="Search conversations"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder="Search conversations..."
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
 
-          <button
-            type="button"
-            aria-label="Search filters"
-            className="ml-2 text-muted-foreground hover:text-foreground"
-          >
-            <SlidersHorizontal className="size-4" />
-          </button>
         </div>
       </div>
 
@@ -49,27 +45,25 @@ export function ConversationSidebar() {
       <div className="flex gap-2 overflow-x-auto border-b px-4 py-3">
         <button
           type="button"
-          className="shrink-0 rounded-full bg-blue-500 px-3 py-1.5 text-xs font-medium text-white"
+          aria-pressed={!unreadOnly}
+          onClick={() => setUnreadOnly(false)}
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${!unreadOnly ? "bg-blue-500 text-white" : "bg-muted text-muted-foreground"}`}
         >
           All
         </button>
 
         <button
           type="button"
-          className="shrink-0 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+          aria-pressed={unreadOnly}
+          onClick={() => setUnreadOnly(true)}
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${unreadOnly ? "bg-blue-500 text-white" : "bg-muted text-muted-foreground"}`}
         >
           Unread
         </button>
 
-        <button
-          type="button"
-          className="shrink-0 rounded-full bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          Groups
-        </button>
       </div>
 
-      <ConversationList />
+      <PersistentConversationList conversations={filtered} />
       <div className="border-t p-3 md:hidden">
         <LogoutButton />
       </div>
