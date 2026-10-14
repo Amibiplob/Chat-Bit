@@ -117,10 +117,11 @@ Browser checks exercise actual sending/editing, reload persistence, failed-send
 draft retention/retry, older-page scroll behavior, deleting and mobile overflow.
 Pagination tests also cover identical timestamps and their UUID tie-breaker.
 
-There is no polling, WebSocket delivery, typing or online presence in this
-milestone. Incoming messages/receipts require the Refresh control, navigation or
-reload. Refresh returns the newest page; older pages can be loaded again.
-Read-state changes refresh the sidebar, but do not subscribe other browsers.
+Milestone 3 originally required manual refresh. [Milestone 4](realtime.md) adds
+automatic two-second synchronization, typing and presence with PostgreSQL recovery.
+Refresh now requests a fresh authoritative snapshot and recovers loaded history
+using bounded page requests. Read-state changes update both browsers
+automatically while their tabs are visible.
 Calls and attachments are unavailable from the thread; their infrastructure is
 not introduced. Broader multi-device browser testing and deployment remain open.
 Authentication needs the production secret and reviewed migrations described in

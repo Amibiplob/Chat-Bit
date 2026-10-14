@@ -4,8 +4,10 @@ ChatBit is a portfolio communication application with an existing responsive
 landing page, authentication screens, chat interface, calls page and settings.
 Conversations and text messages persist in PostgreSQL. Registration, login,
 logout and protected application routes use secure database-backed sessions.
-Calls and profile/settings still contain demonstration behavior; realtime
-delivery, uploads and WebRTC remain future milestones.
+Incoming messages, edits, deletions, receipts and chat previews update
+automatically, with presence and typing indicators. Delivery uses authenticated
+two-second HTTP synchronization, not WebSocket push. Calls and profile/settings
+still contain demonstration behavior; uploads and WebRTC remain future milestones.
 
 ## Stack and architecture
 
@@ -13,11 +15,11 @@ Next.js App Router 16.3.4, React 19.2.8, TypeScript, Tailwind CSS 4,
 Base UI/shadcn, and PostgreSQL accessed with direct parameterized SQL using `pg`.
 No ORM or Supabase integration is used by the new backend.
 
-The intended deployment has Next.js UI/HTTP APIs on Vercel, a PostgreSQL database,
-a separately hosted persistent WebSocket service, private object storage and
-WebRTC media between browsers. Database infrastructure, authentication and
-persistent conversations/messaging are implemented.
-Ordinary Vercel functions cannot host the persistent WebSocket service.
+The current deployment architecture has Next.js UI/HTTP APIs on Vercel and a
+PostgreSQL database. Transactional revisions and authoritative snapshots provide
+automatic updates without a separate persistent server or managed pub/sub key.
+Private object storage and WebRTC remain future work. See
+[realtime setup, recovery and usage limits](docs/realtime.md).
 
 Server-only modules live in `lib/server`. The database pool initializes lazily,
 uses a small connection limit and verifies TLS certificates. Transactions acquire
@@ -48,7 +50,8 @@ pnpm dev
 Open http://localhost:3000. Public pages work without a database; authentication
 and protected application pages require a configured, migrated PostgreSQL database.
 The chat UI reads and writes PostgreSQL; call UI and profile/settings persistence
-remain unfinished. No WebSocket infrastructure is included yet. See [authentication setup and security](docs/authentication.md).
+remain unfinished. See [authentication setup and security](docs/authentication.md)
+and [automatic messaging](docs/realtime.md).
 
 ## PostgreSQL setup and migrations
 
@@ -76,6 +79,9 @@ canonical direct conversations, members, messages, attachments, per-message
 read states and calls. UUIDs, timestamps, indexes, foreign keys and checks enforce
 membership and relationships. Deleting messages is intended to use `deleted_at`.
 Attachment-only messages will need a validated caption or a later schema change.
+Migration 003 adds transactional realtime revisions and session-bound activity
+leases. It retains existing accounts/messages. Review and apply it before using
+the automatic-update build; no application database was migrated by this work.
 
 Migrations run in one transaction under an advisory lock. Completed filenames
 and SHA-256 checksums are recorded in `chatbit_schema_migrations`. Reruns skip
@@ -112,7 +118,8 @@ above may use a `NEXT_PUBLIC_` prefix. Keep `.env` and `.env.local` out of Git.
 
 Generate `AUTH_RATE_LIMIT_SECRET` with `openssl rand -hex 32` and configure it in
 Vercel. Development uses a local fallback when it is unset; production fails
-closed. Realtime, file storage and TURN configuration remain future work.
+closed. Realtime uses these existing variables without a new provider account.
+File storage and TURN configuration remain future work.
 
 ## Testing
 
@@ -157,7 +164,9 @@ Chrome/Chromium binary (for example `/usr/bin/google-chrome`) to that test comma
 They use a separate temporary browser profile and no additional package. Browser
 checks cover refresh persistence, editing, failed-send draft retention, pagination,
 deleting and mobile navigation/overflow. Broader real-device and
-realtime/upload/call integrations remain unverified.
+deployed delivery, upload and call integrations remain unverified. Realtime tests
+cover automatic incoming delivery, editing/deletion, read synchronization,
+reconnection, new conversations and unread previews, plus isolated lease/rate tests.
 The audited baseline has two React effect lint errors and one accessibility
 warning; these are recorded in the audit for subsequent UI work. Messaging
 integration resolves the composer issues; full lint still reports the unrelated
@@ -165,13 +174,12 @@ effect error in `components/settings/appearance-settings.tsx`.
 
 ## Realtime, storage and WebRTC requirements
 
-Realtime remains a future milestone. A persistent external WebSocket service
-must authenticate connections, authorize every conversation subscription,
-relay only committed events, deduplicate by event ID, and support reconnect
-catch-up from PostgreSQL. Presence and typing need expiry and cleanup. A durable
-outbox/shared infrastructure is required; an in-memory event emitter is not a
-production delivery strategy. Hosting and free-tier limits must be documented
-for the actual provider before deployment.
+Automatic messaging uses short authenticated HTTP requests. Visible tabs poll
+every two seconds, pause while hidden, and recover a database snapshot after
+disconnects. Presence leases expire after 25 seconds, typing after six seconds.
+No keystroke history is stored. This is intended for a small portfolio application:
+each visible tab uses about 1,800 sync invocations/hour. See [the architecture
+decision and deployment limits](docs/realtime.md) before deploying on a free plan.
 
 Uploads remain a future milestone. Use private object storage outside Vercel's
 filesystem. The schema currently limits files to 10 MiB and JPEG/PNG/WebP/PDF/plain
@@ -196,9 +204,10 @@ After completing the remaining milestones:
 2. Run migrations against a reviewed target; do not migrate during `next build`.
 3. Configure Vercel with the pinned pnpm version, install with the frozen lockfile,
    build with `pnpm build`, and set server-only environment variables.
-4. Provision and configure external WebSocket hosting, private storage and TURN.
+4. Budget synchronization/database usage and configure private storage and TURN
+   when their milestones are implemented.
 5. Set `AUTH_RATE_LIMIT_SECRET`, run authentication and cross-account tests, and
-   complete realtime delivery, security headers and upload limits before opening the service.
+   verify deployed automatic delivery, security headers and upload limits before opening the service.
 6. Smoke-test two accounts, reconnects, private downloads and calls on real devices.
 
 No deployment was performed by this milestone. Free infrastructure may sleep,

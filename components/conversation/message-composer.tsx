@@ -11,6 +11,7 @@ interface MessageComposerProps {
   replyingTo: Message | null;
   editingMessage: Message | null;
   onCancel: () => void;
+  onTyping: (active: boolean) => void;
 }
 
 const emojis = [
@@ -34,6 +35,7 @@ export function MessageComposer({
   replyingTo,
   editingMessage,
   onCancel,
+  onTyping,
 }: MessageComposerProps) {
   const [value, setValue] = useState(editingMessage?.content ?? "");
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -60,6 +62,7 @@ export function MessageComposer({
     }
 
     if (await onSend(content)) {
+      onTyping(false);
       setValue("");
       setEmojiOpen(false);
     }
@@ -75,6 +78,7 @@ export function MessageComposer({
   function handleEmoji(emoji: string) {
     if (pending) return;
     setValue((current) => `${current}${emoji}`);
+    onTyping(true);
     textareaRef.current?.focus();
   }
 
@@ -82,6 +86,7 @@ export function MessageComposer({
     setValue("");
     setEmojiOpen(false);
     onCancel();
+    onTyping(false);
   }
 
   return (
@@ -159,7 +164,8 @@ export function MessageComposer({
             maxLength={10000}
             disabled={pending}
             value={value}
-            onChange={(event) => setValue(event.target.value)}
+            onChange={(event) => { setValue(event.target.value); onTyping(Boolean(event.target.value.trim())); }}
+            onBlur={() => onTyping(false)}
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder={

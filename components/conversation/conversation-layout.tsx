@@ -1,54 +1,62 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Conversation, Message, MessagePage } from "@/lib/messaging-types";
 import { messagingRequest } from "@/lib/messaging-client";
 import { ConversationHeader } from "./conversation-header";
 import { MessageArea } from "./message-area";
 import { MessageComposer } from "./message-composer";
+import { useRealtime } from "@/components/chat/realtime-provider";
 
 export function ConversationLayout({ conversation, initialPage, currentUserId }: {
   conversation: Conversation; initialPage: MessagePage; currentUserId: string;
 }) {
-  const router = useRouter();
+  const { register, refresh: synchronize, presence, status, typing, conversations } = useRealtime();
   const [messages, setMessages] = useState(initialPage.messages);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [readError, setReadError] = useState("");
   const [readAttempt, setReadAttempt] = useState(0);
   const busy = useRef(false);
   const retry = useRef<{ fingerprint: string; id: string } | null>(null);
+  const acknowledged = useRef(new Set<string>());
   const base = `/api/conversations/${conversation.id}`;
   const readIds = messages.filter((message) => message.senderId !== currentUserId && !message.deleted).map((message) => message.id).join(",");
+  const oldest = useRef(initialPage.messages[0] ? { id: initialPage.messages[0].id, createdAt: initialPage.messages[0].createdAt } : null);
+  const receive = useCallback((page: MessagePage) => {
+    oldest.current = page.messages[0] ? { id: page.messages[0].id, createdAt: page.messages[0].createdAt } : null;
+    setMessages(page.messages); setNextCursor(page.nextCursor);
+  }, []);
+  useEffect(() => register({ id: conversation.id, oldest: () => oldest.current, receive }), [conversation.id, register, receive]);
 
   useEffect(() => {
     if (!readIds) return;
     const controller = new AbortController();
     async function read() {
-      if (document.visibilityState !== "visible") return;
+      if (document.visibilityState !== "visible" || status !== "connected") return;
       try {
-        const ids = readIds.split(",");
+        const ids = readIds.split(",").filter((id) => !acknowledged.current.has(id));
+        if (!ids.length) return;
         for (let i = 0; i < ids.length; i += 100) {
           await messagingRequest(`${base}/read`, { method: "POST", body: JSON.stringify({ messageIds: ids.slice(i, i + 100) }), signal: controller.signal });
+          if (!controller.signal.aborted) for (const id of ids.slice(i, i + 100)) acknowledged.current.add(id);
         }
-        if (!controller.signal.aborted) router.refresh();
+        if (!controller.signal.aborted) { setReadError(""); await synchronize().catch(() => {}); }
       } catch {
-        if (!controller.signal.aborted) setError("Messages loaded, but read state could not be saved. Refresh to retry.");
+        if (!controller.signal.aborted) setReadError("Read state could not be saved. Reconnecting or refreshing will retry.");
       }
     }
     void read();
     document.addEventListener("visibilitychange", read);
     return () => { controller.abort(); document.removeEventListener("visibilitychange", read); };
-  }, [base, readIds, readAttempt, router]);
+  }, [base, readIds, readAttempt, synchronize, status]);
 
   async function reload() {
-    const page = await messagingRequest<MessagePage>(`${base}/messages`);
-    setMessages(page.messages); setNextCursor(page.nextCursor);
+    await synchronize();
     setReadAttempt((attempt) => attempt + 1);
-    router.refresh();
   }
 
   async function refresh() {
@@ -97,24 +105,29 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
     busy.current = true; setPending(true); setError("");
     try {
       const page = await messagingRequest<MessagePage>(`${base}/messages?cursor=${encodeURIComponent(JSON.stringify(nextCursor))}`);
+      if (page.messages[0]) oldest.current = { id: page.messages[0].id, createdAt: page.messages[0].createdAt };
       setMessages((current) => {
         const seen = new Set<string>();
         return [...page.messages, ...current].filter((message) => { if (seen.has(message.id)) return false; seen.add(message.id); return true; });
       });
       setNextCursor(page.nextCursor);
+      // Fence any in-flight snapshot captured before history was prepended.
+      await synchronize();
     } catch (error) { setError(error instanceof Error ? error.message : "Older messages could not be loaded."); }
     finally { busy.current = false; setPending(false); }
   }
 
   return (
     <section className="flex h-full min-w-0 flex-1 flex-col bg-muted/20" aria-label={`Conversation with ${conversation.name}`}>
-      <ConversationHeader conversation={conversation} onRefresh={refresh} pending={pending} />
+      <ConversationHeader conversation={conversations.find((row) => row.id === conversation.id) ?? conversation}
+        onRefresh={refresh} pending={pending} presence={presence} status={status} />
       {error && <p role="alert" className="border-b bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+      {readError && <p role="alert" className="border-b bg-destructive/10 px-4 py-3 text-sm text-destructive">{readError}</p>}
       <MessageArea messages={messages} currentUserId={currentUserId} conversationInitials={conversation.initials}
         onReply={(message) => { setReplyingTo(message); setEditingMessage(null); }}
         onEdit={(message) => { setEditingMessage(message); setReplyingTo(null); }}
         onDelete={handleDelete} onLoadOlder={loadOlder} hasMore={Boolean(nextCursor)} pending={pending} />
-      <MessageComposer key={editingMessage?.id ?? "new"} onSend={handleSend} pending={pending} replyingTo={replyingTo}
+      <MessageComposer key={editingMessage?.id ?? "new"} onSend={handleSend} pending={pending} replyingTo={replyingTo} onTyping={typing}
         editingMessage={editingMessage} onCancel={() => { setReplyingTo(null); setEditingMessage(null); }} />
     </section>
   );

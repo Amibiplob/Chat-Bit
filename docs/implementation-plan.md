@@ -37,9 +37,11 @@ from milestone commits.
 3. **Conversations/messaging (implemented):** authenticated user context at every API boundary,
    atomic direct-conversation creation, cursor pagination, persistent send/edit/
    soft-delete/reply/read flows and unread counts. Replace samples after testing.
-4. **Realtime:** external persistent authenticated WebSocket service, conversation
-   authorization, durable publication/outbox, event IDs, reconnect catch-up,
-   typing expiry and presence lifecycle. Vercel hosts HTTP and UI only.
+4. **Realtime (implemented):** authenticated two-second HTTP synchronization,
+   transactional per-user revisions, coherent database snapshots, reconnect
+   recovery, session-bound presence and expiring typing leases. No external
+   provider credentials or persistent Vercel process are required. See [the
+   architecture decision and scaling limits](realtime.md).
 5. **Attachments:** private object storage adapter, validated sizes and content,
    authorized uploads/downloads, previews/progress, orphan cleanup. No local disk.
 6. **Calls:** authenticated participant-only signaling, incoming/accept/reject UI,
@@ -51,16 +53,16 @@ from milestone commits.
 
 ## Dependencies and decisions still required
 
-Production PostgreSQL credentials, private object storage configuration, external
-WebSocket hosting and TURN service credentials are not provisioned by this
+Production PostgreSQL credentials, private object storage configuration and
+TURN service credentials are not provisioned by this
 milestone. Existing local environment files are left untouched and are not used
 for integration tests. Never migrate an unknown database automatically during a
 build. Do not promise free-tier availability, no-card account signup, TURN
 coverage or deployed reliability without checking the selected providers.
 
 No deployed backend is verified. Authentication is now implemented locally;
-realtime and later milestones remain open. See [authentication](authentication.md)
-and [persistent messaging](messaging.md).
+attachments and later milestones remain open. See [authentication](authentication.md),
+[persistent messaging](messaging.md) and [automatic delivery](realtime.md).
 
 ## Authentication milestone
 

@@ -8,6 +8,7 @@ import { CallsPage } from "@/components/calls/calls-page";
 import type { AuthUser } from "@/lib/auth-types";
 import type { Conversation } from "@/lib/messaging-types";
 import { usePathname } from "next/navigation";
+import { RealtimeProvider, useRealtime } from "./realtime-provider";
 
 interface ChatLayoutProps {
   children: React.ReactNode;
@@ -16,6 +17,11 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ children, user, conversations }: ChatLayoutProps) {
+  return <RealtimeProvider initialConversations={conversations}><LiveChatLayout user={user}>{children}</LiveChatLayout></RealtimeProvider>;
+}
+
+function LiveChatLayout({ children, user }: { children: React.ReactNode; user: AuthUser }) {
+  const { conversations, status } = useRealtime();
   const [activeSection, setActiveSection] = useState("chats");
   const pathname = usePathname();
   const conversationOpen = pathname.startsWith("/chat/");
@@ -32,7 +38,7 @@ export function ChatLayout({ children, user, conversations }: ChatLayoutProps) {
       {activeSection === "chats" && (
         <>
           <div className={`${conversationOpen ? "hidden md:flex" : "flex"} ${pathname === "/chat" ? "w-full md:w-auto" : "w-auto"} shrink-0`}>
-            <ConversationSidebar conversations={conversations} />
+            <ConversationSidebar conversations={conversations} status={status} />
           </div>
 
           <main className={`${pathname === "/chat" ? "hidden md:flex" : "flex"} min-w-0 flex-1`}>{children}</main>

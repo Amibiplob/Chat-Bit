@@ -6,8 +6,9 @@ import { PersistentConversationList } from "./persistent-conversation-list";
 import { NewConversation } from "./new-conversation";
 import type { Conversation } from "@/lib/messaging-types";
 import { LogoutButton } from "@/components/auth/logout-button";
+import type { ConnectionStatus } from "@/lib/realtime-types";
 
-export function ConversationSidebar({ conversations }: { conversations: Conversation[] }) {
+export function ConversationSidebar({ conversations, status }: { conversations: Conversation[]; status: ConnectionStatus }) {
   const [search, setSearch] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const filtered = conversations.filter((conversation) => (!unreadOnly || conversation.unread > 0) && `${conversation.name} ${conversation.lastMessage ?? ""}`.toLowerCase().includes(search.toLowerCase()));
@@ -18,7 +19,7 @@ export function ConversationSidebar({ conversations }: { conversations: Conversa
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Chats</h1>
 
-          <p className="text-xs text-muted-foreground">Stay connected</p>
+          <p role="status" className="text-xs text-muted-foreground">{status === "connected" ? "Stay connected" : status === "connecting" ? "Connecting…" : status === "offline" ? "Updates paused" : "Reconnecting…"}</p>
         </div>
 
         <NewConversation />

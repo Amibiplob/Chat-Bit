@@ -3,14 +3,17 @@
 import { ArrowLeft, MoreVertical, Phone, RefreshCw, Video } from "lucide-react";
 import Link from "next/link";
 import type { Conversation } from "@/lib/messaging-types";
+import type { Presence, ConnectionStatus } from "@/lib/realtime-types";
 
 interface ConversationHeaderProps {
   conversation: Conversation;
   onRefresh: () => Promise<void>;
   pending: boolean;
+  presence: Presence | null;
+  status: ConnectionStatus;
 }
 
-export function ConversationHeader({ conversation, onRefresh, pending }: ConversationHeaderProps) {
+export function ConversationHeader({ conversation, onRefresh, pending, presence, status }: ConversationHeaderProps) {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-5">
       <div className="flex min-w-0 items-center gap-3">
@@ -30,7 +33,7 @@ export function ConversationHeader({ conversation, onRefresh, pending }: Convers
           >
             {conversation.initials}
           </div>
-
+          {presence?.online && <span aria-label="Online" className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-background bg-emerald-500" />}
         </div>
 
         {/* User information */}
@@ -39,7 +42,12 @@ export function ConversationHeader({ conversation, onRefresh, pending }: Convers
             {conversation.name}
           </h1>
 
-          <p className="text-xs text-muted-foreground">Direct conversation</p>
+          <p role="status" className="text-xs text-muted-foreground">
+            {status !== "connected" ? (status === "connecting" ? "Connecting…" : "Reconnecting…")
+              : presence?.typing ? "Typing…" : presence?.online ? "Online"
+              : presence?.lastSeen ? <time dateTime={presence.lastSeen} suppressHydrationWarning>Last seen {new Date(presence.lastSeen).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time>
+              : "Offline"}
+          </p>
         </div>
       </div>
 
