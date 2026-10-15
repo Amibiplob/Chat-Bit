@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, Send, Smile, X } from "lucide-react";
+import { FileText, Paperclip, Send, Smile, X } from "lucide-react";
 
 import type { Message } from "@/lib/messaging-types";
 
@@ -12,6 +12,7 @@ interface MessageComposerProps {
   editingMessage: Message | null;
   onCancel: () => void;
   onTyping: (active: boolean) => void;
+  onSendAttachment: (file: File, caption: string, onProgress: (value: number) => void, signal: AbortSignal) => Promise<boolean>;
 }
 
 const emojis = [
@@ -36,9 +37,16 @@ export function MessageComposer({
   editingMessage,
   onCancel,
   onTyping,
+  onSendAttachment,
 }: MessageComposerProps) {
   const [value, setValue] = useState(editingMessage?.content ?? "");
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [fileError, setFileError] = useState("");
+  const upload = useRef<AbortController | null>(null);
+
+  useEffect(() => () => upload.current?.abort(), []);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -56,14 +64,21 @@ export function MessageComposer({
 
   async function handleSubmit() {
     const content = value.trim();
+    if (file && replyingTo) { setFileError("Cancel the reply before sending an attachment."); return; }
 
-    if (!content || pending) {
+    if ((!content && !file) || pending || upload.current) {
       return;
     }
-
-    if (await onSend(content)) {
+    const saved = file ? await (async () => {
+      const controller = new AbortController(); upload.current = controller; setProgress(0); setFileError("");
+      try { return await onSendAttachment(file, content, setProgress, controller.signal); }
+      catch (error) { if ((error as Error).name !== "AbortError") setFileError(error instanceof Error ? error.message : "Upload failed."); return false; }
+      finally { upload.current = null; }
+    })() : await onSend(content);
+    if (saved) {
       onTyping(false);
       setValue("");
+      setFile(null); setProgress(0); setFileError("");
       setEmojiOpen(false);
     }
   }
@@ -83,7 +98,9 @@ export function MessageComposer({
   }
 
   function handleCancel() {
+    upload.current?.abort();
     setValue("");
+    setFile(null); setProgress(0); setFileError("");
     setEmojiOpen(false);
     onCancel();
     onTyping(false);
@@ -117,6 +134,13 @@ export function MessageComposer({
       )}
 
       <div className="relative mx-auto max-w-3xl">
+        {file && <div className="mb-2 flex items-center gap-3 rounded-xl border bg-muted/40 p-3">
+          <FileText className="size-5 shrink-0 text-blue-500" />
+          <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{file.name}</p><p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB{pending ? ` · ${progress === 100 ? "Verifying…" : `${progress}%`}` : ""}</p>
+            {pending && <div className="mt-1 h-1 overflow-hidden rounded bg-muted"><div className="h-full bg-blue-500" style={{ width: `${progress}%` }} /></div>}</div>
+          <button type="button" aria-label={pending ? "Cancel upload" : "Remove attachment"} onClick={() => { upload.current?.abort(); setFile(null); setProgress(0); }} className="rounded p-1 hover:bg-muted"><X className="size-4" /></button>
+        </div>}
+        {fileError && <p role="alert" className="mb-2 text-xs text-destructive">{fileError}</p>}
         {/* Emoji picker */}
         {emojiOpen && (
           <div className="absolute bottom-14 left-0 z-20 rounded-xl border bg-background p-2 shadow-lg">
@@ -141,12 +165,17 @@ export function MessageComposer({
           <button
             type="button"
             aria-label="Add attachment"
-            disabled
-            title="File sharing is not available yet"
+            disabled={pending || Boolean(editingMessage) || Boolean(replyingTo)}
+            title={editingMessage ? "Finish editing before attaching a file" : "Add attachment"}
+            onClick={() => document.getElementById("chatbit-file-input")?.click()}
             className="flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Paperclip className="size-5" />
           </button>
+          <input id="chatbit-file-input" type="file" className="hidden" accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.mp3,.wav,.mp4,.webm" onChange={(event) => {
+            const selected = event.target.files?.[0] ?? null; event.target.value = ""; setFileError("");
+            if (selected && selected.size > 10 * 1024 * 1024) setFileError("Files must be 10 MB or smaller."); else setFile(selected);
+          }} />
 
           <button
             type="button"
@@ -177,7 +206,7 @@ export function MessageComposer({
           <button
             type="button"
             aria-label={pending ? "Saving message" : editingMessage ? "Save message" : "Send message"}
-            disabled={pending || !value.trim()}
+            disabled={pending || (!value.trim() && !file)}
             onClick={handleSubmit}
             className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >

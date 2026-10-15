@@ -7,18 +7,19 @@ logout and protected application routes use secure database-backed sessions.
 Incoming messages, edits, deletions, receipts and chat previews update
 automatically, with presence and typing indicators. Delivery uses authenticated
 two-second HTTP synchronization, not WebSocket push. Calls and profile/settings
-still contain demonstration behavior; uploads and WebRTC remain future milestones.
+still contain demonstration behavior; secure attachments use private Supabase Storage. WebRTC remains future work.
 
 ## Stack and architecture
 
 Next.js App Router 16.3.4, React 19.2.8, TypeScript, Tailwind CSS 4,
 Base UI/shadcn, and PostgreSQL accessed with direct parameterized SQL using `pg`.
-No ORM or Supabase integration is used by the new backend.
+No ORM is used. Supabase is used exclusively for private file storage; the existing
+PostgreSQL database and custom authentication remain in place.
 
 The current deployment architecture has Next.js UI/HTTP APIs on Vercel and a
 PostgreSQL database. Transactional revisions and authoritative snapshots provide
 automatic updates without a separate persistent server or managed pub/sub key.
-Private object storage and WebRTC remain future work. See
+Secure file sharing uses private Supabase Storage; WebRTC remains future work. See
 [realtime setup, recovery and usage limits](docs/realtime.md).
 
 Server-only modules live in `lib/server`. The database pool initializes lazily,
@@ -78,7 +79,9 @@ in a dedicated database. Migration SQL is additive and creates users, sessions,
 canonical direct conversations, members, messages, attachments, per-message
 read states and calls. UUIDs, timestamps, indexes, foreign keys and checks enforce
 membership and relationships. Deleting messages is intended to use `deleted_at`.
-Attachment-only messages will need a validated caption or a later schema change.
+Attachment-only messages use an automatically generated filename caption.
+Migration 004 adds attachment reservations, cleanup state and realtime revisions.
+Review and apply it before using file sharing.
 Migration 003 adds transactional realtime revisions and session-bound activity
 leases. It retains existing accounts/messages. Review and apply it before using
 the automatic-update build; no application database was migrated by this work.
@@ -119,7 +122,7 @@ above may use a `NEXT_PUBLIC_` prefix. Keep `.env` and `.env.local` out of Git.
 Generate `AUTH_RATE_LIMIT_SECRET` with `openssl rand -hex 32` and configure it in
 Vercel. Development uses a local fallback when it is unset; production fails
 closed. Realtime uses these existing variables without a new provider account.
-File storage and TURN configuration remain future work.
+File storage requires the Supabase variables below. TURN remains future work.
 
 ## Testing
 
@@ -181,13 +184,19 @@ No keystroke history is stored. This is intended for a small portfolio applicati
 each visible tab uses about 1,800 sync invocations/hour. See [the architecture
 decision and deployment limits](docs/realtime.md) before deploying on a free plan.
 
-Uploads remain a future milestone. Use private object storage outside Vercel's
-filesystem. The schema currently limits files to 10 MiB and JPEG/PNG/WebP/PDF/plain
-text. Upload handlers must also inspect bytes and validate metadata; SQL MIME
-checks alone do not establish file safety. Authorize upload, preview and download
-access through current conversation membership. Never publish private bucket
-URLs or return storage keys to unauthorized clients. Storage account/bucket
-configuration is still required.
+Secure attachments support images, PDFs, text/Office documents, audio and video,
+with progress/cancellation, previews, playback, downloads and uploader deletion.
+The application enforces a 10 MiB file limit and 100 MiB per-uploader quota with
+serialized reservations. Files stay available until intentionally deleted,
+subject to provider retention and authorization. See [file-sharing setup,
+architecture, cleanup, security and limitations](docs/file-sharing.md).
+
+Create the private `chatbit-attachments` bucket with a 10485760-byte limit.
+Configure server-only `SUPABASE_URL`, `SUPABASE_SECRET_KEY` and
+`SUPABASE_STORAGE_BUCKET`. Configure `ATTACHMENT_CLEANUP_SECRET` (32+ characters)
+and a scheduled authenticated POST to `/api/attachments/cleanup`. Review and run
+migration 004 separately from deployment. Environment files are not changed by
+this milestone; use private configuration, never NEXT_PUBLIC secrets.
 
 Calls remain a future milestone. WebRTC needs authenticated participant-only
 signaling, STUN/TURN configuration, expiring TURN credentials, explicit media
@@ -204,15 +213,15 @@ After completing the remaining milestones:
 2. Run migrations against a reviewed target; do not migrate during `next build`.
 3. Configure Vercel with the pinned pnpm version, install with the frozen lockfile,
    build with `pnpm build`, and set server-only environment variables.
-4. Budget synchronization/database usage and configure private storage and TURN
-   when their milestones are implemented.
+4. Budget synchronization/database usage and configure private Supabase Storage and its cleanup scheduler; configure TURN
+   when calls are implemented.
 5. Set `AUTH_RATE_LIMIT_SECRET`, run authentication and cross-account tests, and
    verify deployed automatic delivery, security headers and upload limits before opening the service.
 6. Smoke-test two accounts, reconnects, private downloads and calls on real devices.
 
 No deployment was performed by this milestone. Free infrastructure may sleep,
 limit connections or storage, and provide no availability guarantee. Document
-actual selected-provider limits. No AWS, paid service, ORM or Supabase is required
-by the implemented PostgreSQL foundation.
+actual selected-provider limits. Supabase Storage is required for attachments; PostgreSQL and custom auth remain
+independent. No deployment or live Supabase verification was performed.
 
 Author: Md Biplob Hosain — [GitHub](https://github.com/Amibiplob).

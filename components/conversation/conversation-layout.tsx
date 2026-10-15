@@ -7,6 +7,7 @@ import { ConversationHeader } from "./conversation-header";
 import { MessageArea } from "./message-area";
 import { MessageComposer } from "./message-composer";
 import { useRealtime } from "@/components/chat/realtime-provider";
+import { uploadAttachment } from "@/lib/attachment-client";
 
 export function ConversationLayout({ conversation, initialPage, currentUserId }: {
   conversation: Conversation; initialPage: MessagePage; currentUserId: string;
@@ -100,6 +101,31 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
     finally { busy.current = false; setPending(false); }
   }
 
+  async function handleAttachment(file: File, caption: string, onProgress: (value: number) => void, signal: AbortSignal) {
+    if (busy.current) return false;
+    busy.current = true; setPending(true); setError("");
+    let confirmed = false;
+    try {
+      await uploadAttachment(conversation.id, file, caption, onProgress, signal);
+      confirmed = true; setReplyingTo(null);
+      try { await reload(); } catch { setError("File saved, but refresh failed. Use Refresh to load it."); }
+    } catch (error) {
+      if ((error as Error).name !== "AbortError") setError(error instanceof Error ? error.message : "The file could not be uploaded.");
+      throw error;
+    } finally { busy.current = false; setPending(false); }
+    return confirmed;
+  }
+
+  async function handleDeleteAttachment(attachmentId: string) {
+    if (busy.current) return;
+    busy.current = true; setPending(true); setError("");
+    try {
+      await messagingRequest(`${base}/attachments/${attachmentId}`, { method: "DELETE" });
+      await reload();
+    } catch (error) { setError(error instanceof Error ? error.message : "The attachment could not be deleted."); }
+    finally { busy.current = false; setPending(false); }
+  }
+
   async function loadOlder() {
     if (busy.current || !nextCursor) return;
     busy.current = true; setPending(true); setError("");
@@ -126,9 +152,9 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
       <MessageArea messages={messages} currentUserId={currentUserId} conversationInitials={conversation.initials}
         onReply={(message) => { setReplyingTo(message); setEditingMessage(null); }}
         onEdit={(message) => { setEditingMessage(message); setReplyingTo(null); }}
-        onDelete={handleDelete} onLoadOlder={loadOlder} hasMore={Boolean(nextCursor)} pending={pending} />
+        onDelete={handleDelete} onDeleteAttachment={handleDeleteAttachment} onLoadOlder={loadOlder} hasMore={Boolean(nextCursor)} pending={pending} />
       <MessageComposer key={editingMessage?.id ?? "new"} onSend={handleSend} pending={pending} replyingTo={replyingTo} onTyping={typing}
-        editingMessage={editingMessage} onCancel={() => { setReplyingTo(null); setEditingMessage(null); }} />
+        onSendAttachment={handleAttachment} editingMessage={editingMessage} onCancel={() => { setReplyingTo(null); setEditingMessage(null); }} />
     </section>
   );
 }

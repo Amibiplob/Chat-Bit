@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
   CheckCheck,
   Copy,
+  Download,
+  FileText,
   MoreHorizontal,
   Pencil,
   Reply,
@@ -12,6 +14,43 @@ import {
 } from "lucide-react";
 
 import type { Message } from "@/lib/messaging-types";
+import type { Attachment } from "@/lib/attachment-types";
+import { messagingRequest } from "@/lib/messaging-client";
+
+function readableBytes(bytes: number) {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB`;
+}
+
+function AttachmentView({ attachment, own, pending, onDelete }: { attachment: Attachment; own: boolean; pending: boolean; onDelete: () => void }) {
+  const media = /^(image|video|audio)\//.test(attachment.mimeType);
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!media) return;
+    const controller = new AbortController();
+    messagingRequest<{ url: string }>(`/api/attachments/${attachment.id}/download`, { signal: controller.signal })
+      .then((value) => setUrl(value.url)).catch(() => { if (!controller.signal.aborted) setError("Preview unavailable"); });
+    return () => controller.abort();
+  }, [attachment.id, media]);
+  async function download() {
+    try {
+      const value = await messagingRequest<{ url: string }>(`/api/attachments/${attachment.id}/download?download=1`);
+      window.location.assign(value.url);
+    } catch { setError("Download unavailable"); }
+  }
+  return <div className="mb-2 overflow-hidden rounded-xl border border-current/15 bg-black/5">
+    {media && !url && <div className="flex h-20 items-center justify-center text-xs opacity-70">{error || "Loading preview…"}</div>}
+    {/* Private authenticated media requires a native image request. */}
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    {url && attachment.mimeType.startsWith("image/") && <img onError={() => setError("Preview unavailable")} src={url} alt={attachment.filename} className="max-h-72 w-full object-contain" />}
+    {url && attachment.mimeType.startsWith("video/") && <video onError={() => setError("Preview unavailable")} src={url} controls preload="metadata" className="max-h-72 w-full" />}
+    {url && attachment.mimeType.startsWith("audio/") && <audio onError={() => setError("Preview unavailable")} src={url} controls preload="metadata" className="w-full p-2" />}
+    <div className="flex items-center gap-2 p-2.5"><FileText className="size-4 shrink-0" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{attachment.filename}</p><p className="text-[10px] opacity-70">{readableBytes(attachment.byteSize)}</p></div>
+      <button type="button" disabled={pending} onClick={download} aria-label="Download file" title="Download file" className="rounded p-1 hover:bg-black/10"><Download className="size-4" /></button>
+      {own && <button type="button" disabled={pending} onClick={onDelete} aria-label="Delete attachment" title="Delete attachment" className="rounded p-1 hover:bg-black/10"><Trash2 className="size-4" /></button>}
+    </div>{error && <p role="alert" className="px-2 pb-2 text-[10px]">{error}</p>}
+  </div>;
+}
 
 interface MessageBubbleProps {
   message: Message;
@@ -21,6 +60,7 @@ interface MessageBubbleProps {
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (messageId: string) => void;
+  onDeleteAttachment: (attachmentId: string) => void;
 }
 
 export function MessageBubble({
@@ -31,6 +71,7 @@ export function MessageBubble({
   onReply,
   onEdit,
   onDelete,
+  onDeleteAttachment,
 }: MessageBubbleProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [copyError, setCopyError] = useState("");
@@ -165,6 +206,7 @@ export function MessageBubble({
                 : "rounded-2xl rounded-bl-md border bg-background px-4 py-2.5 text-sm shadow-sm"
             }
           >
+            {!message.deleted && message.attachments.map((attachment) => <AttachmentView key={attachment.id} attachment={attachment} own={isOwn} pending={pending} onDelete={() => onDeleteAttachment(attachment.id)} />)}
             {!message.deleted && message.reply && <blockquote className="mb-2 rounded border-l-2 border-current bg-black/5 px-2 py-1 text-xs"><p className="font-medium">{message.reply.senderName}</p><p className="line-clamp-2">{message.reply.deleted ? "Message deleted" : message.reply.content}</p></blockquote>}
             <p className="whitespace-pre-wrap wrap-break-word leading-6">
               {message.deleted ? "Message deleted" : message.content}

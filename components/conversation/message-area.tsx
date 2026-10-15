@@ -11,12 +11,13 @@ interface MessageAreaProps {
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (messageId: string) => void;
+  onDeleteAttachment: (attachmentId: string) => void;
   onLoadOlder: () => Promise<void>;
   hasMore: boolean;
   pending: boolean;
 }
 
-export function MessageArea({ messages, currentUserId, conversationInitials, onReply, onEdit, onDelete, onLoadOlder, hasMore, pending }: MessageAreaProps) {
+export function MessageArea({ messages, currentUserId, conversationInitials, onReply, onEdit, onDelete, onDeleteAttachment, onLoadOlder, hasMore, pending }: MessageAreaProps) {
   const area = useRef<HTMLDivElement>(null);
   const previous = useRef({ first: "", last: "", height: 0 });
   useLayoutEffect(() => {
@@ -41,7 +42,7 @@ export function MessageArea({ messages, currentUserId, conversationInitials, onR
               <div className="flex justify-center py-2"><time dateTime={message.createdAt.slice(0, 10)} className="rounded-full bg-background px-3 py-1 text-[11px] text-muted-foreground shadow-sm">{message.createdAt.slice(0, 10)}</time></div>
             )}
             <MessageBubble message={message} isOwn={message.senderId === currentUserId} senderInitials={conversationInitials}
-              onReply={onReply} onEdit={onEdit} onDelete={onDelete} pending={pending} />
+              onReply={onReply} onEdit={onEdit} onDelete={onDelete} onDeleteAttachment={onDeleteAttachment} pending={pending} />
           </Fragment>
         ))}
       </div>

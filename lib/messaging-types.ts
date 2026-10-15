@@ -1,3 +1,5 @@
+import type { Attachment } from "./attachment-types";
+
 export type Conversation = {
   id: string;
   participantId: string;
@@ -20,6 +22,7 @@ export type Message = {
   edited: boolean;
   deleted: boolean;
   reply: { id: string; senderName: string; content: string; deleted: boolean } | null;
+  attachments: Attachment[];
 };
 
 export type MessageCursor = { createdAt: string; id: string };

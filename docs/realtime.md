@@ -148,7 +148,8 @@ or production deployment was provisioned or live-tested. Free-plan capacity,
 large-user-count load, background/mobile scheduling and production latency need
 deployment measurements. Browsers can delay timers; offline/typing cleanup is
 lease-based, so disappearance is bounded rather than instantaneous after crashes.
-Attachments and WebRTC remain outside this milestone.
+[Milestone 5](file-sharing.md) adds attachment revisions to this same polling
+transport. WebRTC remains future work.
 
 ## Milestone verification — October 14, 2026
 

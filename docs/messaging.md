@@ -122,8 +122,8 @@ automatic two-second synchronization, typing and presence with PostgreSQL recove
 Refresh now requests a fresh authoritative snapshot and recovers loaded history
 using bounded page requests. Read-state changes update both browsers
 automatically while their tabs are visible.
-Calls and attachments are unavailable from the thread; their infrastructure is
-not introduced. Broader multi-device browser testing and deployment remain open.
+Calls remain unavailable. [Milestone 5](file-sharing.md) adds private Supabase
+attachments to the thread. Broader multi-device browser testing and deployment remain open.
 Authentication needs the production secret and reviewed migrations described in
 authentication.md. Existing appearance lint and Turbopack environment limits are
 reported independently; use the supported webpack build for local verification.
