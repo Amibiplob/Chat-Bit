@@ -1,0 +1,41 @@
+name: Verify ChatBit
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: chatbit
+          POSTGRES_PASSWORD: isolated-ci-only
+          POSTGRES_DB: chatbit_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U chatbit -d chatbit_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Unit, PostgreSQL, HTTP and Chrome integration
+        run: pnpm test
+        env:
+          TEST_DATABASE_URL: postgresql://chatbit:isolated-ci-only@127.0.0.1:5432/chatbit_test
+          TEST_DATABASE_SSL: disable
+          TEST_AUTH_HTTP: '1'
+          CHROME_BIN: /usr/bin/google-chrome
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm lint
+      - run: pnpm audit --prod
+      - run: pnpm build
+      - run: git diff --check

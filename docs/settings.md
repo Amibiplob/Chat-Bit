@@ -164,6 +164,10 @@ still require deployment tests.
 
 ### Available-environment results (2026-10-16)
 
+These are the historical Milestone 7 results. See the
+[Milestone 8 readiness audit](production-readiness.md) for subsequent isolated
+PostgreSQL and browser verification and remaining deployment blockers.
+
 - `pnpm test` succeeds. The sandbox's isolated Node test workers report only
   file-level results, so `node --test --test-isolation=none tests/*.test.mjs` was
   also run: **47 passed, 8 skipped, 0 failed**.

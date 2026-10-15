@@ -42,7 +42,11 @@ test('mock Supabase verifies private bucket, scopes non-overwriting uploads, and
   assert.deepEqual(calls[0], ['upload', 'random/path.png', { upsert: false }]);
   assert.deepEqual(calls[1], ['download', 'random/path.png', 60, { download: 'photo.png' }]);
   assert.deepEqual(await storage.read('random/path.png'), png);
-  for (const config of [{ publicBucket: true }, { cap: 0 }, { cap: MAX_ATTACHMENT_BYTES + 1 }]) await assert.rejects(provider(config).storage.upload('x'));
+  for (const config of [{ publicBucket: true }, { cap: 0 }, { cap: -1 }, { cap: 0.5 }, { cap: NaN }, { cap: MAX_ATTACHMENT_BYTES + 1 }]) {
+    const denied=provider(config);
+    for(const operation of [()=>denied.storage.upload('x'),()=>denied.storage.read('x'),()=>denied.storage.download('x','x')]) await assert.rejects(operation());
+    assert.deepEqual(denied.calls,[]);
+  }
 });
 test('mock Supabase failures fail closed', async () => {
   const { storage } = provider({ fail: true });

@@ -14,6 +14,7 @@ import { sessionHash } from '../lib/server/session-core.mjs';
 import { registerAccount, loginAccount } from '../lib/server/auth-service.mjs';
 import { sendMessage } from '../lib/server/messaging-queries.mjs';
 import { withBrowser } from './helpers/browser.mjs';
+import { browserJourney } from './helpers/journey.mjs';
 
 function decode(value) {
   return value.replaceAll('&quot;', '"').replaceAll('&#x27;', "'").replaceAll('&#39;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
@@ -70,7 +71,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
     let startupLog = '';
     child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], {
       cwd: new URL('../', import.meta.url), detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, NODE_ENV: 'development', DATABASE_URL: databaseUrl.toString(), DATABASE_SSL: process.env.TEST_DATABASE_SSL ?? 'verify', AUTH_RATE_LIMIT_SECRET: randomUUID().replaceAll('-', ''), VERCEL: '0', NEXT_TELEMETRY_DISABLED: '1', CHATBIT_AUTH_HTTP_TEST: '1', CALL_STUN_URLS: '[]', CALL_TURN_URLS: '[]', CALL_TURN_SHARED_SECRET: '', CALL_RELAY_ONLY: '0' },
+      env: { ...process.env, NODE_ENV: 'development', DATABASE_URL: databaseUrl.toString(), DATABASE_SSL: process.env.TEST_DATABASE_SSL ?? 'verify', AUTH_RATE_LIMIT_SECRET: randomUUID().replaceAll('-', ''), VERCEL: '0', NEXT_TELEMETRY_DISABLED: '1', CHATBIT_AUTH_HTTP_TEST: '1', CALL_STUN_URLS: '[]', CALL_TURN_URLS: '[]', CALL_TURN_SHARED_SECRET: '', CALL_RELAY_ONLY: '0', CRON_SECRET:'', MAINTENANCE_CLEANUP_SECRET:'', ATTACHMENT_CLEANUP_SECRET:'', CALL_CLEANUP_SECRET:'', SUPABASE_URL:'', SUPABASE_SECRET_KEY:'' },
     });
     for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => { startupLog = `${startupLog}${chunk}`.slice(-1500); });
     const request = (path, options = {}) => fetch(`${origin}${path}`, { redirect: 'manual', signal: AbortSignal.any([t.signal, AbortSignal.timeout(60000)]), ...options });
@@ -82,6 +83,18 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
       await delay(500);
     }
     assert.ok(ready, `Next.js test server should start: ${startupLog}`);
+    await t.test('security headers preserve first-party media and cleanup endpoints reject missing credentials',async()=>{
+      const response=await request('/login');
+      assert.equal(response.headers.get('x-content-type-options'),'nosniff');
+      assert.equal(response.headers.get('x-frame-options'),'DENY');
+      assert.equal(response.headers.get('referrer-policy'),'no-referrer');
+      assert.ok(response.headers.get('permissions-policy').includes('camera=(self), microphone=(self)'));
+      assert.ok(response.headers.get('content-security-policy').includes("frame-ancestors 'none'"));
+      assert.equal(response.headers.get('x-powered-by'),null);
+      for(const path of ['/api/maintenance/cleanup','/api/attachments/cleanup','/api/calls/cleanup']) {
+        for(const method of ['GET','POST']) assert.equal((await request(path,{method})).status,401);
+      }
+    });
     const routes = ['/chat', '/chat/1', '/calls', '/contacts', '/settings'];
     await t.test('all protected routes redirect without a valid session, including RSC requests', async () => {
       for (const path of routes) {
@@ -153,10 +166,16 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
       const b = await registerAccount(pool, { name: 'Messaging Partner', email: 'partner@example.com', password: 'another strong passphrase' }, context());
       const c = await registerAccount(pool, { name: 'Unrelated Person', email: 'outsider@example.com', password: 'another strong passphrase' }, context());
       const actor = (session) => `chatbit_session=${session.token}`;
-      const api = (path, session, method = 'GET', body, customOrigin = origin) => request(path, {
+      const api = async (path, session, method = 'GET', body, customOrigin = origin) => {
+        const response=await request(path, {
         method, headers: { ...(session ? { Cookie: actor(session) } : {}), ...(method !== 'GET' ? { Origin: customOrigin, 'Content-Type': 'application/json' } : {}) },
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-      });
+        });
+        if(response.status!==405 && !(response.ok && response.headers.get('content-type')?.startsWith('image/'))) {
+          assert.ok(response.headers.get('content-type')?.includes('application/json'),`${method} ${path} should return JSON (status ${response.status})`);
+        }
+        return response;
+      };
       assert.equal((await api('/api/conversations', null)).status, 401);
       assert.equal((await api('/api/users?q=Partner', null)).status, 401);
       const users = await (await api('/api/users?q=Partner', a)).json();
@@ -292,7 +311,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
           await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
           await evaluate(`document.querySelector('nav[aria-label="Mobile navigation"] a[href="/chat"]').click()`);
           await waitFor(`location.pathname==='/chat'`);
-          assert.ok(await evaluate(`document.querySelector('nav[aria-label="Mobile navigation"] a[href="/calls"]')`));
+          assert.ok(await evaluate(`Boolean(document.querySelector('nav[aria-label="Mobile navigation"] a[href="/calls"]'))`));
         });
       });
       await messageTest.test('calling HTTP authorization and hydrated controls with mocked media', {
@@ -473,6 +492,9 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
         });
       });
     });
+    await t.test('two real browsers register, log in, discover contacts, exchange/edit/reply/read/delete and log out', {
+      skip: !process.env.CHROME_BIN && 'Set CHROME_BIN for the two-user browser journey',
+    },()=>browserJourney(origin));
   } finally {
     if (child && child.exitCode === null) {
       const stopped = once(child, 'exit');

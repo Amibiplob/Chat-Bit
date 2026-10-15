@@ -12,7 +12,7 @@ account preferences and device-local themes. Secure attachments use private Supa
 
 ## Stack and architecture
 
-Next.js App Router 16.3.4, React 19.2.8, TypeScript, Tailwind CSS 4,
+Next.js App Router 16.3.8, React 19.2.8, TypeScript, Tailwind CSS 4,
 Base UI/shadcn, and PostgreSQL accessed with direct parameterized SQL using `pg`.
 No ORM is used. Supabase is used exclusively for private file storage; the existing
 PostgreSQL database and custom authentication remain in place.
@@ -76,7 +76,7 @@ pnpm db:migrate
 The migration runner loads `.env.local` then `.env` without overwriting existing
 process variables. `DATABASE_MIGRATION_URL`, when nonempty, selects a direct
 endpoint for migrations; otherwise `DATABASE_URL` is used. Use the public schema
-in a dedicated database. Migration SQL is additive and creates users, sessions,
+in a dedicated database. Migration SQL creates and extends users, sessions,
 canonical direct conversations, members, messages, attachments, per-message
 read states and calls. UUIDs, timestamps, indexes, foreign keys and checks enforce
 membership and relationships. Deleting messages is intended to use `deleted_at`.
@@ -123,7 +123,8 @@ above may use a `NEXT_PUBLIC_` prefix. Keep `.env` and `.env.local` out of Git.
 Generate `AUTH_RATE_LIMIT_SECRET` with `openssl rand -hex 32` and configure it in
 Vercel. Development uses a local fallback when it is unset; production fails
 closed. Realtime uses these existing variables without a new provider account.
-File storage requires the Supabase variables below. TURN remains future work.
+File storage requires the Supabase variables below. Cross-network calling requires
+a configured TURN service; its connection must be verified separately.
 
 ## Testing
 
@@ -171,10 +172,8 @@ deleting and mobile navigation/overflow. Broader real-device and
 deployed delivery, upload and call integrations remain unverified. Realtime tests
 cover automatic incoming delivery, editing/deletion, read synchronization,
 reconnection, new conversations and unread previews, plus isolated lease/rate tests.
-The audited baseline has two React effect lint errors and one accessibility
-warning; these are recorded in the audit for subsequent UI work. Messaging
-integration resolves the composer issues; full lint still reports the unrelated
-effect error in `components/settings/appearance-settings.tsx`.
+Milestone 7 resolved the previous appearance effect error. Full lint now passes.
+The default test command executes individual test bodies in this environment.
 
 ## Realtime, storage and WebRTC requirements
 
@@ -196,8 +195,8 @@ Create the private `chatbit-attachments` bucket with a 10485760-byte limit.
 Configure server-only `SUPABASE_URL`, `SUPABASE_SECRET_KEY` and
 `SUPABASE_STORAGE_BUCKET`. Configure `ATTACHMENT_CLEANUP_SECRET` (32+ characters)
 and a scheduled authenticated POST to `/api/attachments/cleanup`. Review and run
-migration 004 separately from deployment. Environment files are not changed by
-this milestone; use private configuration, never NEXT_PUBLIC secrets.
+migration 004 separately from deployment. .env.example documents these fields;
+use private configuration, never NEXT_PUBLIC secrets.
 
 One-to-one voice and video calls now use native WebRTC and authenticated bounded
 PostgreSQL signaling. Conversation headers and the Calls page support incoming
@@ -248,3 +247,16 @@ so there is no additional storage configuration. Password changes revoke every
 session and require a fresh login. Account deletion, email changes, MFA and
 password recovery remain explicitly unavailable. See [settings, security and
 deletion lifecycle](docs/settings.md) for configuration, limitations and tests.
+
+## Production preparation
+
+Read the [deployment and operations guide](docs/deployment.md) and
+[evidence-based readiness checklist](docs/production-readiness.md) before release.
+Milestone 8 patches Next.js, adds security headers, shared message/attachment rate
+limits and authenticated bounded session/lease cleanup. Review new migration
+`007_maintenance.sql`; the application database remains untouched. The default
+`pnpm build` uses Webpack; `pnpm build:turbo` retains the optional Turbopack path.
+`pnpm config:check` checks production environment shapes without connecting to
+services. A GitHub workflow supplies an isolated PostgreSQL service for tests.
+No push, deployment, live storage/TURN verification or scheduler provisioning was
+performed. Infrastructure blockers remain explicit in the checklist.

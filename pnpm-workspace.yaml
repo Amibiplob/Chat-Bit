@@ -6,3 +6,6 @@ allowBuilds:
   sharp: false
   unrs-resolver: false
   workerd: false
+overrides:
+  # GHSA-68fv-2mgg-jv7q; keep until upstream resolution includes this patch.
+  source-map-js: 1.2.2

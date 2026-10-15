@@ -1,6 +1,8 @@
 import "server-only";
 import { getCurrentUser } from "./auth";
 import { getDatabase } from "./db";
+import { requestRateLimit } from "./request-rate-limit.mjs";
+import { rateLimitSecret } from "./auth-request.mjs";
 import { MessagingError, validated } from "./messaging-validation.mjs";
 import { finalizeAttachmentSchema, validateAttachmentContent } from "./attachment-validation.mjs";
 import { attachmentPreviewResponse } from "./attachment-response.mjs";
@@ -8,10 +10,12 @@ import { verifyAndFinalize, reconcileAttachments } from "./attachment-workflow.m
 import * as queries from "./attachment-queries.mjs";
 import { createAttachmentDownload, createAttachmentUpload, readAttachmentObject, removeAttachmentObjects } from "./attachment-storage";
 
-async function context() {
+async function context(write = false) {
   const user = await getCurrentUser();
   if (!user) throw new MessagingError("Sign in to continue.", 401);
-  return { pool: getDatabase(), userId: user.id };
+  const pool=getDatabase();
+  await requestRateLimit(pool,user.id,write?"attachment-write":"attachment-read",write?20:60,rateLimitSecret());
+  return { pool, userId: user.id };
 }
 
 export async function cleanupAttachments() {
@@ -19,7 +23,7 @@ export async function cleanupAttachments() {
 }
 
 export async function reserve(conversationId: string, input: unknown) {
-  const { pool, userId } = await context();
+  const { pool, userId } = await context(true);
   await cleanupAttachments().catch(() => {});
   const row = await queries.reserveAttachment(pool, userId, conversationId, input);
   try {
@@ -32,7 +36,7 @@ export async function reserve(conversationId: string, input: unknown) {
 }
 
 export async function complete(conversationId: string, attachmentId: string, input: unknown) {
-  const { pool, userId } = await context();
+  const { pool, userId } = await context(true);
   const value = validated(finalizeAttachmentSchema, input);
   return verifyAndFinalize({ queries, storage: { read: readAttachmentObject }, pool, userId, conversationId, attachmentId, input: value });
 }
@@ -47,7 +51,7 @@ export async function download(attachmentId: string, forceDownload = false) {
 }
 
 export async function remove(conversationId: string, attachmentId: string) {
-  const { pool, userId } = await context();
+  const { pool, userId } = await context(true);
   const path = await queries.scheduleAttachmentDeletion(pool, userId, conversationId, attachmentId);
   try {
     await removeAttachmentObjects([path]);

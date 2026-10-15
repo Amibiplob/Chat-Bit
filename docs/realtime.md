@@ -111,7 +111,9 @@ activity expiration is computed at read time, even if no cleanup worker runs.
   Logout deletes its leases via the session foreign key; session expiry is checked
   by presence reads even before cleanup. Other valid tabs/sessions keep the user
   online. Last seen is recent visible-tab activity; it is shared only with existing
-  conversation partners and may disappear on logout. It is not a read receipt.
+  conversation partners and may disappear on logout or when scheduled maintenance
+  removes leases expired for more than one minute. It is not a durable last-login
+  record or a read receipt.
 - Shared database limits allow 240 sync and 90 activity requests per user/minute,
   across all sessions and instances. Excess requests return 429 and retry with
   backoff. Many visible tabs consume these shared budgets. The existing auth-rate
