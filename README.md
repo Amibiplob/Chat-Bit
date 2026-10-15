@@ -6,8 +6,9 @@ Conversations and text messages persist in PostgreSQL. Registration, login,
 logout and protected application routes use secure database-backed sessions.
 Incoming messages, edits, deletions, receipts and chat previews update
 automatically, with presence and typing indicators. Delivery uses authenticated
-two-second HTTP synchronization, not WebSocket push. Calls and profile/settings
-still contain demonstration behavior; secure attachments use private Supabase Storage. WebRTC remains future work.
+two-second HTTP synchronization, not WebSocket push. One-to-one voice/video calls use WebRTC with authenticated HTTP signaling.
+Profile/settings still contain demonstration behavior; secure attachments use
+private Supabase Storage.
 
 ## Stack and architecture
 
@@ -19,7 +20,8 @@ PostgreSQL database and custom authentication remain in place.
 The current deployment architecture has Next.js UI/HTTP APIs on Vercel and a
 PostgreSQL database. Transactional revisions and authoritative snapshots provide
 automatic updates without a separate persistent server or managed pub/sub key.
-Secure file sharing uses private Supabase Storage; WebRTC remains future work. See
+Secure file sharing uses private Supabase Storage; calling uses native WebRTC
+and PostgreSQL signaling. See
 [realtime setup, recovery and usage limits](docs/realtime.md).
 
 Server-only modules live in `lib/server`. The database pool initializes lazily,
@@ -50,8 +52,8 @@ pnpm dev
 
 Open http://localhost:3000. Public pages work without a database; authentication
 and protected application pages require a configured, migrated PostgreSQL database.
-The chat UI reads and writes PostgreSQL; call UI and profile/settings persistence
-remain unfinished. See [authentication setup and security](docs/authentication.md)
+The chat UI reads and writes PostgreSQL and supports calls; profile/settings
+persistence remains unfinished. See [authentication setup and security](docs/authentication.md)
 and [automatic messaging](docs/realtime.md).
 
 ## PostgreSQL setup and migrations
@@ -198,23 +200,29 @@ and a scheduled authenticated POST to `/api/attachments/cleanup`. Review and run
 migration 004 separately from deployment. Environment files are not changed by
 this milestone; use private configuration, never NEXT_PUBLIC secrets.
 
-Calls remain a future milestone. WebRTC needs authenticated participant-only
-signaling, STUN/TURN configuration, expiring TURN credentials, explicit media
-permission handling and cleanup of every track/peer connection. TURN relays can
-incur bandwidth costs; a suitable service or self-hosted coturn must be configured.
-Calls cannot be claimed universally reliable without TURN and real-device tests.
-Call-history tables alone do not establish a working call system.
+One-to-one voice and video calls now use native WebRTC and authenticated bounded
+PostgreSQL signaling. Conversation headers and the Calls page support incoming
+calls, accept/decline, mute, camera controls, termination and persisted history.
+Review migration 005 before deploying. See [calling setup and security](docs/calling.md).
+
+STUN defaults to `stun:stun.l.google.com:19302`. Configure `CALL_STUN_URLS`,
+`CALL_TURN_URLS`, `CALL_TURN_SHARED_SECRET` and optionally `CALL_RELAY_ONLY` on
+the server. TURN uses one-hour credentials; the shared secret never reaches the
+browser. Configure `CALL_CLEANUP_SECRET` and a scheduled authenticated POST to
+`/api/calls/cleanup`. STUN alone cannot connect every network. No TURN provider
+is provisioned or verified by this milestone; real-device/cross-network tests
+remain required. Calls are capped at 55 minutes and require HTTPS or loopback.
 
 ## Vercel deployment
 
-After completing the remaining milestones:
+Before deploying:
 
 1. Configure the PostgreSQL runtime/migration roles and verified TLS endpoints.
 2. Run migrations against a reviewed target; do not migrate during `next build`.
 3. Configure Vercel with the pinned pnpm version, install with the frozen lockfile,
    build with `pnpm build`, and set server-only environment variables.
 4. Budget synchronization/database usage and configure private Supabase Storage and its cleanup scheduler; configure TURN
-   when calls are implemented.
+   for cross-network calling.
 5. Set `AUTH_RATE_LIMIT_SECRET`, run authentication and cross-account tests, and
    verify deployed automatic delivery, security headers and upload limits before opening the service.
 6. Smoke-test two accounts, reconnects, private downloads and calls on real devices.

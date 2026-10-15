@@ -76,7 +76,7 @@ test('attachment quotas, authorization, deletion and realtime in isolated Postgr
     await t.test('expired sessions cannot establish an actor', async () => {
       const token = 'a'.repeat(43);
       const { sessionHash } = await import('../lib/server/session-core.mjs');
-      await pool.query("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()-interval '1 minute')", [sessionHash(token), b]);
+      await pool.query("INSERT INTO sessions(token_hash,user_id,created_at,expires_at) VALUES($1,$2,now()-interval '2 minutes',now()-interval '1 minute')", [sessionHash(token), b]);
       assert.equal(await resolveSession(pool, token), null);
     });
   } finally {

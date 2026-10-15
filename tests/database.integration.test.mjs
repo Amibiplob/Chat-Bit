@@ -85,7 +85,7 @@ test('PostgreSQL migrations, constraints, transactions and private data access',
       await assert.rejects(pool.query('INSERT INTO messages (conversation_id,sender_id,client_id,body) VALUES ($1,$2,$3,$4)', [conversation, a, clientId, 'duplicate']), { code: '23505' });
       await assert.rejects(pool.query('INSERT INTO messages (conversation_id,sender_id,client_id,body,reply_to_id) VALUES ($1,$2,$3,$4,$5)', [other, a, randomUUID(), 'reply', message]), { code: '23503' });
       await assert.rejects(pool.query('INSERT INTO message_read_states VALUES ($1,$2,$3,now())', [conversation, message, c]), { code: '23503' });
-      await assert.rejects(pool.query('INSERT INTO calls (conversation_id,caller_id,callee_id,kind) VALUES ($1,$2,$3,$4)', [conversation, a, c, 'voice']), { code: '23503' });
+      await assert.rejects(pool.query('INSERT INTO calls (conversation_id,caller_id,callee_id,kind,caller_tab,caller_session,caller_seen) VALUES ($1,$2,$3,$4,$5,$6,now())', [conversation, a, c, 'voice', randomUUID(), 'test-session-hash']), { code: '23503' });
     });
     await t.test('invalid attachment metadata and empty messages are rejected', async () => {
       await assert.rejects(pool.query('INSERT INTO messages (conversation_id,sender_id,client_id,body) VALUES ($1,$2,$3,$4)', [conversation, a, randomUUID(), '  ']), { code: '23514' });

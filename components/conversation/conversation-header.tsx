@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, MoreVertical, Phone, RefreshCw, Video } from "lucide-react";
+import { ArrowLeft, History, MoreVertical, Phone, RefreshCw, Video } from "lucide-react";
+import { useCalling } from "@/components/calls/calling-provider";
 import Link from "next/link";
 import type { Conversation } from "@/lib/messaging-types";
 import type { Presence, ConnectionStatus } from "@/lib/realtime-types";
@@ -14,6 +15,8 @@ interface ConversationHeaderProps {
 }
 
 export function ConversationHeader({ conversation, onRefresh, pending, presence, status }: ConversationHeaderProps) {
+  const calling = useCalling();
+  const busy = calling.state.working || Boolean(calling.state.call && ["ringing", "connecting", "active"].includes(calling.state.call.status));
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-5">
       <div className="flex min-w-0 items-center gap-3">
@@ -53,6 +56,7 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
 
       {/* Actions */}
       <div className="flex items-center gap-1">
+        <Link href="/calls" aria-label="Call history" title="Call history" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><History className="size-5" /></Link>
         <button
           type="button"
           aria-label="Refresh messages"
@@ -67,9 +71,10 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
         <button
           type="button"
           aria-label="Start audio call"
-          disabled
-          title="Not available yet"
-          className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
+          disabled={busy}
+          onClick={() => calling.start(conversation.id, "voice")}
+          title="Start audio call"
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Phone className="size-5" />
         </button>
@@ -77,9 +82,10 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
         <button
           type="button"
           aria-label="Start video call"
-          disabled
-          title="Not available yet"
-          className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
+          disabled={busy}
+          onClick={() => calling.start(conversation.id, "video")}
+          title="Start video call"
+          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Video className="size-5" />
         </button>

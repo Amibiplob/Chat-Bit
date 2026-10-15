@@ -8,14 +8,14 @@ import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 // Native Chrome DevTools protocol: browser verification without a new dependency.
-export async function withBrowser(operation) {
+export async function withBrowser(operation, extraArgs = []) {
   const diagnostic = (phase) => { if (process.env.DEBUG_CHATBIT_BROWSER === '1') console.log(`Browser check: ${phase}`); };
   const profile = await mkdtemp(join(tmpdir(), 'chatbit-browser-'));
   const listener = createServer();
   listener.listen(0, '127.0.0.1'); await once(listener, 'listening');
   const port = listener.address().port;
   await new Promise((resolve) => listener.close(resolve));
-  const child = spawn(process.env.CHROME_BIN, ['--headless', '--no-sandbox', '--disable-gpu', '--no-first-run', '--disable-background-networking', '--disable-extensions', `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, 'about:blank'], { detached: true, stdio: 'ignore' });
+  const child = spawn(process.env.CHROME_BIN, ['--headless', '--no-sandbox', '--disable-gpu', '--no-first-run', '--disable-background-networking', '--disable-extensions', `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, ...extraArgs, 'about:blank'], { detached: true, stdio: 'ignore' });
   diagnostic('process launched');
   let socket;
   try {

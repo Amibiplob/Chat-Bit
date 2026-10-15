@@ -149,7 +149,8 @@ large-user-count load, background/mobile scheduling and production latency need
 deployment measurements. Browsers can delay timers; offline/typing cleanup is
 lease-based, so disappearance is bounded rather than instantaneous after crashes.
 [Milestone 5](file-sharing.md) adds attachment revisions to this same polling
-transport. WebRTC remains future work.
+transport. [Milestone 6](calling.md) adds separately scoped, authenticated
+PostgreSQL call-signaling polling.
 
 ## Milestone verification — October 14, 2026
 

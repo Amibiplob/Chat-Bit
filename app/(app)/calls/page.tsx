@@ -1,9 +1,7 @@
-import React from 'react'
-import { requireUser } from '@/lib/server/auth'
+import { CallsPage } from "@/components/calls/calls-page";
+import { requireUser } from "@/lib/server/auth";
 
-export default async function page() {
+export default async function CallsRoute() {
   await requireUser();
-  return (
-    <div>page</div>
-  )
+  return <CallsPage/>;
 }

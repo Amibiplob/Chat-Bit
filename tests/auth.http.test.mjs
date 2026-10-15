@@ -37,7 +37,7 @@ function actionForm(html, marker, fields = {}) {
 
 test('real Next.js forms, session cookies and protected HTTP routes', {
   skip: !(process.env.TEST_DATABASE_URL && process.env.TEST_AUTH_HTTP === '1') && 'Set TEST_DATABASE_URL and TEST_AUTH_HTTP=1 for HTTP authentication tests',
-  timeout: 180000,
+  timeout: 300000,
 }, async (t) => {
   const settings = databaseConfig({ DATABASE_URL: process.env.TEST_DATABASE_URL, DATABASE_SSL: process.env.TEST_DATABASE_SSL ?? 'verify' });
   const admin = new pg.Pool(settings);
@@ -70,7 +70,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
     let startupLog = '';
     child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], {
       cwd: new URL('../', import.meta.url), detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, NODE_ENV: 'development', DATABASE_URL: databaseUrl.toString(), DATABASE_SSL: process.env.TEST_DATABASE_SSL ?? 'verify', AUTH_RATE_LIMIT_SECRET: randomUUID().replaceAll('-', ''), VERCEL: '0', NEXT_TELEMETRY_DISABLED: '1', CHATBIT_AUTH_HTTP_TEST: '1' },
+      env: { ...process.env, NODE_ENV: 'development', DATABASE_URL: databaseUrl.toString(), DATABASE_SSL: process.env.TEST_DATABASE_SSL ?? 'verify', AUTH_RATE_LIMIT_SECRET: randomUUID().replaceAll('-', ''), VERCEL: '0', NEXT_TELEMETRY_DISABLED: '1', CHATBIT_AUTH_HTTP_TEST: '1', CALL_STUN_URLS: '[]', CALL_TURN_URLS: '[]', CALL_TURN_SHARED_SECRET: '', CALL_RELAY_ONLY: '0' },
     });
     for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => { startupLog = `${startupLog}${chunk}`.slice(-1500); });
     const request = (path, options = {}) => fetch(`${origin}${path}`, { redirect: 'manual', signal: AbortSignal.any([t.signal, AbortSignal.timeout(60000)]), ...options });
@@ -229,6 +229,97 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
       assert.equal(deleted.messages[0].content, '');
       assert.equal(deleted.messages[1].reply.deleted, true);
       assert.equal(deleted.messages[1].reply.content, '');
+      await messageTest.test('calling HTTP authorization and hydrated controls with mocked media', {
+        skip: !process.env.CHROME_BIN && 'Set CHROME_BIN for calling browser checks',
+      }, async () => {
+        assert.equal((await api('/api/calls', null)).status, 401);
+        assert.equal((await api('/api/calls', a, 'POST', {conversationId:id,clientId:randomUUID(),tabId:randomUUID(),kind:'voice'}, 'https://untrusted.example')).status, 403);
+        const mock = `(() => {
+          window.__captured=[];window.__stopped=0;
+          Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async constraints=>{
+            const context=new AudioContext();const oscillator=context.createOscillator();const destination=context.createMediaStreamDestination();oscillator.connect(destination);oscillator.start();
+            const stream=destination.stream;
+            if(constraints.video){const canvas=document.createElement('canvas');canvas.width=80;canvas.height=60;stream.addTrack(canvas.captureStream(10).getVideoTracks()[0]);}
+            for(const track of stream.getTracks()){const original=track.stop.bind(track);track.stop=()=>{window.__stopped++;original();void context.close().catch(()=>{});};}
+            window.__captured.push(stream);return stream;
+          }});
+          window.RTCPeerConnection=class {
+            connectionState='new';localDescription=null;remoteDescription=null;
+            constructor(){window.__peer=this;}
+            addTrack(){} close(){this.closed=true;}
+            async createOffer(){return {type:'offer',sdp:'v=0\\r\\n'};}
+            async createAnswer(){return {type:'answer',sdp:'v=0\\r\\n'};}
+            async setLocalDescription(value){this.localDescription={...value,toJSON:()=>value};}
+            async setRemoteDescription(value){this.remoteDescription=value;this.connectionState='connected';this.onconnectionstatechange?.();}
+            async addIceCandidate(){}
+          };
+        })()`;
+        await withBrowser(async ({command,evaluate,waitFor})=>{
+          await command('Network.setCookie',{name:'chatbit_session',value:a.token,url:origin,httpOnly:true,sameSite:'Lax'});
+          await command('Page.addScriptToEvaluateOnNewDocument',{source:mock});
+          await command('Page.navigate',{url:`${origin}/chat/${id}`});
+          await waitFor(`document.querySelector('[aria-label="Start audio call"]') && Object.keys(document.querySelector('textarea')??{}).some(key=>key.startsWith('__reactFiber$'))`);
+          assert.equal(await evaluate('window.__captured.length'),0);
+          await evaluate(`document.querySelector('[aria-label="Start audio call"]').click()`);
+          await waitFor(`document.querySelector('[role="dialog"]')?.textContent.includes('Ringing')`);
+          let call=(await (await api('/api/calls',a)).json())[0];const recipientTab=randomUUID();
+          assert.equal((await api(`/api/calls/${call.id}`,c,'POST',{tabId:randomUUID(),action:'accept'})).status,404);
+          assert.equal((await api(`/api/calls/${call.id}/signals`,c,'POST',{tabId:randomUUID(),clientId:randomUUID(),signal:{kind:'ice',payload:{candidate:'injected'}}})).status,404);
+          assert.equal((await api(`/api/calls/${call.id}`,b,'POST',{tabId:recipientTab,action:'accept'})).status,200);
+          await waitFor(`window.__peer?.localDescription?.type==='offer'`);
+          assert.equal((await api(`/api/calls/${call.id}/signals`,b,'POST',{tabId:recipientTab,clientId:randomUUID(),signal:{kind:'answer',payload:{type:'answer',sdp:'v=0\r\n'}}})).status,200);
+          await waitFor(`document.querySelector('[role="status"]')?.textContent.includes('Connected') || document.querySelector('[role="dialog"]')?.textContent.includes('Connected')`);
+          await evaluate(`document.querySelector('[aria-label="Mute microphone"]').click()`);
+          assert.equal(await evaluate('window.__captured[0].getAudioTracks()[0].enabled'),false);
+          await evaluate(`document.querySelector('[aria-label="Unmute microphone"]').click()`);
+          assert.equal(await evaluate('window.__captured[0].getAudioTracks()[0].enabled'),true);
+          await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='End call').click()`);
+          await waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Close call')`);
+          assert.ok(await evaluate('window.__stopped>=1 && window.__peer.closed'));
+          await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Close call').click()`);
+          const incomingTab=randomUUID();call=await (await api('/api/calls',b,'POST',{conversationId:id,kind:'video',clientId:randomUUID(),tabId:incomingTab})).json();
+          await waitFor(`document.querySelector('[aria-label="Incoming call"]')`);
+          await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('Accept call')).click()`);
+          await waitFor(`window.__captured.length===2 && window.__captured[1].getVideoTracks().length===1`);
+          assert.equal((await api(`/api/calls/${call.id}/signals`,b,'POST',{tabId:incomingTab,clientId:randomUUID(),signal:{kind:'offer',payload:{type:'offer',sdp:'v=0\r\n'}}})).status,200);
+          await waitFor(`document.querySelector('[role="dialog"]')?.textContent.includes('Connected')`);
+          await evaluate(`document.querySelector('[aria-label="Disable camera"]').click()`);
+          assert.equal(await evaluate('window.__captured[1].getVideoTracks()[0].enabled'),false);
+          await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+          assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'));
+          await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='End call').click()`);
+          await waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Close call')`);
+          assert.ok(await evaluate('window.__stopped>=3'));
+        });
+      });
+      await messageTest.test('two isolated browsers exchange native WebRTC audio and video using synthetic devices', {
+        skip: !process.env.CHROME_BIN && 'Set CHROME_BIN for genuine local WebRTC checks',
+      }, async () => {
+        const flags=['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream','--autoplay-policy=no-user-gesture-required'];
+        await withBrowser(async (caller)=> {
+          await withBrowser(async (recipient)=> {
+            const source=`window.__peers=[];const NativePeer=window.RTCPeerConnection;window.RTCPeerConnection=class extends NativePeer{constructor(config){super(config);window.__peers.push(this);}};`;
+            for(const [browser,session] of [[caller,a],[recipient,b]]) {
+              await browser.command('Network.setCookie',{name:'chatbit_session',value:session.token,url:origin,httpOnly:true,sameSite:'Lax'});
+              await browser.command('Page.addScriptToEvaluateOnNewDocument',{source});
+              await browser.command('Page.navigate',{url:`${origin}/chat/${id}`});
+              await browser.waitFor(`document.querySelector('[aria-label="Start video call"]') && Object.keys(document.querySelector('textarea')??{}).some(key=>key.startsWith('__reactFiber$'))`);
+            }
+            await caller.evaluate(`document.querySelector('[aria-label="Start video call"]').click()`);
+            await recipient.waitFor(`document.querySelector('[aria-label="Incoming call"]')`);
+            await recipient.evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('Accept call')).click()`);
+            for(const browser of [caller,recipient]) {
+              await browser.waitFor(`window.__peers[0]?.connectionState==='connected'`);
+              await browser.waitFor(`window.__peers[0].getStats().then(stats=>Array.from(stats.values()).some(row=>row.type==='inbound-rtp' && row.kind==='video' && row.bytesReceived>0))`);
+              assert.ok(await browser.evaluate(`document.querySelector('video[aria-label="Remote media"]').srcObject.getAudioTracks().length===1`));
+              assert.ok(await browser.evaluate(`document.querySelector('video[aria-label="Remote media"]').srcObject.getVideoTracks().length===1`));
+            }
+            await caller.evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='End call').click()`);
+            await recipient.waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Close call')`);
+            for(const browser of [caller,recipient]) assert.equal(await browser.evaluate(`window.__peers[0].connectionState`),'closed');
+          },flags);
+        },flags);
+      });
       await messageTest.test('hydrated messaging UI preserves drafts, persists edits and works on mobile', {
         skip: !process.env.CHROME_BIN && 'Set CHROME_BIN to run real-browser messaging checks',
       }, async () => {

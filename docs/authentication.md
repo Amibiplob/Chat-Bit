@@ -94,8 +94,9 @@ DELETE FROM auth_rate_limits WHERE expires_at <= now();
 No scheduler was provisioned or cleanup executed against an application database.
 Email verification, password recovery, MFA and revoking other devices are not
 implemented. The UI does not claim email verification or functional recovery.
-Conversations and messaging now persist in PostgreSQL; calls/profile settings
-remain demonstration features. This milestone
+Conversations and messaging now persist in PostgreSQL; profile settings
+remain demonstration features. [Milestone 6 calling](calling.md) uses the same
+verified sessions for participant-only signaling. The authentication milestone
 does not establish full application production readiness or deployed reliability.
 
 ## Verification
