@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 
 import { AppSidebar } from "./app-sidebar";
 import { ConversationSidebar } from "./conversation-sidebar";
@@ -22,18 +22,17 @@ export function ChatLayout({ children, user, conversations }: ChatLayoutProps) {
 
 function LiveChatLayout({ children, user }: { children: React.ReactNode; user: AuthUser }) {
   const { conversations, status } = useRealtime();
-  const [activeSection, setActiveSection] = useState("chats");
   const pathname = usePathname();
+  const activeSection=pathname.startsWith("/contacts")?"contacts":pathname.startsWith("/settings")?"settings":"chats";
   const router = useRouter();
   const conversationOpen = pathname.startsWith("/chat/");
 
   return (
-    <div className="flex h-svh overflow-hidden bg-background">
+    <div className={`flex h-svh overflow-hidden bg-background ${conversationOpen?"":"pb-[calc(3.5rem+env(safe-area-inset-bottom))]"} md:pb-0`}>
       <AppSidebar
         activeSection={activeSection === "chats" && pathname === "/calls" ? "calls" : activeSection}
         onSectionChange={(section) => {
-          if (section === "calls" || section === "chats") { setActiveSection("chats"); router.push(section === "calls" ? "/calls" : "/chat"); }
-          else setActiveSection(section);
+          router.push(section==="calls"?"/calls":section==="contacts"?"/contacts":"/chat");
         }}
         user={user}
         hasUnread={conversations.some((conversation) => conversation.unread > 0)}
@@ -51,17 +50,9 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
 
       {activeSection === "chats" && pathname === "/calls" && children}
 
-      {activeSection === "contacts" && (
-        <main className="flex min-w-0 flex-1 items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-lg font-semibold">Contacts</h2>
-
-            <p className="mt-1 text-sm text-muted-foreground">
-              Your contacts will appear here.
-            </p>
-          </div>
-        </main>
-      )}
+      {activeSection === "settings" && <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>}
+      {activeSection === "contacts" && <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>}
+      {!conversationOpen && <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">{[["/chat","Chats"],["/calls","Calls"],["/contacts","Contacts"],["/settings","Settings"]].map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?'page':undefined} className="flex min-h-12 items-center px-3 text-sm">{label}</Link>)}</nav>}
     </div>
   );
 }

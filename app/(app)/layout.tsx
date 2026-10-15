@@ -1,3 +1,5 @@
+import { SettingsProvider } from "@/components/settings/settings-provider";
+import { mySettings } from "@/lib/server/settings";
 import { ChatLayout } from "@/components/chat/chat-layout";
 import { requireUser } from "@/lib/server/auth";
 import { getConversationList } from "@/lib/server/messaging";
@@ -9,5 +11,5 @@ interface ChatLayoutProps {
 export default async function ChatRouteLayout({ children }: ChatLayoutProps) {
   const user = await requireUser();
   const conversations = await getConversationList();
-  return <ChatLayout user={user} conversations={conversations}>{children}</ChatLayout>;
+  return <SettingsProvider initial={await mySettings()}><ChatLayout user={user} conversations={conversations}>{children}</ChatLayout></SettingsProvider>;
 }

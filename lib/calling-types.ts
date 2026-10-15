@@ -2,7 +2,7 @@ export type CallKind = "voice" | "video";
 export type CallStatus = "ringing" | "connecting" | "active" | "rejected" | "missed" | "cancelled" | "ended" | "failed";
 export type CallRecord = {
   id: string; conversationId: string; callerId: string; calleeId: string;
-  name: string; kind: CallKind; status: CallStatus; createdAt: string;
+  avatarVersion?: number; name: string; kind: CallKind; status: CallStatus; createdAt: string;
   answeredAt: string | null; connectedAt: string | null; endedAt: string | null;
   endingReason: string | null; duration: number | null; owned: boolean;
 };

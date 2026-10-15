@@ -92,10 +92,11 @@ DELETE FROM auth_rate_limits WHERE expires_at <= now();
 ```
 
 No scheduler was provisioned or cleanup executed against an application database.
-Email verification, password recovery, MFA and revoking other devices are not
-implemented. The UI does not claim email verification or functional recovery.
-Conversations and messaging now persist in PostgreSQL; profile settings
-remain demonstration features. [Milestone 6 calling](calling.md) uses the same
+Email verification, password recovery and MFA are not implemented. The UI does
+not claim email verification or functional recovery. Settings now supports
+reauthenticated revocation of other sessions.
+Conversations and messaging now persist in PostgreSQL; [Milestone 7 settings](settings.md) adds profile/password/session management and
+account preferences. [Milestone 6 calling](calling.md) uses the same
 verified sessions for participant-only signaling. The authentication milestone
 does not establish full application production readiness or deployed reliability.
 
@@ -114,3 +115,7 @@ References checked against the installed Next.js guides and official sources:
 [cookies](https://nextjs.org/docs/app/api-reference/functions/cookies),
 [Argon2 library](https://github.com/napi-rs/node-rs/tree/main/packages/argon2), and
 [Vercel request headers](https://vercel.com/docs/headers/request-headers).
+
+Milestone 7 password changes reauthenticate, update Argon2id hashes and revoke all
+sessions atomically. Login locks and rechecks the verified hash before issuing a
+session. See [settings lifecycle](settings.md) for supported account controls.

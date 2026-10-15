@@ -1,127 +1,27 @@
 "use client";
-
-import { useState } from "react";
-import { CheckCircle2, KeyRound, ShieldCheck } from "lucide-react";
-
+import { useRouter } from 'next/navigation';
+import { useEffect,useState } from 'react';
+import { messagingRequest } from '@/lib/messaging-client';
+import { SettingsSection,fieldClass,actionClass,useSubmission,Feedback } from './settings-form';
+type Session={createdAt:string;expiresAt:string;current:boolean};
 export function SecuritySettings() {
-  const [twoFactor, setTwoFactor] = useState(false);
-
-  return (
-    <div className="mx-auto w-full max-w-4xl">
-      <header className="border-b px-5 py-6 md:px-8">
-        <h2 className="text-xl font-semibold tracking-tight">Security</h2>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Protect your ChatBit account.
-        </p>
-      </header>
-
-      <div className="space-y-8 px-5 py-6 md:px-8">
-        {/* Password */}
-        <section>
-          <h3 className="text-sm font-semibold">Password</h3>
-
-          <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
-                <KeyRound className="size-5 text-muted-foreground" />
-              </div>
-
-              <div>
-                <p className="text-sm font-medium">Account password</p>
-
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Last changed recently
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-muted"
-            >
-              Change password
-            </button>
-          </div>
-        </section>
-
-        {/* 2FA */}
-        <section>
-          <h3 className="text-sm font-semibold">Two-factor authentication</h3>
-
-          <p className="mt-1 text-xs text-muted-foreground">
-            Add an additional layer of security to your account.
-          </p>
-
-          <div className="mt-4 rounded-xl border p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
-                  <ShieldCheck className="size-5" />
-                </div>
-
-                <div>
-                  <p className="text-sm font-medium">
-                    Two-factor authentication
-                  </p>
-
-                  <p className="mt-1 max-w-lg text-xs leading-5 text-muted-foreground">
-                    Require a verification code when signing in from a new
-                    device.
-                  </p>
-                </div>
-              </div>
-
-              <input
-                type="checkbox"
-                checked={twoFactor}
-                onChange={(event) => setTwoFactor(event.target.checked)}
-                className="mt-1 size-4 shrink-0 accent-blue-500"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Sessions */}
-        <section>
-          <h3 className="text-sm font-semibold">Active sessions</h3>
-
-          <p className="mt-1 text-xs text-muted-foreground">
-            Review where your account is currently signed in.
-          </p>
-
-          <div className="mt-4 rounded-xl border">
-            <div className="flex items-center justify-between gap-4 p-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium">Current session</p>
-
-                  <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600">
-                    <CheckCircle2 className="size-3" />
-                    Active
-                  </span>
-                </div>
-
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Linux · Chrome · Active now
-                </p>
-              </div>
-
-              <span className="text-xs text-muted-foreground">Current</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Security information */}
-        <section className="rounded-xl bg-muted/40 p-4">
-          <h3 className="text-sm font-medium">Security recommendation</h3>
-
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Use a unique password and enable two-factor authentication when it
-            becomes available in your account.
-          </p>
-        </section>
-      </div>
-    </div>
-  );
+  const router=useRouter();
+  const password=useSubmission(),devices=useSubmission();const [sessions,setSessions]=useState<Session[]>([]),[loadError,setLoadError]=useState('');
+  const [loading,setLoading]=useState(true),[retry,setRetry]=useState(0);
+  useEffect(()=>{const abort=new AbortController();messagingRequest<Session[]>('/api/settings/sessions',{signal:abort.signal}).then(rows=>{if(!abort.signal.aborted){setSessions(rows);setLoadError('');}}).catch(error=>{if(!abort.signal.aborted) setLoadError(error.message);}).finally(()=>{if(!abort.signal.aborted) setLoading(false);});return ()=>abort.abort();},[retry]);
+  return <SettingsSection title="Security" description="Use your current password to authorize sensitive account changes.">
+    <form className="space-y-4" onSubmit={event=>{event.preventDefault();const form=event.currentTarget,data=new FormData(form);void password.run(async()=> {
+      await messagingRequest('/api/settings/password',{method:'POST',body:JSON.stringify(Object.fromEntries(data))});form.reset();router.replace('/login');router.refresh();
+    });}}><h3 className="font-medium">Change password</h3><p className="text-sm text-muted-foreground">Use 12–128 characters. Changing your password signs out every session, including this browser.</p>
+      <label className="block text-sm">Current password<input name="currentPassword" type="password" autoComplete="current-password" className={fieldClass} required maxLength={128}/></label>
+      <label className="block text-sm">New password<input name="newPassword" type="password" autoComplete="new-password" className={fieldClass} required minLength={12} maxLength={128}/></label>
+      <label className="block text-sm">Confirm new password<input name="confirmPassword" type="password" autoComplete="new-password" className={fieldClass} required minLength={12} maxLength={128}/></label>
+      <button className={actionClass} disabled={password.pending}>{password.pending?'Changing…':'Change password and sign out'}</button><Feedback {...password}/>
+    </form>
+    <section aria-busy={loading}><h3 className="font-medium">Active sessions (latest 50)</h3>{loading && <p role="status" className="text-sm text-muted-foreground">Loading sessions…</p>}<p role="alert" className="text-sm text-destructive">{loadError}</p>{loadError && <button disabled={loading} onClick={()=>{setLoading(true);setRetry(value=>value+1);}} className="mt-2 min-h-11 rounded-lg border px-4 text-sm">Retry sessions</button>}<ul className="mt-3 divide-y rounded-xl border">{sessions.map((s,i)=><li key={i} className="p-3 text-sm">{s.current?'Current browser':'Other session'} · Expires <time dateTime={s.expiresAt}>{new Date(s.expiresAt).toISOString().slice(0,10)}</time></li>)}</ul></section>
+    <form className="space-y-3" onSubmit={event=>{event.preventDefault();const form=event.currentTarget,currentPassword=new FormData(form).get('currentPassword');void devices.run(async()=>{
+      const result=await messagingRequest<{revoked:number}>('/api/settings/sessions',{method:'POST',body:JSON.stringify({currentPassword})});form.reset();devices.setMessage(`${result.revoked} other sessions signed out.`);setSessions(await messagingRequest<Session[]>('/api/settings/sessions'));
+    });}}><label className="block text-sm">Current password to sign out other devices<input name="currentPassword" type="password" autoComplete="current-password" required maxLength={128} className={fieldClass}/></label><button disabled={devices.pending} className={actionClass}>Sign out other devices</button><Feedback {...devices}/></form>
+    <p className="text-sm text-muted-foreground">Two-factor authentication and password recovery are unavailable. Session records do not collect device fingerprints or locations.</p>
+  </SettingsSection>;
 }

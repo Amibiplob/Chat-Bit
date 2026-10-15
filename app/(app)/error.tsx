@@ -1,0 +1,3 @@
+"use client";
+import Link from 'next/link';
+export default function ErrorBoundary({reset}:{error:Error & {digest?:string};reset:()=>void}) {return <main className="flex min-h-60 flex-1 flex-col items-center justify-center gap-4 p-6 text-center"><h1 className="text-lg font-semibold">ChatBit could not load this page</h1><p role="alert" className="text-sm text-muted-foreground">Check your connection and try again. Your saved data is kept.</p><button onClick={reset} className="min-h-11 rounded-lg border px-4">Try again</button><Link href="/chat" className="text-blue-600">Back to chats</Link></main>;}

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useSettings } from "./settings-provider";
+import { Avatar } from "@/components/profile/avatar";
 import {
   Bell,
   ChevronLeft,
@@ -68,8 +70,9 @@ export function SettingsSidebar({
   activeSection,
   onSectionChange,
 }: SettingsSidebarProps) {
+  const {profile}=useSettings();
   return (
-    <aside className="hidden w-72 shrink-0 border-r bg-muted/20 md:flex md:flex-col">
+    <aside className="flex w-full shrink-0 flex-col border-b bg-muted/20 md:w-64 md:border-r">
       {/* Header */}
       <div className="flex h-16 items-center gap-3 border-b px-5">
         <Link
@@ -89,7 +92,7 @@ export function SettingsSidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex gap-1 overflow-x-auto p-3 md:block md:flex-1 md:space-y-1">
         {sections.map((section) => {
           const Icon = section.icon;
           const active = activeSection === section.id;
@@ -98,9 +101,10 @@ export function SettingsSidebar({
             <button
               key={section.id}
               type="button"
+              aria-current={active ? "page" : undefined}
               onClick={() => onSectionChange(section.id)}
               className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors",
+                "flex shrink-0 items-center gap-3 md:w-full rounded-xl px-3 py-3 text-left transition-colors",
                 active
                   ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -120,7 +124,7 @@ export function SettingsSidebar({
                   {section.label}
                 </span>
 
-                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                <span className="mt-0.5 hidden truncate text-xs md:block text-muted-foreground">
                   {section.description}
                 </span>
               </span>
@@ -129,20 +133,7 @@ export function SettingsSidebar({
         })}
       </nav>
 
-      {/* User */}
-      <div className="border-t p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-            MB
-          </div>
-
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">Md Biplob Hosain</p>
-
-            <p className="truncate text-xs text-muted-foreground">Online</p>
-          </div>
-        </div>
-      </div>
+      <div className="hidden items-center gap-3 border-t p-4 md:flex"><Avatar userId={profile.id} name={profile.displayName} version={profile.avatarVersion}/><span className="truncate text-sm">{profile.displayName}</span></div>
     </aside>
   );
 }

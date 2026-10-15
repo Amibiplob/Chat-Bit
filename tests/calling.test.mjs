@@ -136,3 +136,17 @@ test('an in-flight ringing poll cannot overwrite a completed answer action',asyn
   await f.controller.receive({call:{...row,status:'ended'},signals:[]});
   f.controller.stop();
 });
+
+test('end action keeps dismissal and redial disabled until server termination completes',async()=>{
+  let release;const row=call();
+  const f=fixture({request:async(url,options)=>{
+    if(url==='/api/calls') return row;
+    if(JSON.parse(options.body).action==='end') return new Promise(resolve=>{release=resolve;});
+    throw new Error('Unexpected request');
+  }});
+  await f.controller.start(row.conversationId,'voice');
+  const ending=f.controller.act('end');assert.equal(f.controller.getState().working,true);
+  f.controller.dismiss();assert.equal(f.controller.getState().call.id,row.id);
+  release({...row,status:'ended'});await ending;
+  assert.equal(f.controller.getState().working,false);f.controller.dismiss();assert.equal(f.controller.getState().call,null);
+});

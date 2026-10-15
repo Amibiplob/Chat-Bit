@@ -37,7 +37,7 @@ function actionForm(html, marker, fields = {}) {
 
 test('real Next.js forms, session cookies and protected HTTP routes', {
   skip: !(process.env.TEST_DATABASE_URL && process.env.TEST_AUTH_HTTP === '1') && 'Set TEST_DATABASE_URL and TEST_AUTH_HTTP=1 for HTTP authentication tests',
-  timeout: 300000,
+  timeout: 600000,
 }, async (t) => {
   const settings = databaseConfig({ DATABASE_URL: process.env.TEST_DATABASE_URL, DATABASE_SSL: process.env.TEST_DATABASE_SSL ?? 'verify' });
   const admin = new pg.Pool(settings);
@@ -229,6 +229,72 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
       assert.equal(deleted.messages[0].content, '');
       assert.equal(deleted.messages[1].reply.deleted, true);
       assert.equal(deleted.messages[1].reply.content, '');
+      await messageTest.test('settings APIs authorize actors and persist profile/preferences',async()=> {
+        assert.equal((await api('/api/settings',null)).status,401);
+        assert.equal((await api('/api/settings',a,'PATCH',{displayName:'Spoofed',bio:'',userId:randomUUID()})).status,400);
+        assert.equal((await api('/api/settings',a,'PATCH',{displayName:'Changed',bio:''},'https://untrusted.example')).status,403);
+        const {default:sharp}=await import('sharp');
+        const image=await sharp({create:{width:3,height:3,channels:3,background:'#336699'}}).png().toBuffer();
+        const avatarRequest=(session,body,customOrigin=origin)=>request('/api/settings/avatar',{method:'POST',headers:{Cookie:actor(session),Origin:customOrigin,'Content-Type':'image/png'},body});
+        assert.equal((await avatarRequest(a,image,'https://untrusted.example')).status,403);
+        assert.equal((await avatarRequest(a,Buffer.alloc(262145))).status,413);
+        assert.equal((await avatarRequest(a,Buffer.alloc(40))).status,400);
+        assert.equal((await avatarRequest(a,image)).status,200);
+        assert.equal((await api(`/api/avatars/${me}`,b)).status,200);
+        assert.equal((await api(`/api/avatars/${me}`,c)).status,404);
+        assert.equal((await api(`/api/avatars/${me}`,null)).status,401);
+        assert.equal((await api('/api/settings/avatar',a,'DELETE')).status,200);
+        const before=await (await api('/api/settings',a)).json();
+        const updated=await api('/api/settings',a,'PATCH',{displayName:before.displayName,bio:'Private HTTP biography'});assert.equal(updated.status,200);
+        assert.equal((await updated.json()).bio,'Private HTTP biography');
+        const prefs={notifyMessages:false,notifyCalls:false,showOnline:false,showLastSeen:false};
+        assert.equal((await api('/api/settings',a,'PUT',prefs)).status,200);
+        const persisted=await (await api('/api/settings',a)).json();assert.equal(persisted.showOnline,false);
+        assert.equal((await api('/api/settings/password',a,'POST',{currentPassword:'wrong',newPassword:'a new passphrase',confirmPassword:'a new passphrase'})).status,403);
+        assert.equal((await api('/api/settings/sessions',a,'POST',{currentPassword:'wrong'})).status,403);
+        assert.equal((await api('/api/settings',a,'DELETE')).status,405);
+        // Leave the subsequent existing presence/browser checks at their defaults.
+        await api('/api/settings',a,'PUT',{notifyMessages:true,notifyCalls:true,showOnline:true,showLastSeen:true});
+      });
+      await messageTest.test('settings browser theme, profile feedback, keyboard labels and responsive navigation',{
+        skip:!process.env.CHROME_BIN && 'Set CHROME_BIN for settings browser checks',
+      },async()=> {
+        await withBrowser(async({command,evaluate,waitFor})=>{
+          await command('Network.setCookie',{name:'chatbit_session',value:a.token,url:origin,httpOnly:true,sameSite:'Lax'});
+          await command('Page.navigate',{url:`${origin}/settings`});
+          await waitFor(`document.querySelector('#display-name') && Object.keys(document.querySelector('#display-name')).some(k=>k.startsWith('__reactFiber$'))`);
+          assert.equal(await evaluate(`document.querySelector('#display-name').value`),'HTTP Test User');
+          await evaluate(`Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(document.querySelector('#bio'),'Saved from browser');document.querySelector('#bio').dispatchEvent(new Event('input',{bubbles:true}))`);
+          await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Save profile').click()`);
+          await waitFor(`document.body.innerText.includes('Profile saved.')`);
+          const navigate=async label=>{await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.trim().startsWith(${JSON.stringify(label)}) && b.closest('aside')).click()`);};
+          await navigate('Appearance');await waitFor(`document.querySelector('button[aria-pressed]')`);
+          await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Dark').click()`);
+          assert.equal(await evaluate(`document.documentElement.classList.contains('dark')`),true);
+          await command('Page.reload');await waitFor(`document.querySelector('#display-name') && Object.keys(document.querySelector('#display-name')).some(k=>k.startsWith('__reactFiber$'))`);
+          assert.equal(await evaluate(`document.documentElement.classList.contains('dark')`),true);
+          await navigate('Appearance');await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='System').click()`);
+          await command('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'dark'}]});
+          await waitFor(`document.documentElement.classList.contains('dark')`);
+          await command('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'light'}]});
+          await waitFor(`!document.documentElement.classList.contains('dark')`);
+          for(const width of [320,390,768,1280]) {
+            await command('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<768});
+            assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),`Settings fits ${width}px`);
+          }
+          await navigate('Privacy');await waitFor(`document.body.innerText.includes('Show online status')`);
+          assert.equal(await evaluate(`document.querySelectorAll('input[type="checkbox"]').length`),2);
+          await navigate('Security');await waitFor(`document.querySelector('input[autocomplete="new-password"]')`);
+          assert.ok(await evaluate(`Array.from(document.querySelectorAll('input[type="password"]')).every(input=>input.closest('label'))`));
+          await evaluate(`document.querySelector('input[type="password"]').focus()`);
+          assert.equal(await evaluate(`document.activeElement.type`),'password');
+          await navigate('Account');assert.ok(await evaluate(`document.body.innerText.includes('Account deletion — unavailable')`));
+          await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+          await evaluate(`document.querySelector('nav[aria-label="Mobile navigation"] a[href="/chat"]').click()`);
+          await waitFor(`location.pathname==='/chat'`);
+          assert.ok(await evaluate(`document.querySelector('nav[aria-label="Mobile navigation"] a[href="/calls"]')`));
+        });
+      });
       await messageTest.test('calling HTTP authorization and hydrated controls with mocked media', {
         skip: !process.env.CHROME_BIN && 'Set CHROME_BIN for calling browser checks',
       }, async () => {
@@ -274,10 +340,10 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
           await evaluate(`document.querySelector('[aria-label="Unmute microphone"]').click()`);
           assert.equal(await evaluate('window.__captured[0].getAudioTracks()[0].enabled'),true);
           await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='End call').click()`);
-          await waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Close call')`);
+          await waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Close call' && !b.disabled)`);
           assert.ok(await evaluate('window.__stopped>=1 && window.__peer.closed'));
           await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Close call').click()`);
-          const incomingTab=randomUUID();call=await (await api('/api/calls',b,'POST',{conversationId:id,kind:'video',clientId:randomUUID(),tabId:incomingTab})).json();
+          const incomingTab=randomUUID();const invitation=await api('/api/calls',b,'POST',{conversationId:id,kind:'video',clientId:randomUUID(),tabId:incomingTab});assert.equal(invitation.status,200);call=await invitation.json();
           await waitFor(`document.querySelector('[aria-label="Incoming call"]')`);
           await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('Accept call')).click()`);
           await waitFor(`window.__captured.length===2 && window.__captured[1].getVideoTracks().length===1`);
@@ -288,7 +354,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
           await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
           assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'));
           await evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='End call').click()`);
-          await waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Close call')`);
+          await waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Close call' && !b.disabled)`);
           assert.ok(await evaluate('window.__stopped>=3'));
         });
       });
@@ -315,7 +381,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
               assert.ok(await browser.evaluate(`document.querySelector('video[aria-label="Remote media"]').srcObject.getVideoTracks().length===1`));
             }
             await caller.evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='End call').click()`);
-            await recipient.waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Close call')`);
+            await recipient.waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Close call' && !b.disabled)`);
             for(const browser of [caller,recipient]) assert.equal(await browser.evaluate(`window.__peers[0].connectionState`),'closed');
           },flags);
         },flags);
@@ -411,7 +477,8 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
     if (child && child.exitCode === null) {
       const stopped = once(child, 'exit');
       process.kill(process.platform === 'win32' ? child.pid : -child.pid, 'SIGTERM');
-      await stopped;
+      await Promise.race([stopped,delay(3000)]);
+      if(child.exitCode===null && child.signalCode===null) {process.kill(-child.pid,'SIGKILL');await stopped;}
     }
     await pool?.end();
     try { if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); } finally { await admin.end(); }

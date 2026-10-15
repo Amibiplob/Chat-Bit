@@ -8,6 +8,7 @@ interface MessageAreaProps {
   messages: Message[];
   currentUserId: string;
   conversationInitials: string;
+  avatarVersion?: number;
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (messageId: string) => void;
@@ -17,7 +18,7 @@ interface MessageAreaProps {
   pending: boolean;
 }
 
-export function MessageArea({ messages, currentUserId, conversationInitials, onReply, onEdit, onDelete, onDeleteAttachment, onLoadOlder, hasMore, pending }: MessageAreaProps) {
+export function MessageArea({ messages, currentUserId, conversationInitials, avatarVersion, onReply, onEdit, onDelete, onDeleteAttachment, onLoadOlder, hasMore, pending }: MessageAreaProps) {
   const area = useRef<HTMLDivElement>(null);
   const previous = useRef({ first: "", last: "", height: 0 });
   useLayoutEffect(() => {
@@ -41,7 +42,7 @@ export function MessageArea({ messages, currentUserId, conversationInitials, onR
             {(index === 0 || messages[index - 1].createdAt.slice(0, 10) !== message.createdAt.slice(0, 10)) && (
               <div className="flex justify-center py-2"><time dateTime={message.createdAt.slice(0, 10)} className="rounded-full bg-background px-3 py-1 text-[11px] text-muted-foreground shadow-sm">{message.createdAt.slice(0, 10)}</time></div>
             )}
-            <MessageBubble message={message} isOwn={message.senderId === currentUserId} senderInitials={conversationInitials}
+            <MessageBubble message={message} isOwn={message.senderId === currentUserId} senderInitials={conversationInitials} avatarVersion={avatarVersion}
               onReply={onReply} onEdit={onEdit} onDelete={onDelete} onDeleteAttachment={onDeleteAttachment} pending={pending} />
           </Fragment>
         ))}

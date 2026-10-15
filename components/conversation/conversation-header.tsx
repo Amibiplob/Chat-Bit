@@ -3,6 +3,7 @@
 import { ArrowLeft, History, MoreVertical, Phone, RefreshCw, Video } from "lucide-react";
 import { useCalling } from "@/components/calls/calling-provider";
 import Link from "next/link";
+import { Avatar } from "@/components/profile/avatar";
 import type { Conversation } from "@/lib/messaging-types";
 import type { Presence, ConnectionStatus } from "@/lib/realtime-types";
 
@@ -31,11 +32,7 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
 
         {/* Avatar */}
         <div className="relative shrink-0">
-          <div
-            className={`flex size-10 items-center justify-center rounded-full text-sm font-semibold ${conversation.color}`}
-          >
-            {conversation.initials}
-          </div>
+          <Avatar userId={conversation.participantId} name={conversation.name} version={conversation.avatarVersion}/>
           {presence?.online && <span aria-label="Online" className="absolute bottom-0 right-0 size-2.5 rounded-full border-2 border-background bg-emerald-500" />}
         </div>
 
@@ -55,15 +52,15 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1">
-        <Link href="/calls" aria-label="Call history" title="Call history" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><History className="size-5" /></Link>
+      <div className="flex shrink-0 items-center gap-0 md:gap-1">
+        <Link href="/calls" aria-label="Call history" title="Call history" className="hidden size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted sm:flex"><History className="size-5" /></Link>
         <button
           type="button"
           aria-label="Refresh messages"
           title="Refresh messages"
           disabled={pending}
           onClick={onRefresh}
-          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
         >
           <RefreshCw className={`size-5 ${pending ? "animate-spin" : ""}`} />
         </button>
@@ -95,7 +92,7 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
           aria-label="More conversation options"
           disabled
           title="Not available yet"
-          className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
         >
           <MoreVertical className="size-5" />
         </button>

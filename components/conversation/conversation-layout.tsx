@@ -149,7 +149,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
         onRefresh={refresh} pending={pending} presence={presence} status={status} />
       {error && <p role="alert" className="border-b bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
       {readError && <p role="alert" className="border-b bg-destructive/10 px-4 py-3 text-sm text-destructive">{readError}</p>}
-      <MessageArea messages={messages} currentUserId={currentUserId} conversationInitials={conversation.initials}
+      <MessageArea messages={messages} currentUserId={currentUserId} conversationInitials={conversation.initials} avatarVersion={conversation.avatarVersion}
         onReply={(message) => { setReplyingTo(message); setEditingMessage(null); }}
         onEdit={(message) => { setEditingMessage(message); setReplyingTo(null); }}
         onDelete={handleDelete} onDeleteAttachment={handleDeleteAttachment} onLoadOlder={loadOlder} hasMore={Boolean(nextCursor)} pending={pending} />

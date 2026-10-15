@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import type { Conversation, MessageCursor, MessagePage } from "@/lib/messaging-types";
 import type { ConnectionStatus, Presence } from "@/lib/realtime-types";
 import { messagingRequest } from "@/lib/messaging-client";
+import { notify } from "@/lib/notifications.mjs";
+import { useSettings } from "@/components/settings/settings-provider";
 import { createSyncLoop } from "@/lib/realtime-client.mjs";
 
 type Thread = { id: string; oldest: () => MessageCursor | null; receive: (page: MessagePage) => void };
@@ -21,6 +23,10 @@ export function useRealtime() {
 }
 
 export function RealtimeProvider({ initialConversations, children }: { initialConversations: Conversation[]; children: React.ReactNode }) {
+  const {profile}=useSettings();
+  const settings=useRef(profile);
+  useEffect(()=>{settings.current=profile;},[profile]);
+  const notified=useRef(new Map(initialConversations.map(c=>[c.id,c.unread])));
   const pathname = usePathname();
   const router = useRouter();
   const candidate = pathname.startsWith("/chat/") ? pathname.split("/")[2] : null;
@@ -45,9 +51,15 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
       request: (input, signal) => messagingRequest(`/api/realtime/sync?state=${encodeURIComponent(JSON.stringify(input))}`, { signal }),
       loadPage: (id, cursor, signal) => messagingRequest(`/api/conversations/${id}/messages?limit=100&cursor=${encodeURIComponent(JSON.stringify(cursor))}`, { signal }),
       getState: () => ({ conversationId, oldest: thread.current?.id === conversationId ? thread.current.oldest() : null }),
-      isVisible: () => document.visibilityState === "visible" && navigator.onLine,
+      isVisible: () => navigator.onLine && (document.visibilityState === "visible" || (settings.current.notifyMessages && typeof Notification!=="undefined" && Notification.permission==="granted")),
       onSnapshot: (snapshot) => {
-        if (snapshot.conversations) setConversations(snapshot.conversations);
+        if (snapshot.conversations) {
+          for(const row of snapshot.conversations) {
+            if(row.unread>(notified.current.get(row.id)??0)) notify('message',row.id,settings.current.notifyMessages);
+            notified.current.set(row.id,row.unread);
+          }
+          setConversations(snapshot.conversations);
+        }
         setPresence({ conversationId, value: snapshot.presence });
         if (snapshot.page && thread.current?.id === conversationId) thread.current.receive(snapshot.page);
       },

@@ -1,16 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
+import { ThemeProvider } from "@/components/settings/theme-provider";
+import { themeBootstrap } from "@/lib/theme.mjs";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-});
+const inter=localFont({src:"../public/fonts/Inter-latin.woff2",variable:"--font-inter",display:"swap",weight:"100 900"});
+const jetbrainsMono=localFont({src:"../public/fonts/JetBrainsMono-latin.woff2",variable:"--font-jetbrains-mono",display:"swap",weight:"100 800"});
 
 export const metadata: Metadata = {
   title: {
@@ -43,9 +37,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
     >
-      <body className="min-h-full flex flex-col container mx-auto">{children}</body>
+      <head><script dangerouslySetInnerHTML={{__html:themeBootstrap}}/></head>
+      <body className="min-h-svh min-w-0"><ThemeProvider>{children}</ThemeProvider></body>
     </html>
   );
 }

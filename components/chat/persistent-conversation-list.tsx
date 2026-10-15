@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Avatar } from "@/components/profile/avatar";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "@/lib/messaging-types";
@@ -14,7 +15,7 @@ export function PersistentConversationList({ conversations }: { conversations: C
       {conversations.map((conversation) => (
         <Link key={conversation.id} href={`/chat/${conversation.id}`} aria-current={pathname === `/chat/${conversation.id}` ? "page" : undefined}
           className={cn("flex w-full gap-3 border-b px-4 py-3.5 text-left transition-colors hover:bg-muted/50", pathname === `/chat/${conversation.id}` && "bg-muted/40")}>
-          <div className={cn("flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold", conversation.color)}>{conversation.initials}</div>
+          <Avatar userId={conversation.participantId} name={conversation.name} version={conversation.avatarVersion} className="size-11"/>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-semibold">{conversation.name}</p>

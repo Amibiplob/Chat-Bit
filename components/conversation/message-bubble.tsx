@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { Avatar } from "@/components/profile/avatar";
 import type { Message } from "@/lib/messaging-types";
 import type { Attachment } from "@/lib/attachment-types";
 import { messagingRequest } from "@/lib/messaging-client";
@@ -46,8 +47,8 @@ function AttachmentView({ attachment, own, pending, onDelete }: { attachment: At
     {url && attachment.mimeType.startsWith("video/") && <video onError={() => setError("Preview unavailable")} src={url} controls preload="metadata" className="max-h-72 w-full" />}
     {url && attachment.mimeType.startsWith("audio/") && <audio onError={() => setError("Preview unavailable")} src={url} controls preload="metadata" className="w-full p-2" />}
     <div className="flex items-center gap-2 p-2.5"><FileText className="size-4 shrink-0" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{attachment.filename}</p><p className="text-[10px] opacity-70">{readableBytes(attachment.byteSize)}</p></div>
-      <button type="button" disabled={pending} onClick={download} aria-label="Download file" title="Download file" className="rounded p-1 hover:bg-black/10"><Download className="size-4" /></button>
-      {own && <button type="button" disabled={pending} onClick={onDelete} aria-label="Delete attachment" title="Delete attachment" className="rounded p-1 hover:bg-black/10"><Trash2 className="size-4" /></button>}
+      <button type="button" disabled={pending} onClick={download} aria-label="Download file" title="Download file" className="flex size-9 items-center justify-center rounded hover:bg-black/10"><Download className="size-4" /></button>
+      {own && <button type="button" disabled={pending} onClick={onDelete} aria-label="Delete attachment" title="Delete attachment" className="flex size-9 items-center justify-center rounded hover:bg-black/10"><Trash2 className="size-4" /></button>}
     </div>{error && <p role="alert" className="px-2 pb-2 text-[10px]">{error}</p>}
   </div>;
 }
@@ -57,6 +58,7 @@ interface MessageBubbleProps {
   pending: boolean;
   isOwn: boolean;
   senderInitials: string;
+  avatarVersion?: number;
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (messageId: string) => void;
@@ -67,7 +69,7 @@ export function MessageBubble({
   message,
   pending,
   isOwn,
-  senderInitials,
+  avatarVersion,
   onReply,
   onEdit,
   onDelete,
@@ -90,12 +92,10 @@ export function MessageBubble({
       >
         {/* Other user's avatar */}
         {!isOwn && (
-          <div className="mb-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold text-violet-600">
-            {senderInitials}
-          </div>
+          <Avatar userId={message.senderId} name={message.senderName} version={avatarVersion} className="mb-1 size-8"/>
         )}
 
-        <div className="relative min-w-0" tabIndex={0} role="group" aria-label={`Message from ${message.senderName}`}>
+        <div className="relative min-w-0" tabIndex={0} role="group" onKeyDown={event=>{if(event.key==="Escape") {setMenuOpen(false);event.currentTarget.focus();}}} aria-label={`Message from ${message.senderName}`}>
           {/* Action buttons */}
           {!message.deleted && <div
             className={`absolute bottom-full z-10 mb-1 hidden items-center gap-0.5 rounded-lg border bg-background p-1 shadow-sm sm:group-hover:flex sm:group-focus-within:flex ${
@@ -105,7 +105,7 @@ export function MessageBubble({
             <button
               type="button"
               disabled={pending}
-              title="Reply"
+              title="Reply" aria-label="Reply"
               onClick={() => onReply(message)}
               className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             >
@@ -115,7 +115,7 @@ export function MessageBubble({
             <button
               type="button"
               disabled={pending}
-              title="Copy"
+              title="Copy" aria-label="Copy message"
               onClick={handleCopy}
               className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             >
@@ -127,7 +127,7 @@ export function MessageBubble({
                 <button
                   type="button"
                   disabled={pending}
-                  title="Edit"
+                  title="Edit" aria-label="Edit message"
                   onClick={() => onEdit(message)}
                   className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
@@ -137,7 +137,7 @@ export function MessageBubble({
                 <button
                   type="button"
                   disabled={pending}
-                  title="Delete"
+                  title="Delete" aria-label="Delete message"
                   onClick={() => onDelete(message.id)}
                   className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-destructive"
                 >
@@ -149,7 +149,7 @@ export function MessageBubble({
             <button
               type="button"
               disabled={pending}
-              title="More"
+              title="More" aria-label="More message actions" aria-expanded={menuOpen}
               onClick={() => setMenuOpen((value) => !value)}
               className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             >
@@ -217,7 +217,7 @@ export function MessageBubble({
                 isOwn ? "text-blue-100" : "text-muted-foreground"
               }`}
             >
-              {!message.deleted && <button type="button" disabled={pending} aria-label="Message actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="mr-auto flex size-5 items-center justify-center rounded sm:hidden"><MoreHorizontal className="size-3.5" /></button>}
+              {!message.deleted && <button type="button" disabled={pending} aria-label="Message actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="mr-auto flex size-9 items-center justify-center rounded sm:hidden"><MoreHorizontal className="size-3.5" /></button>}
               <time dateTime={message.createdAt} title={message.createdAt} suppressHydrationWarning className="text-[10px]">{new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time>
 
               {message.edited && <span className="text-[10px]">edited</span>}

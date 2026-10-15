@@ -1,176 +1,29 @@
 "use client";
-
-import { useState } from "react";
-import { Camera, Check, Pencil } from "lucide-react";
-
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSettings } from './settings-provider';
+import { Avatar } from '@/components/profile/avatar';
+import { messagingRequest } from '@/lib/messaging-client';
+import type { SettingsProfile } from '@/lib/settings-types';
+import { SettingsSection,fieldClass,actionClass,useSubmission,Feedback } from './settings-form';
 export function ProfileSettings() {
-  const [name, setName] = useState("Md Biplob Hosain");
-  const [username, setUsername] = useState("biplob");
-  const [bio, setBio] = useState(
-    "Junior Full-Stack Developer building modern web applications.",
-  );
-
-  const [saved, setSaved] = useState(false);
-
-  function handleSave() {
-    setSaved(true);
-
-    window.setTimeout(() => {
-      setSaved(false);
-    }, 2000);
-  }
-
-  return (
-    <div className="mx-auto w-full max-w-4xl">
-      {/* Header */}
-      <header className="border-b px-5 py-6 md:px-8">
-        <h2 className="text-xl font-semibold tracking-tight">Profile</h2>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your public profile information.
-        </p>
-      </header>
-
-      <div className="space-y-8 px-5 py-6 md:px-8">
-        {/* Avatar */}
-        <section>
-          <h3 className="text-sm font-semibold">Profile photo</h3>
-
-          <p className="mt-1 text-xs text-muted-foreground">
-            Choose a photo that represents you.
-          </p>
-
-          <div className="mt-4 flex items-center gap-4">
-            <div className="relative">
-              <div className="flex size-20 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-                MB
-              </div>
-
-              <button
-                type="button"
-                aria-label="Change profile photo"
-                className="absolute bottom-0 right-0 flex size-7 items-center justify-center rounded-full border-2 border-background bg-blue-500 text-white shadow-sm transition-opacity hover:opacity-90"
-              >
-                <Camera className="size-3.5" />
-              </button>
-            </div>
-
-            <div>
-              <button
-                type="button"
-                className="rounded-lg border px-3 py-2 text-xs font-medium transition-colors hover:bg-muted"
-              >
-                Upload photo
-              </button>
-
-              <p className="mt-1.5 text-[11px] text-muted-foreground">
-                JPG, PNG or WebP. Maximum 5 MB.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Personal information */}
-        <section className="space-y-5">
-          <div>
-            <h3 className="text-sm font-semibold">Personal information</h3>
-
-            <p className="mt-1 text-xs text-muted-foreground">
-              This information is visible to people you communicate with.
-            </p>
-          </div>
-
-          {/* Name */}
-          <div className="space-y-2">
-            <label htmlFor="profile-name" className="text-sm font-medium">
-              Display name
-            </label>
-
-            <input
-              id="profile-name"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              className="h-10 w-full rounded-lg border bg-background px-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
-
-          {/* Username */}
-          <div className="space-y-2">
-            <label htmlFor="profile-username" className="text-sm font-medium">
-              Username
-            </label>
-
-            <div className="flex items-center rounded-lg border bg-background focus-within:ring-2 focus-within:ring-blue-500/20">
-              <span className="pl-3 text-sm text-muted-foreground">@</span>
-
-              <input
-                id="profile-username"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                className="h-10 min-w-0 flex-1 bg-transparent px-1 text-sm outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Email */}
-          <div className="space-y-2">
-            <label htmlFor="profile-email" className="text-sm font-medium">
-              Email
-            </label>
-
-            <div className="flex gap-2">
-              <input
-                id="profile-email"
-                value="biplob@example.com"
-                disabled
-                className="h-10 flex-1 rounded-lg border bg-muted/40 px-3 text-sm text-muted-foreground outline-none"
-              />
-
-              <button
-                type="button"
-                className="flex items-center gap-1.5 rounded-lg border px-3 text-xs font-medium hover:bg-muted"
-              >
-                <Pencil className="size-3.5" />
-                Change
-              </button>
-            </div>
-          </div>
-
-          {/* Bio */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label htmlFor="profile-bio" className="text-sm font-medium">
-                Bio
-              </label>
-
-              <span className="text-[11px] text-muted-foreground">
-                {bio.length}/160
-              </span>
-            </div>
-
-            <textarea
-              id="profile-bio"
-              value={bio}
-              maxLength={160}
-              onChange={(event) => setBio(event.target.value)}
-              rows={4}
-              className="w-full resize-none rounded-lg border bg-background px-3 py-2.5 text-sm leading-6 outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
-        </section>
-
-        {/* Save */}
-        <div className="flex items-center justify-end border-t pt-5">
-          <button
-            type="button"
-            onClick={handleSave}
-            className="flex h-9 items-center gap-2 rounded-lg bg-blue-500 px-4 text-sm font-medium text-white transition-opacity hover:opacity-90"
-          >
-            {saved && <Check className="size-4" />}
-            {saved ? "Saved" : "Save changes"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+  const {profile,update}=useSettings(),router=useRouter();
+  const [displayName,setName]=useState<string|null>(null),[bio,setBio]=useState<string|null>(null);
+  const submission=useSubmission(),avatar=useSubmission();
+  return <SettingsSection title="Profile" description="Your name and avatar are visible to conversation partners. Your email stays private.">
+    <div className="flex items-center gap-4"><Avatar userId={profile.id} name={profile.displayName} version={profile.avatarVersion} className="size-20"/><div className="min-w-0 space-y-2">
+      <label className="block text-sm font-medium" htmlFor="avatar">Change avatar</label><input id="avatar" type="file" accept="image/png,image/jpeg,image/webp" disabled={avatar.pending} className="max-w-full text-sm" onChange={event=> {
+        const file=event.target.files?.[0];event.target.value='';if(!file) return;
+        void avatar.run(async()=> {if(file.size>262144) throw new Error('Choose an image up to 256 KiB.');
+          update(await messagingRequest<SettingsProfile>('/api/settings/avatar',{method:'POST',headers:{'Content-Type':file.type},body:file}));router.refresh();avatar.setMessage('Avatar updated.');});
+      }}/><p className="text-xs text-muted-foreground">PNG, JPEG or WebP, up to 256 KiB. Use a small square image.</p>
+      <button className="min-h-11 rounded-lg border px-3 text-sm disabled:opacity-50" disabled={avatar.pending || profile.avatarVersion===0} onClick={()=>void avatar.run(async()=>{update(await messagingRequest<SettingsProfile>('/api/settings/avatar',{method:'DELETE'}));router.refresh();avatar.setMessage('Avatar removed.');})}>Remove avatar</button>
+    </div></div><Feedback {...avatar}/>
+    <form className="space-y-4" onSubmit={event=>{event.preventDefault();void submission.run(async()=>{update(await messagingRequest<SettingsProfile>('/api/settings',{method:'PATCH',body:JSON.stringify({displayName:displayName??profile.displayName,bio:bio??profile.bio})}));setName(null);setBio(null);router.refresh();submission.setMessage('Profile saved.');});}}>
+      <label className="block text-sm font-medium" htmlFor="display-name">Display name<input id="display-name" autoComplete="name" className={fieldClass} value={displayName??profile.displayName} disabled={submission.pending} onChange={e=>setName(e.target.value)} required maxLength={80}/></label>
+      <label className="block text-sm font-medium" htmlFor="bio">About you<textarea id="bio" className={fieldClass} value={bio??profile.bio} disabled={submission.pending} onChange={e=>setBio(e.target.value)} maxLength={160} rows={3}/></label>
+      <p className="text-xs text-muted-foreground">Your bio is currently visible only here. Email changes and usernames are unavailable.</p>
+      <button disabled={submission.pending} className={actionClass}>{submission.pending?'Saving…':'Save profile'}</button><Feedback {...submission}/>
+    </form>
+  </SettingsSection>;
 }

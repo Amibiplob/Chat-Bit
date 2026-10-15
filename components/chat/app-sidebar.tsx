@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, MessageCircle, Phone, Settings, Users } from "lucide-react";
+import { MessageCircle, Phone, Settings, Users } from "lucide-react";
+import { Avatar } from "@/components/profile/avatar";
+import { useSettings } from "@/components/settings/settings-provider";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/auth/logout-button";
 import type { AuthUser } from "@/lib/auth-types";
@@ -37,6 +39,7 @@ export function AppSidebar({
   user,
   hasUnread,
 }: AppSidebarProps) {
+  const {profile}=useSettings();
   return (
     <aside className="hidden w-18 shrink-0 flex-col border-r bg-muted/20 md:flex">
       {/* Logo */}
@@ -60,6 +63,8 @@ export function AppSidebar({
             <button
               key={item.id}
               type="button"
+              aria-label={item.label}
+              aria-pressed={active}
               onClick={() => onSectionChange(item.id)}
               title={item.label}
               className={cn(
@@ -80,17 +85,9 @@ export function AppSidebar({
 
         <div className="my-2 h-px w-8 bg-border" />
 
-        <button
-          type="button"
-          title="Notifications"
-          className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Bell className="size-5" />
-        </button>
-
         <Link
           href="/settings"
-          title="Settings"
+          title="Settings" aria-label="Settings"
           className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Settings className="size-5" />
@@ -99,14 +96,7 @@ export function AppSidebar({
 
       {/* Current user */}
       <div className="border-t p-3">
-        <button
-          type="button"
-          title={user.displayName}
-          aria-label={`Signed in as ${user.displayName}`}
-          className="flex size-11 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600 transition-opacity hover:opacity-80 dark:bg-blue-950 dark:text-blue-300"
-        >
-          {user.displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}
-        </button>
+        <Link href="/settings" aria-label={`Profile for ${profile.displayName}`}><Avatar userId={user.id} name={profile.displayName} version={profile.avatarVersion} className="size-11"/></Link>
         <LogoutButton compact />
       </div>
     </aside>

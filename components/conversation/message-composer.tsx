@@ -49,6 +49,7 @@ export function MessageComposer({
   useEffect(() => () => upload.current?.abort(), []);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const emojiButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (editingMessage) {
@@ -107,7 +108,7 @@ export function MessageComposer({
   }
 
   return (
-    <div className="border-t bg-background p-3 md:p-4">
+    <div className="border-t bg-background p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4">
       {/* Reply / Edit preview */}
       {(replyingTo || editingMessage) && (
         <div className="mx-auto mb-3 flex max-w-3xl items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
@@ -143,7 +144,7 @@ export function MessageComposer({
         {fileError && <p role="alert" className="mb-2 text-xs text-destructive">{fileError}</p>}
         {/* Emoji picker */}
         {emojiOpen && (
-          <div className="absolute bottom-14 left-0 z-20 rounded-xl border bg-background p-2 shadow-lg">
+          <div id="chatbit-emojis" role="group" aria-label="Choose an emoji" onKeyDown={event=>{if(event.key==='Escape'){event.preventDefault();setEmojiOpen(false);emojiButton.current?.focus();}}} className="absolute bottom-14 left-0 z-20 rounded-xl border bg-background p-2 shadow-lg">
             <div className="grid grid-cols-6 gap-1">
               {emojis.map((emoji) => (
                 <button
@@ -151,7 +152,7 @@ export function MessageComposer({
                   type="button"
                   disabled={pending}
                   onClick={() => handleEmoji(emoji)}
-                  className="flex size-9 items-center justify-center rounded-lg text-lg hover:bg-muted"
+                  className="flex size-11 items-center justify-center rounded-lg text-lg hover:bg-muted"
                 >
                   {emoji}
                 </button>
@@ -180,9 +181,12 @@ export function MessageComposer({
           <button
             type="button"
             aria-label="Add emoji"
+            ref={emojiButton}
+            aria-expanded={emojiOpen}
+            aria-controls="chatbit-emojis"
             disabled={pending}
             onClick={() => setEmojiOpen((current) => !current)}
-            className="hidden size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground sm:flex"
+            className="hidden size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground sm:flex"
           >
             <Smile className="size-5" />
           </button>

@@ -1,9 +1,3 @@
-import React from 'react'
-import { requireUser } from '@/lib/server/auth'
-
-export default async function page() {
-  await requireUser();
-  return (
-    <div>page</div>
-  )
-}
+import { requireUser } from '@/lib/server/auth';
+import { ContactsPage } from '@/components/chat/contacts-page';
+export default async function ContactsRoute() {await requireUser();return <ContactsPage/>;}

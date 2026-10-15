@@ -8,7 +8,7 @@ import { AppearanceSettings } from "./appearance-settings";
 import { NotificationSettings } from "./notification-settings";
 import { PrivacySettings } from "./privacy-settings";
 import { SecuritySettings } from "./security-settings";
-import type { AuthUser } from "@/lib/auth-types";
+
 
 export type SettingsSection =
   | "profile"
@@ -18,7 +18,7 @@ export type SettingsSection =
   | "privacy"
   | "security";
 
-export function SettingsLayout({ user }: { user: AuthUser }) {
+export function SettingsLayout() {
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("profile");
 
@@ -28,7 +28,7 @@ export function SettingsLayout({ user }: { user: AuthUser }) {
         return <ProfileSettings />;
 
       case "account":
-        return <AccountSettings user={user} />;
+        return <AccountSettings />;
 
       case "appearance":
         return <AppearanceSettings />;
@@ -48,13 +48,13 @@ export function SettingsLayout({ user }: { user: AuthUser }) {
   }
 
   return (
-    <main className="flex min-h-svh bg-background">
+    <main className="flex min-h-svh flex-col bg-background md:flex-row">
       <SettingsSidebar
         activeSection={activeSection}
         onSectionChange={setActiveSection}
       />
 
-      <section className="min-w-0 flex-1">{renderSection()}</section>
+      <section key={activeSection} className="min-w-0 flex-1">{renderSection()}</section>
     </main>
   );
 }

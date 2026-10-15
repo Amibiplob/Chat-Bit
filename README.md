@@ -7,8 +7,8 @@ logout and protected application routes use secure database-backed sessions.
 Incoming messages, edits, deletions, receipts and chat previews update
 automatically, with presence and typing indicators. Delivery uses authenticated
 two-second HTTP synchronization, not WebSocket push. One-to-one voice/video calls use WebRTC with authenticated HTTP signaling.
-Profile/settings still contain demonstration behavior; secure attachments use
-private Supabase Storage.
+Profiles and settings persist with scoped avatars, password/session management,
+account preferences and device-local themes. Secure attachments use private Supabase Storage.
 
 ## Stack and architecture
 
@@ -52,8 +52,7 @@ pnpm dev
 
 Open http://localhost:3000. Public pages work without a database; authentication
 and protected application pages require a configured, migrated PostgreSQL database.
-The chat UI reads and writes PostgreSQL and supports calls; profile/settings
-persistence remains unfinished. See [authentication setup and security](docs/authentication.md)
+The chat UI reads and writes PostgreSQL and supports calls, profiles and settings. See [authentication setup and security](docs/authentication.md)
 and [automatic messaging](docs/realtime.md).
 
 ## PostgreSQL setup and migrations
@@ -233,3 +232,19 @@ actual selected-provider limits. Supabase Storage is required for attachments; P
 independent. No deployment or live Supabase verification was performed.
 
 Author: Md Biplob Hosain — [GitHub](https://github.com/Amibiplob).
+
+## Profile and settings
+
+Milestone 7 adds editable names/bios, private scoped raster avatars, account
+preferences, browser notifications while ChatBit is open, server-enforced presence
+privacy, password changes and signing out other sessions. Light/dark/system themes
+follow device preferences without build-time Google Fonts downloads. The original
+fonts and licenses are bundled under `public/fonts`. Mobile navigation, Contacts,
+settings sections, loading and error feedback use the existing design.
+
+Review migration `006_settings.sql` before deployment; no application migration
+was run during development. Avatar files are bounded and normalized in PostgreSQL,
+so there is no additional storage configuration. Password changes revoke every
+session and require a fresh login. Account deletion, email changes, MFA and
+password recovery remain explicitly unavailable. See [settings, security and
+deletion lifecycle](docs/settings.md) for configuration, limitations and tests.

@@ -64,7 +64,7 @@ export async function withBrowser(operation, extraArgs = []) {
         const screenshot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
         await writeFile(new URL('../../.next/auth-http-test/browser-failure.png', import.meta.url), Buffer.from(screenshot.data, 'base64'));
       }
-      throw new Error('Browser UI condition timed out');
+      throw new Error(`Browser UI condition timed out: ${expression}`);
     }
     async function fill(selector, value) {
       await evaluate(`(() => { const element=document.querySelector(${JSON.stringify(selector)}); element.focus(); element.select(); })()`);

@@ -3,6 +3,7 @@ import type { Attachment } from "./attachment-types";
 export type Conversation = {
   id: string;
   participantId: string;
+  avatarVersion?: number;
   name: string;
   initials: string;
   color: string;
