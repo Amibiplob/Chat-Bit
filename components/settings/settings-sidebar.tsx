@@ -106,14 +106,14 @@ export function SettingsSidebar({
               className={cn(
                 "flex shrink-0 items-center gap-3 md:w-full rounded-xl px-3 py-3 text-left transition-colors",
                 active
-                  ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                  ? "bg-teal-600/10 text-teal-700 dark:text-blue-400"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               <span
                 className={cn(
                   "flex size-9 shrink-0 items-center justify-center rounded-lg",
-                  active ? "bg-blue-500/10" : "bg-background",
+                  active ? "bg-teal-600/10" : "bg-background",
                 )}
               >
                 <Icon className="size-4" />

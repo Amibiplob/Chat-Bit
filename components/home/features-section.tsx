@@ -37,7 +37,7 @@ export function FeaturesSection() {
     <section id="features" className="border-b py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-wider text-blue-500">
+          <p className="text-sm font-semibold uppercase tracking-wider text-teal-600">
             Features
           </p>
 
@@ -60,7 +60,7 @@ export function FeaturesSection() {
                 key={feature.title}
                 className="group rounded-2xl border bg-background p-6 transition-all hover:-translate-y-1 hover:shadow-lg"
               >
-                <div className="flex size-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 transition-colors group-hover:bg-blue-500 group-hover:text-white">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-teal-600/10 text-teal-600 transition-colors group-hover:bg-teal-600 group-hover:text-white">
                   <Icon className="size-5" />
                 </div>
 

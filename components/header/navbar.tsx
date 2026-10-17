@@ -9,15 +9,15 @@ import { LogoutButton } from "@/components/auth/logout-button";
 const navigation = [
   {
     label: "Features",
-    href: "#features",
+    href: "/#features",
   },
   {
     label: "About",
-    href: "#about",
+    href: "/#about",
   },
   {
     label: "Security",
-    href: "#security",
+    href: "/#security",
   },
 ];
 
@@ -43,7 +43,7 @@ export async function Navbar() {
 
           <span className="text-2xl font-bold tracking-tight">
             <span className="text-foreground">Chat</span>
-            <span className="text-blue-500">Bit</span>
+            <span className="text-teal-600">Bit</span>
           </span>
         </Link>
 

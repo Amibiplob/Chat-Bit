@@ -36,3 +36,12 @@ as separate messages; no atomic multi-file message is supported.
 No Android SDK, Java, Gradle, adb or Bubblewrap executable was found locally.
 Android source/configuration and CI can be prepared, but no APK or real-device
 success can be claimed without those tools, a stable HTTPS origin and signing.
+
+## Milestone 2
+
+Teal ChatBit identity, soft paper/night surfaces, shared panel/action typography,
+new landing composition, honest feature content (no inert demo buttons), refreshed
+auth surfaces and live controls. Public Help/FAQ and About routes describe actual
+capabilities and limits; a root not-found route provides recovery. Navigation
+anchors now work from auth/help routes. Existing settings, calls, profile and
+navigation components adopt the same visual vocabulary without replacing data.

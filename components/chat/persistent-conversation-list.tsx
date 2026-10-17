@@ -19,13 +19,13 @@ export function PersistentConversationList({ conversations }: { conversations: C
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-semibold">{conversation.name}</p>
-              <time dateTime={conversation.updatedAt} suppressHydrationWarning className={cn("shrink-0 text-[11px]", conversation.unread ? "font-medium text-blue-500" : "text-muted-foreground")}>
+              <time dateTime={conversation.updatedAt} suppressHydrationWarning className={cn("shrink-0 text-[11px]", conversation.unread ? "font-medium text-teal-600" : "text-muted-foreground")}>
                 {new Date(conversation.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
               </time>
             </div>
             <div className="mt-1 flex items-center justify-between gap-2">
               <p className="truncate text-xs text-muted-foreground">{conversation.lastMessage ?? "Start the conversation"}</p>
-              {conversation.unread > 0 && <span aria-label={`${conversation.unread} unread messages`} className="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-semibold text-white">{conversation.unread}</span>}
+              {conversation.unread > 0 && <span aria-label={`${conversation.unread} unread messages`} className="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-semibold text-white">{conversation.unread}</span>}
             </div>
           </div>
         </Link>

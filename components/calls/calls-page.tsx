@@ -22,7 +22,7 @@ export function CallsPage() {
   },[callId,status,retry]);
   const busy=calling.state.working || isLiveCall(calling.state.call);
   return <main className="flex min-w-0 flex-1 flex-col bg-background">
-    <header className="border-b px-5 py-4"><div className="flex items-center justify-between"><div><h1 className="text-lg font-semibold">Calls</h1><p className="text-xs text-muted-foreground">Your recent voice and video calls</p></div><Link href="/chat" className="text-sm text-blue-500">Chats</Link></div>
+    <header className="border-b px-5 py-4"><div className="flex items-center justify-between"><div><h1 className="text-lg font-semibold">Calls</h1><p className="text-xs text-muted-foreground">Your recent voice and video calls</p></div><Link href="/chat" className="text-sm text-teal-600">Chats</Link></div>
       <input aria-label="Search calls" type="search" placeholder="Search calls…" value={search} onChange={(event)=>setSearch(event.target.value)} className="mt-4 h-10 w-full rounded-lg border bg-muted/30 px-3 text-sm"/></header>
     <div className="flex-1 overflow-y-auto"><section className="border-b p-5"><h2 className="mb-2 text-sm font-medium">Start a call</h2>
       {!conversations.length && <p className="text-sm text-muted-foreground">Create a conversation to call someone.</p>}
@@ -33,7 +33,7 @@ export function CallsPage() {
       {loading && <p role="status" className="p-5 text-sm">Loading calls…</p>}{error && <div className="p-5"><p role="alert" className="text-sm text-destructive">{error}</p><button className="mt-2 min-h-11 rounded-lg border px-4 text-sm" onClick={()=>{setLoading(true);setRetry(value=>value+1);}}>Retry call history</button></div>}
       {!loading && !history.length && <p className="p-5 text-sm text-muted-foreground">No calls yet.</p>}
       {history.filter((c)=>c.name.toLowerCase().includes(search.toLowerCase())).map((call)=><div key={call.id} className="flex items-center gap-3 border-b px-5 py-4">
-        <div className={`flex size-11 shrink-0 items-center justify-center rounded-full ${call.status==="missed"?"bg-red-100 text-red-600":"bg-blue-100 text-blue-600"}`}>{call.status==="missed"?<PhoneMissed className="size-5"/>:call.kind==="video"?<Video className="size-5"/>:<Phone className="size-5"/>}</div>
+        <div className={`flex size-11 shrink-0 items-center justify-center rounded-full ${call.status==="missed"?"bg-red-100 text-red-600":"bg-teal-100 text-teal-700"}`}>{call.status==="missed"?<PhoneMissed className="size-5"/>:call.kind==="video"?<Video className="size-5"/>:<Phone className="size-5"/>}</div>
         <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{call.name}</p><p className="text-xs capitalize text-muted-foreground">{call.callerId===calling.userId?"Outgoing":"Incoming"} · {call.kind} · {call.status}{call.duration!==null?` · ${call.duration}s`:""}</p><time dateTime={call.createdAt} className="text-xs text-muted-foreground">{new Date(call.createdAt).toLocaleString()}</time></div>
         <button disabled={busy} aria-label={`Call ${call.name} again`} onClick={()=>calling.start(call.conversationId,call.kind)} className="rounded-full p-2 hover:bg-muted disabled:opacity-40"><Phone className="size-5"/></button>
       </div>)}

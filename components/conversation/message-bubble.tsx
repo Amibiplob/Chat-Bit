@@ -202,7 +202,7 @@ export function MessageBubble({
           <div
             className={
               isOwn
-                ? "rounded-2xl rounded-br-md bg-blue-500 px-4 py-2.5 text-sm text-white shadow-sm"
+                ? "rounded-2xl rounded-br-md bg-teal-600 px-4 py-2.5 text-sm text-white shadow-sm"
                 : "rounded-2xl rounded-bl-md border bg-background px-4 py-2.5 text-sm shadow-sm"
             }
           >
@@ -214,7 +214,7 @@ export function MessageBubble({
 
             <div
               className={`mt-1 flex items-center justify-end gap-1 ${
-                isOwn ? "text-blue-100" : "text-muted-foreground"
+                isOwn ? "text-teal-100" : "text-muted-foreground"
               }`}
             >
               {!message.deleted && <button type="button" disabled={pending} aria-label="Message actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="mr-auto flex size-9 items-center justify-center rounded sm:hidden"><MoreHorizontal className="size-3.5" /></button>}

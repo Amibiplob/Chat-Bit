@@ -10,7 +10,7 @@ export default async function AuthLayout({
 }>) {
   if (await getCurrentUser()) redirect("/chat");
   return (
-    <div className="min-h-svh bg-muted/30">
+    <div className="cb-hero min-h-svh">
       <Navbar />
 
       <main className="relative flex min-h-[calc(100svh-4rem)] items-center justify-center overflow-hidden px-4 py-10">
@@ -27,7 +27,7 @@ export default async function AuthLayout({
         </div>
 
         <div className="relative z-10 w-full max-w-md">
-          <div className="rounded-2xl border bg-background p-6 shadow-sm sm:p-8">
+          <div className="cb-panel p-7 sm:p-10">
             {children}
           </div>
 

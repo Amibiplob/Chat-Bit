@@ -116,8 +116,8 @@ export function MessageComposer({
       {/* Reply / Edit preview */}
       {(replyingTo || editingMessage) && (
         <div className="mx-auto mb-3 flex max-w-3xl items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
-          <div className="min-w-0 border-l-2 border-blue-500 pl-3">
-            <p className="text-xs font-medium text-blue-500">
+          <div className="min-w-0 border-l-2 border-teal-600 pl-3">
+            <p className="text-xs font-medium text-teal-600">
               {editingMessage ? "Editing message" : "Replying to"}
             </p>
 
@@ -140,9 +140,9 @@ export function MessageComposer({
 
       <div className="relative mx-auto max-w-3xl">
         {file && <div className="mb-2 flex items-center gap-3 rounded-xl border bg-muted/40 p-3">
-          <FileText className="size-5 shrink-0 text-blue-500" />
+          <FileText className="size-5 shrink-0 text-teal-600" />
           <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{file.name}</p><p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB{pending ? ` · ${progress === 100 ? "Verifying…" : `${progress}%`}` : ""}</p>
-            {pending && <div role="progressbar" aria-label="Attachment upload" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-valuetext={progress === 100 ? "Upload complete; verifying file" : `${progress}% uploaded`} className="mt-1 h-1 overflow-hidden rounded bg-muted"><div className="h-full bg-blue-500" style={{ width: `${progress}%` }} /></div>}</div>
+            {pending && <div role="progressbar" aria-label="Attachment upload" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-valuetext={progress === 100 ? "Upload complete; verifying file" : `${progress}% uploaded`} className="mt-1 h-1 overflow-hidden rounded bg-muted"><div className="h-full bg-teal-600" style={{ width: `${progress}%` }} /></div>}</div>
           <button type="button" aria-label={pending ? "Cancel upload" : "Remove attachment"} onClick={() => { upload.current?.abort(); setFile(null); setProgress(0); }} className="rounded p-1 hover:bg-muted"><X className="size-4" /></button>
         </div>}
         {fileError && <p role="alert" className="mb-2 text-xs text-destructive">{fileError}</p>}
@@ -217,7 +217,7 @@ export function MessageComposer({
             aria-label={pending ? "Saving message" : editingMessage ? "Save message" : "Send message"}
             disabled={pending || (!value.trim() && !file)}
             onClick={handleSubmit}
-            className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Send className="size-4" />
           </button>

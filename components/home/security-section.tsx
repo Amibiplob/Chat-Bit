@@ -6,7 +6,7 @@ export function SecuritySection() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
           <div>
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-teal-600/10 text-teal-600">
               <ShieldCheck className="size-6" />
             </div>
 
@@ -48,7 +48,7 @@ export function SecuritySection() {
 
           <div className="rounded-2xl border bg-background p-8 shadow-sm">
             <div className="mx-auto max-w-sm">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500">
+              <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-teal-600/10 text-teal-600">
                 <ShieldCheck className="size-8" />
               </div>
 
@@ -72,7 +72,7 @@ export function SecuritySection() {
                     key={item}
                     className="flex items-center gap-3 rounded-lg border px-4 py-3"
                   >
-                    <Check className="size-4 text-blue-500" />
+                    <Check className="size-4 text-teal-600" />
                     <span className="text-sm font-medium">{item}</span>
                   </div>
                 ))}
@@ -96,7 +96,7 @@ function SecurityItem({
 }) {
   return (
     <div className="flex gap-3">
-      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-background text-blue-500 shadow-sm ring-1 ring-border">
+      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-background text-teal-600 shadow-sm ring-1 ring-border">
         <Icon className="size-4" />
       </div>
 

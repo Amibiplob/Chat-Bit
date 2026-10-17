@@ -48,7 +48,7 @@ export function ConversationSidebar({ conversations, status }: { conversations: 
           type="button"
           aria-pressed={!unreadOnly}
           onClick={() => setUnreadOnly(false)}
-          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${!unreadOnly ? "bg-blue-500 text-white" : "bg-muted text-muted-foreground"}`}
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${!unreadOnly ? "bg-teal-600 text-white" : "bg-muted text-muted-foreground"}`}
         >
           All
         </button>
@@ -57,7 +57,7 @@ export function ConversationSidebar({ conversations, status }: { conversations: 
           type="button"
           aria-pressed={unreadOnly}
           onClick={() => setUnreadOnly(true)}
-          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${unreadOnly ? "bg-blue-500 text-white" : "bg-muted text-muted-foreground"}`}
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${unreadOnly ? "bg-teal-600 text-white" : "bg-muted text-muted-foreground"}`}
         >
           Unread
         </button>

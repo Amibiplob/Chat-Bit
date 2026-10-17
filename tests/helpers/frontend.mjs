@@ -37,7 +37,7 @@ export async function frontendJourney(origin) {
     assert.equal(await evaluate(`document.querySelector('input[name="email"]').value`),'frontend-invalid-login@example.invalid');
     assert.equal(await evaluate(`document.querySelector('input[name="password"]').value`),'','Passwords are not restored after a server error');
 
-    for (const path of ['/','/signup','/login']) {
+    for (const path of ['/','/signup','/login','/help','/about']) {
       await command('Page.navigate',{url:origin+path});
       await waitFor(`document.readyState==='complete' && document.querySelector('h1')`);
       for(const width of [320,390,768,1280]) {
@@ -50,7 +50,7 @@ export async function frontendJourney(origin) {
     await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
     await evaluate(`document.querySelector('[aria-label="Open navigation menu"]').click()`);
     await waitFor(`document.querySelector('[role="dialog"] nav[aria-label="Mobile navigation"]')`);
-    await evaluate(`document.querySelector('[aria-label="Mobile navigation"] a[href="#features"]').click()`);
+    await evaluate(`document.querySelector('[aria-label="Mobile navigation"] a[href="/#features"]').click()`);
     await waitFor(`location.hash==='#features' && !document.querySelector('[role="dialog"]')`);
     assert.ok(await evaluate(`Array.from(document.querySelectorAll('footer a[href^="/#"]')).every(a=>document.getElementById(a.hash.slice(1)))`));
     assert.equal(await evaluate(`document.querySelectorAll('a[href="#"],a[href="#help"],a[href="#privacy"],a[href="#terms"]').length`),0);

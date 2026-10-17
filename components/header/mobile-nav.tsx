@@ -13,9 +13,9 @@ import {
 } from "@/components/ui/sheet";
 
 const navigation = [
-  { label: "Features", href: "#features" },
-  { label: "About", href: "#about" },
-  { label: "Security", href: "#security" },
+  { label: "Features", href: "/#features" },
+  { label: "About", href: "/#about" },
+  { label: "Security", href: "/#security" },
 ];
 
 export function MobileNav({ authenticated }: { authenticated: boolean }) {
@@ -49,7 +49,7 @@ export function MobileNav({ authenticated }: { authenticated: boolean }) {
               />
               <span className="text-2xl font-bold tracking-tight">
                 <span className="text-foreground">Chat</span>
-                <span className="text-blue-500">Bit</span>
+                <span className="text-teal-600">Bit</span>
               </span>
             </Link>
           </SheetTitle>

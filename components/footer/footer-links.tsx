@@ -12,14 +12,14 @@ const footerColumns = [
   {
     title: "Company",
     links: [
-      { label: "About", href: "/#about" },
+      { label: "About", href: "/about" },
       { label: "GitHub", href: "https://github.com/Amibiplob" },
     ],
   },
   {
     title: "Support",
     links: [
-      { label: "Setup and limitations", href: "https://github.com/Amibiplob/Chat-Bit#readme" },
+      { label: "Help and FAQ", href: "/help" },
     ],
   },
 ];

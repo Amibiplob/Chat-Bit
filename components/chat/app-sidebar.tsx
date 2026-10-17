@@ -47,7 +47,7 @@ export function AppSidebar({
         <Link
           href="/"
           aria-label="ChatBit home"
-          className="flex size-10 items-center justify-center rounded-xl bg-blue-500 text-lg font-bold text-white shadow-sm transition-transform hover:scale-105"
+          className="flex size-10 items-center justify-center rounded-xl bg-teal-600 text-lg font-bold text-white shadow-sm transition-transform hover:scale-105"
         >
           C
         </Link>
@@ -70,14 +70,14 @@ export function AppSidebar({
               className={cn(
                 "relative flex size-11 items-center justify-center rounded-xl transition-colors",
                 active
-                  ? "bg-blue-500/10 text-blue-500"
+                  ? "bg-teal-600/10 text-teal-600"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               <Icon className="size-5" />
 
               {item.id === "chats" && hasUnread && (
-                <span className="absolute right-1 top-1 size-2 rounded-full bg-blue-500" />
+                <span className="absolute right-1 top-1 size-2 rounded-full bg-teal-600" />
               )}
             </button>
           );

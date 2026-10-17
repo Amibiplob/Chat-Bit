@@ -66,7 +66,7 @@ export function NewConversation() {
         <form onSubmit={find} className="space-y-3" aria-busy={pending}>
           <label htmlFor={inputId} className="text-sm font-medium">Find a user by name or exact email</label>
           <input id={inputId} name="userSearch" disabled={pending} value={search} onChange={(event) => { setSearch(event.target.value); setUsers([]); setSearched(false); setError(""); }} minLength={2} maxLength={254} required className="h-11 w-full rounded-lg border bg-background px-3 text-sm" />
-          <button disabled={pending} className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{pending ? "Please wait…" : "Search"}</button>
+          <button disabled={pending} className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{pending ? "Please wait…" : "Search"}</button>
         </form>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         {searched && !users.length && <p className="text-sm text-muted-foreground">No users found.</p>}

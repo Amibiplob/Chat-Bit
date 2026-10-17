@@ -157,7 +157,7 @@ export function SignupForm() {
           {...field("terms")}
           type="checkbox"
           required
-          className="mt-0.5 size-4 rounded border accent-blue-500"
+          className="mt-0.5 size-4 rounded border accent-teal-600"
         />
 
         <label
@@ -179,7 +179,7 @@ export function SignupForm() {
       </button>
 
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-        <Check className="size-3.5 text-blue-500" />
+        <Check className="size-3.5 text-teal-600" />
         Free to get started
       </div>
     </form>
