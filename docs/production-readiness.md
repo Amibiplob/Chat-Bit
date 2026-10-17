@@ -104,3 +104,74 @@ Transient session/lease cleanup can remove an offline user's last-seen display;
 the value represents retained recent activity, not an enduring account history.
 Polling, changed history windows and unread queries remain portfolio-scale. See
 deployment.md for budgets, pool multiplication and likely capacity bottlenecks.
+
+## Frontend and staging audit — 2026-10-18
+
+Frontend and server now share browser-safe schemas in `lib/form-validation.mjs`.
+New passwords require 12–128 characters; login still accepts 1–128 characters.
+Names trim whitespace and require 1–80 characters, email is normalized and
+limited to 254 characters, profile bios to 160, search to 2–254, and messages to
+10,000. Confirmation and password-change rules remain authoritative on the
+server. Client feedback never replaces session, authorization or file-content
+checks. Auth failures restore only bounded name/email values, never passwords.
+
+Confirmed fixes include field errors with linked descriptions, first-invalid-field
+focus, password-toggle state and larger targets, immediate duplicate-submit
+protection, stale/aborted contact-search fencing, unique search-input IDs, mobile
+menu dismissal after navigation, and replacing dead footer/terms links with
+working destinations and an honest demo notice. Profile/password forms explain
+validation failures; avatars reject empty, oversized and unsupported selections.
+Attachments share the server's format/10 MB policy, retain cancellation and errors,
+and expose upload progress to assistive technology. Emoji insertion respects the
+message limit and Escape returns focus to its trigger. Call media playback ignores
+stale completion callbacks after cleanup. Existing calling-controller tests cover
+permission failures, connection signaling, media teardown and stale state.
+
+The active conversation list is `persistent-conversation-list.tsx`; the unrelated
+user edit in `conversation-list.tsx` remains untouched and excluded from this
+commit. No redesign or backend policy change is intended.
+
+Git protections cover environment variants/backups (except `.env.example`), local
+credentials/certificate directories, private keys and SSH material, keystores,
+SQL backup names and compressed/encrypted exports, backup directories/archives,
+logs, temporary/editor files, dependencies, build/test output and caches. Source
+JSON/YAML, migrations and SQL fixtures remain trackable. Keep arbitrary raw SQL
+exports inside `backups/`: ignoring every SQL file would hide migrations.
+
+Before committing, inspect `git status`, `git diff`, `git ls-files -ci
+--exclude-standard`, then staged filenames and `git diff --cached`; finish with
+`git diff --cached --check`. Prefer explicit paths when unrelated changes exist.
+Even with `git add .`, review the index before committing: **.gitignore is not a
+complete secret-protection mechanism and cannot protect already tracked files**.
+If a real committed credential is discovered, rotate it and assess history cleanup
+separately; never delete private local copies or rewrite history automatically.
+The tracked filename/content scan found no real credential/private artifact;
+credential-pattern matches in two tests are deliberately fictional `.example`
+database URLs. Pattern scanning cannot establish that no possible secret exists.
+
+Local validation results are recorded in the accompanying commit report. Database
+integration and authenticated browser journeys require a disposable PostgreSQL
+instance. Live Supabase transfers, quota enforcement, camera/microphone devices,
+TURN/cross-network calls, scheduler and production behavior remain unverified by
+these frontend changes. Password reset, account deletion and unpublished legal
+policies remain existing product limitations.
+
+A filename scan of HEAD history found no private-looking environment/key/dump
+paths. An all-ref history scan could not complete because an existing
+`refs/codex/turn-diffs/checkpoints/...` reference points to a missing object.
+That tool-owned reference was preserved; no Git repair/history rewrite was run.
+
+Verification for this frontend audit: `pnpm test` passed 60/70 tests, with zero
+failures and 10 database-dependent suites skipped. TypeScript, ESLint, the
+Webpack production build and `git diff --check` passed. Real isolated Chrome on
+a loopback production server (database/storage configuration explicitly blank)
+passed invalid registration, short-password/email/required-field feedback,
+first-field focus, linked errors, visibility toggles, repeated login submission,
+name/email retention and password clearing, 320/390/768/1280 px public layouts,
+mobile menu/footer navigation and light/dark/system themes. The first browser
+run exposed schema-order focus instead of visible form order; the corrected
+build passed the rerun. Authenticated settings/call/attachment browser tests and
+two-user journeys were not run without a disposable database. Unit tests cover
+shared valid/invalid password and attachment boundaries and call-controller
+failure/cleanup behavior. No production database, migration, storage mutation,
+deployment or push was performed.

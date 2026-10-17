@@ -4,24 +4,22 @@ const footerColumns = [
   {
     title: "Product",
     links: [
-      { label: "Features", href: "#features" },
-      { label: "Security", href: "#security" },
-      { label: "Download", href: "#download" },
+      { label: "Features", href: "/#features" },
+      { label: "Security", href: "/#security" },
+      { label: "Open ChatBit", href: "/chat" },
     ],
   },
   {
     title: "Company",
     links: [
-      { label: "About", href: "#about" },
-      { label: "Contact", href: "#contact" },
+      { label: "About", href: "/#about" },
+      { label: "GitHub", href: "https://github.com/Amibiplob" },
     ],
   },
   {
     title: "Support",
     links: [
-      { label: "Help Center", href: "#help" },
-      { label: "Privacy Policy", href: "#privacy" },
-      { label: "Terms of Service", href: "#terms" },
+      { label: "Setup and limitations", href: "https://github.com/Amibiplob/Chat-Bit#readme" },
     ],
   },
 ];
@@ -49,6 +47,7 @@ export function FooterLinks() {
           </ul>
         </div>
       ))}
+      <p className="col-span-full text-xs text-muted-foreground">This portfolio demo has no published Terms of Service or Privacy Policy. Do not share sensitive information.</p>
     </div>
   );
 }

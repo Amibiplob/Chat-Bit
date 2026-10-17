@@ -9,7 +9,7 @@ import { assertSameOrigin, clientIdentity, rateLimitSecret } from "@/lib/server/
 import { publicAuthError, AuthError } from "@/lib/server/auth-validation.mjs";
 import { revokeSession, sessionCookieName, sessionCookieOptions, validSessionToken } from "@/lib/server/session-core.mjs";
 
-export type AuthState = { error?: string };
+export type AuthState = { error?: string; values?: { email: string; name: string } };
 
 async function authenticate(form: FormData, register: boolean): Promise<AuthState> {
   try {
@@ -23,7 +23,12 @@ async function authenticate(form: FormData, register: boolean): Promise<AuthStat
     const context = { clientId: clientIdentity(requestHeaders), secret: rateLimitSecret(), previousToken: cookieStore.get(sessionCookieName())?.value };
     const session = await (register ? registerAccount : loginAccount)(getDatabase(), input, context);
     cookieStore.set(sessionCookieName(), session.token, sessionCookieOptions(session.expires));
-  } catch (error) { return { error: publicAuthError(error) }; }
+  } catch (error) {
+    // React resets successful action dispatches, including returned errors.
+    // Return only bounded, non-sensitive fields; never serialize passwords.
+    const text = (name: string, max: number) => typeof form.get(name) === "string" ? String(form.get(name)).slice(0, max) : "";
+    return { error: publicAuthError(error), values: { email: text("email", 254), name: text("name", 80) } };
+  }
   // Redirect throws internally; keep it outside the error handler.
   redirect("/chat");
 }

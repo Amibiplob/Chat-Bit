@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { Menu, MessageCircle } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import {
@@ -18,8 +19,9 @@ const navigation = [
 ];
 
 export function MobileNav({ authenticated }: { authenticated: boolean }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         aria-label="Open navigation menu"
         className="inline-flex size-10 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -29,6 +31,7 @@ export function MobileNav({ authenticated }: { authenticated: boolean }) {
       <SheetContent
         side="right"
         className="flex w-[85%] max-w-sm flex-col px-6 sm:w-96"
+        onClick={event => { if ((event.target as HTMLElement).closest('a[href]')) setOpen(false); }}
       >
         <SheetHeader className="border-b pb-6">
           <SheetTitle>

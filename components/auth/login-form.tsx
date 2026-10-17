@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { useActionState, useState } from "react";
-import { loginAction, type AuthState } from "@/app/actions/auth";
+import { useState } from "react";
+import { loginAction } from "@/app/actions/auth";
+import { useAuthForm } from "./use-auth-form";
+import { FieldError } from "@/components/ui/field-error";
 
 export function LoginForm() {
-  const [state, action, pending] = useActionState<AuthState, FormData>(loginAction, {});
+  const { state, action, pending, errors, onSubmit, field } = useAuthForm(loginAction);
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <form action={action} className="space-y-5" aria-busy={pending}>
+    <form action={action} onSubmit={onSubmit} noValidate className="space-y-5" aria-busy={pending}>
+      {Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-destructive">Please correct the highlighted fields.</p>}
       {state.error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{state.error}</p>}
       {/* Email */}
       <div className="space-y-2">
@@ -24,6 +27,8 @@ export function LoginForm() {
           <input
             id="email"
             name="email"
+            defaultValue={state.values?.email}
+            {...field("email")}
             type="email"
             placeholder="you@example.com"
             maxLength={254}
@@ -32,6 +37,7 @@ export function LoginForm() {
             className="h-11 w-full rounded-lg border bg-background pl-10 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
         </div>
+        <FieldError id="email" error={errors.email} />
       </div>
 
       {/* Password */}
@@ -55,6 +61,7 @@ export function LoginForm() {
           <input
             id="password"
             name="password"
+            {...field("password")}
             type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
             maxLength={128}
@@ -66,8 +73,10 @@ export function LoginForm() {
           <button
             type="button"
             aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
+            aria-controls="password"
             onClick={() => setShowPassword((value) => !value)}
-            className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {showPassword ? (
               <EyeOff className="size-4" />
@@ -76,6 +85,7 @@ export function LoginForm() {
             )}
           </button>
         </div>
+        <FieldError id="password" error={errors.password} />
       </div>
 
       <p className="text-xs text-muted-foreground">Your session lasts 7 days. Sign out on shared devices.</p>

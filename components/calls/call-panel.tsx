@@ -11,8 +11,9 @@ function Media({stream,local,video}:{stream:MediaStream|null;local?:boolean;vide
   useEffect(()=> {
     const element=ref.current;if(!element) return;
     element.srcObject=stream;
-    if(stream) void element.play().catch(()=>setBlocked(true));
-    return ()=>{element.srcObject=null;};
+    let active=true;
+    if(stream) void element.play().then(()=>{if(active) setBlocked(false);}).catch(()=>{if(active) setBlocked(true);});
+    return ()=>{active=false;element.srcObject=null;};
   },[stream]);
   return <div className={video?"relative min-h-24 overflow-hidden rounded-xl bg-black":""}>
     <video ref={ref} autoPlay playsInline muted={local} aria-label={local?"Local camera preview":"Remote media"}

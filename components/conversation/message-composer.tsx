@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { FileText, Paperclip, Send, Smile, X } from "lucide-react";
 
 import type { Message } from "@/lib/messaging-types";
+import { attachmentFileError } from "@/lib/attachment-policy.mjs";
+import { MAX_MESSAGE_LENGTH } from "@/lib/form-validation.mjs";
 
 interface MessageComposerProps {
   onSend: (content: string) => Promise<boolean>;
@@ -65,6 +67,7 @@ export function MessageComposer({
 
   async function handleSubmit() {
     const content = value.trim();
+    if (content.length > MAX_MESSAGE_LENGTH) { setFileError("Messages must be 10,000 characters or fewer."); return; }
     if (file && replyingTo) { setFileError("Cancel the reply before sending an attachment."); return; }
 
     if ((!content && !file) || pending || upload.current) {
@@ -93,6 +96,7 @@ export function MessageComposer({
 
   function handleEmoji(emoji: string) {
     if (pending) return;
+    if (value.length + emoji.length > MAX_MESSAGE_LENGTH) { setFileError("Messages must be 10,000 characters or fewer."); return; }
     setValue((current) => `${current}${emoji}`);
     onTyping(true);
     textareaRef.current?.focus();
@@ -138,7 +142,7 @@ export function MessageComposer({
         {file && <div className="mb-2 flex items-center gap-3 rounded-xl border bg-muted/40 p-3">
           <FileText className="size-5 shrink-0 text-blue-500" />
           <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{file.name}</p><p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB{pending ? ` · ${progress === 100 ? "Verifying…" : `${progress}%`}` : ""}</p>
-            {pending && <div className="mt-1 h-1 overflow-hidden rounded bg-muted"><div className="h-full bg-blue-500" style={{ width: `${progress}%` }} /></div>}</div>
+            {pending && <div role="progressbar" aria-label="Attachment upload" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-valuetext={progress === 100 ? "Upload complete; verifying file" : `${progress}% uploaded`} className="mt-1 h-1 overflow-hidden rounded bg-muted"><div className="h-full bg-blue-500" style={{ width: `${progress}%` }} /></div>}</div>
           <button type="button" aria-label={pending ? "Cancel upload" : "Remove attachment"} onClick={() => { upload.current?.abort(); setFile(null); setProgress(0); }} className="rounded p-1 hover:bg-muted"><X className="size-4" /></button>
         </div>}
         {fileError && <p role="alert" className="mb-2 text-xs text-destructive">{fileError}</p>}
@@ -167,7 +171,7 @@ export function MessageComposer({
             type="button"
             aria-label="Add attachment"
             disabled={pending || Boolean(editingMessage) || Boolean(replyingTo)}
-            title={editingMessage ? "Finish editing before attaching a file" : "Add attachment"}
+            title={editingMessage ? "Finish editing before attaching a file" : replyingTo ? "Cancel the reply before attaching a file" : "Add attachment"}
             onClick={() => document.getElementById("chatbit-file-input")?.click()}
             className="flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground"
           >
@@ -175,7 +179,8 @@ export function MessageComposer({
           </button>
           <input id="chatbit-file-input" type="file" className="hidden" accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.mp3,.wav,.mp4,.webm" onChange={(event) => {
             const selected = event.target.files?.[0] ?? null; event.target.value = ""; setFileError("");
-            if (selected && selected.size > 10 * 1024 * 1024) setFileError("Files must be 10 MB or smaller."); else setFile(selected);
+            const error = selected ? attachmentFileError(selected) : "";
+            setFileError(error); setFile(error ? null : selected);
           }} />
 
           <button
@@ -194,7 +199,7 @@ export function MessageComposer({
           <textarea
             ref={textareaRef}
             aria-label="Message"
-            maxLength={10000}
+            maxLength={MAX_MESSAGE_LENGTH}
             disabled={pending}
             value={value}
             onChange={(event) => { setValue(event.target.value); onTyping(Boolean(event.target.value.trim())); }}
@@ -221,6 +226,7 @@ export function MessageComposer({
         <p className="mt-1.5 hidden text-center text-[10px] text-muted-foreground sm:block">
           Press Enter to send · Shift + Enter for a new line
         </p>
+        <p className="mt-1 text-center text-xs text-muted-foreground">Files up to 10 MB · Images, PDF, text, Office, audio and video. File contents are verified after upload.</p>
       </div>
     </div>
   );

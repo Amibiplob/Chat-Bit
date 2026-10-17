@@ -29,12 +29,27 @@
 
 # local credentials and certificates (never remove the local copies)
 /certs/
+/certificates/
+/credentials/
+/secrets/
+/.ssh/
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+/credentials.json
+/service-account*.json
+/localhost*.crt
+/supabase-ca.crt
 /.aws/
 .pgpass
 .pg_service.conf
 *.key
 *.p12
 *.pfx
+*.jks
+*.keystore
+*.keychain
 
 # private database exports and encrypted backup archives
 /backups/
@@ -47,6 +62,18 @@
 *.dump.enc.sha256
 *.tar.enc
 *.tar.enc.sha256
+*-backup.sql
+*.backup.sql
+backup.sql
+*.sql.bak
+*.sql.xz
+*.sql.zst
+*.dump.gz
+/backup/
+*-backup.tar*
+backup.tar*
+*-backup.zip
+backup.zip
 
 # local tool caches
 /.cache/
@@ -61,6 +88,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+*.env
 !.env.example
 
 # vercel
@@ -69,3 +97,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local logs, scratch files, editors and OS metadata
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+/.vscode/
+/.idea/
+Thumbs.db
+Desktop.ini

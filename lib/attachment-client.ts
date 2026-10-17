@@ -1,21 +1,11 @@
 import type { AttachmentReservation } from "./attachment-types";
 import { messagingRequest } from "./messaging-client";
-
-const mimeByExtension: Record<string, string> = {
-  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif",
-  pdf: "application/pdf", txt: "text/plain", doc: "application/msword",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ppt: "application/vnd.ms-powerpoint", pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  mp3: "audio/mpeg", wav: "audio/wav", mp4: "video/mp4", webm: "video/webm",
-};
-
-export function normalizedFileType(file: File) {
-  const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
-  return mimeByExtension[extension] ?? file.type;
-}
+import { attachmentFileError, normalizedFileType } from "./attachment-policy.mjs";
+export { normalizedFileType } from "./attachment-policy.mjs";
 
 export async function uploadAttachment(conversationId: string, file: File, caption: string, onProgress: (value: number) => void, signal: AbortSignal) {
+  const error = attachmentFileError(file);
+  if (error) throw new Error(error);
   const mimeType = normalizedFileType(file);
   const reservation = await messagingRequest<AttachmentReservation>(`/api/conversations/${conversationId}/attachments`, {
     method: "POST", body: JSON.stringify({ filename: file.name, mimeType, byteSize: file.size }), signal,

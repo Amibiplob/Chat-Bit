@@ -1,17 +1,20 @@
 "use client";
 
-import Link from "next/link";
 import { Check, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
-import { useActionState, useState } from "react";
-import { registerAction, type AuthState } from "@/app/actions/auth";
+import { useState } from "react";
+import { registerAction } from "@/app/actions/auth";
+import { useAuthForm } from "./use-auth-form";
+import { FieldError } from "@/components/ui/field-error";
+import { PASSWORD_MIN, PASSWORD_MAX } from "@/lib/form-validation.mjs";
 
 export function SignupForm() {
-  const [state, action, pending] = useActionState<AuthState, FormData>(registerAction, {});
+  const { state, action, pending, errors, onSubmit, field } = useAuthForm(registerAction, true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   return (
-    <form action={action} className="space-y-5" aria-busy={pending}>
+    <form action={action} onSubmit={onSubmit} noValidate className="space-y-5" aria-busy={pending}>
+      {Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-destructive">Please correct the highlighted fields.</p>}
       {state.error && <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{state.error}</p>}
       {/* Name */}
       <div className="space-y-2">
@@ -25,6 +28,8 @@ export function SignupForm() {
           <input
             id="name"
             name="name"
+            defaultValue={state.values?.name}
+            {...field("name")}
             type="text"
             placeholder="Md Biplob Hosain"
             maxLength={80}
@@ -33,6 +38,7 @@ export function SignupForm() {
             className="h-11 w-full rounded-lg border bg-background pl-10 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
         </div>
+        <FieldError id="name" error={errors.name} />
       </div>
 
       {/* Email */}
@@ -47,6 +53,8 @@ export function SignupForm() {
           <input
             id="signup-email"
             name="email"
+            defaultValue={state.values?.email}
+            {...field("email", "signup-email")}
             type="email"
             placeholder="you@example.com"
             maxLength={254}
@@ -55,6 +63,7 @@ export function SignupForm() {
             className="h-11 w-full rounded-lg border bg-background pl-10 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
         </div>
+        <FieldError id="signup-email" error={errors.email} />
       </div>
 
       {/* Password */}
@@ -69,10 +78,12 @@ export function SignupForm() {
           <input
             id="signup-password"
             name="password"
+            {...field("password", "signup-password")}
+            aria-describedby={errors.password ? "signup-password-error password-requirements" : "password-requirements"}
             type={showPassword ? "text" : "password"}
             placeholder="Create a password"
-            minLength={12}
-            maxLength={128}
+            minLength={PASSWORD_MIN}
+            maxLength={PASSWORD_MAX}
             autoComplete="new-password"
             required
             className="h-11 w-full rounded-lg border bg-background pl-10 pr-11 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
@@ -81,8 +92,10 @@ export function SignupForm() {
           <button
             type="button"
             aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
+            aria-controls="signup-password"
             onClick={() => setShowPassword((value) => !value)}
-            className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             {showPassword ? (
               <EyeOff className="size-4" />
@@ -91,9 +104,10 @@ export function SignupForm() {
             )}
           </button>
         </div>
+        <FieldError id="signup-password" error={errors.password} />
       </div>
 
-      <p className="text-xs text-muted-foreground">Use 12–128 characters. Longer passphrases work well.</p>
+      <p id="password-requirements" className="text-xs text-muted-foreground">Use {PASSWORD_MIN}–{PASSWORD_MAX} characters. Longer passphrases work well.</p>
 
       {/* Confirm password */}
       <div className="space-y-2">
@@ -107,10 +121,11 @@ export function SignupForm() {
           <input
             id="confirm-password"
             name="confirmPassword"
+            {...field("confirmPassword", "confirm-password")}
             type={showConfirmPassword ? "text" : "password"}
             placeholder="Confirm your password"
-            minLength={12}
-            maxLength={128}
+            minLength={PASSWORD_MIN}
+            maxLength={PASSWORD_MAX}
             autoComplete="new-password"
             required
             className="h-11 w-full rounded-lg border bg-background pl-10 pr-11 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
@@ -119,8 +134,10 @@ export function SignupForm() {
           <button
             type="button"
             aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+            aria-pressed={showConfirmPassword}
+            aria-controls="confirm-password"
             onClick={() => setShowConfirmPassword((value) => !value)}
-            className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="absolute right-0 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             {showConfirmPassword ? (
               <EyeOff className="size-4" />
@@ -129,6 +146,7 @@ export function SignupForm() {
             )}
           </button>
         </div>
+        <FieldError id="confirm-password" error={errors.confirmPassword} />
       </div>
 
       {/* Terms */}
@@ -136,6 +154,7 @@ export function SignupForm() {
         <input
           id="terms"
           name="terms"
+          {...field("terms")}
           type="checkbox"
           required
           className="mt-0.5 size-4 rounded border accent-blue-500"
@@ -145,23 +164,10 @@ export function SignupForm() {
           htmlFor="terms"
           className="text-xs leading-5 text-muted-foreground"
         >
-          I agree to the{" "}
-          <Link
-            href="#"
-            className="font-medium text-foreground hover:underline"
-          >
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link
-            href="#"
-            className="font-medium text-foreground hover:underline"
-          >
-            Privacy Policy
-          </Link>
-          .
+          I understand this is a portfolio demo with no published Terms of Service or Privacy Policy. Do not share sensitive information.
         </label>
       </div>
+      <FieldError id="terms" error={errors.terms} />
 
       {/* Submit */}
       <button

@@ -35,8 +35,8 @@ export async function browserJourney(origin) {
     await alice.command('Page.navigate',{url:`${origin}/contacts`});
     await alice.waitFor(`document.querySelector('[aria-label="New conversation"]') && Object.keys(document.querySelector('[aria-label="New conversation"]')).some(k=>k.startsWith('__reactFiber$')) && document.body.innerText.includes('Conversation partners')`);
     await alice.evaluate(`document.querySelector('[aria-label="New conversation"]').click()`);
-    await alice.waitFor(`document.querySelector('#find-user')`);await alice.fill('#find-user',partner);
-    await alice.evaluate(`document.querySelector('#find-user').closest('form').querySelector('button').click()`);
+    await alice.waitFor(`document.querySelector('input[name="userSearch"]')`);await alice.fill('input[name="userSearch"]',partner);
+    await alice.evaluate(`document.querySelector('input[name="userSearch"]').closest('form').querySelector('button').click()`);
     await alice.waitFor(`Array.from(document.querySelectorAll('button')).some(b=>b.textContent==='Journey Bob ${suffix}')`);
     await alice.evaluate(`Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Journey Bob ${suffix}').click()`);
     await alice.waitFor(`location.pathname.startsWith('/chat/') && document.querySelector('textarea')`);

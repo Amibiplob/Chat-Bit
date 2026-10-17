@@ -15,6 +15,7 @@ import { registerAccount, loginAccount } from '../lib/server/auth-service.mjs';
 import { sendMessage } from '../lib/server/messaging-queries.mjs';
 import { withBrowser } from './helpers/browser.mjs';
 import { browserJourney } from './helpers/journey.mjs';
+import { frontendJourney } from './helpers/frontend.mjs';
 
 function decode(value) {
   return value.replaceAll('&quot;', '"').replaceAll('&#x27;', "'").replaceAll('&#39;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
@@ -105,6 +106,9 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
       const response = await request('/chat', { headers: { RSC: '1', Cookie: 'chatbit_session=invalid' } });
       assert.ok([303, 307].includes(response.status));
     });
+    await t.test('public form validation, duplicate submissions, mobile navigation and themes', {
+      skip: !process.env.CHROME_BIN && 'Set CHROME_BIN for public frontend browser checks',
+    }, () => frontendJourney(origin));
     let cookie;
     const credentials = { name: 'HTTP Test User', email: 'http@example.com', password: 'a strong HTTP passphrase', confirmPassword: 'a strong HTTP passphrase' };
     await t.test('registration form sets an HTTP-only seven-day cookie and redirects to chat', async () => {
