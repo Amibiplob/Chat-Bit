@@ -43,6 +43,12 @@ default branch and repository access before running this production-data job.
 4. Open **Actions → Manual encrypted database backup → Run workflow**.
    Select the default branch, check the quiet-source confirmation, then run it.
    Other branches and an unchecked confirmation fail before secrets are used.
+   If the guard reports that confirmation was not true, start a **new** dispatch
+   through **Run workflow** and check the box there. **Re-run jobs** retains the
+   original run's inputs; it cannot change a false confirmation to true.
+   The input is a boolean in GitHub's `inputs` context and becomes the text
+   `true` or `false` in `CONFIRMED`. A logged `false` is rejected intentionally;
+   changing boolean/string conversion cannot turn it into valid consent.
 5. Wait for export, encryption, checksum checks, restore and upload. Only a
    successful export/restore step establishes the checks described below. A
    cancelled or failed run is not a verified backup, even if it has an artifact.
@@ -198,3 +204,18 @@ assertions passed. The tests include real file encryption/decryption, wrong-key
 and tamper rejection, recovery-file overwrite protection, source configuration
 guards and the manual-trigger/encrypted-artifact allowlist. No local PostgreSQL,
 Docker, production connection or remote workflow run was used for these checks.
+
+Confirmation regression checks on 2026-10-17 execute only the first workflow
+guard in Bash with a synthetic environment containing no secrets. Checked and
+unchecked values, missing/malformed values, branch/tag rejection and a renamed
+default branch are covered. All four backup tests passed; the full suite had
+56 passes, zero failures and 10 database-dependent suites skipped. Lint and
+`git diff --check` passed. Tests required execution outside the local sandbox
+because it blocked Bash subprocess creation. No backup, migration or deployment
+was run. These checks validate the guard, not the reported UI dispatch: the
+reason that run received `false` remains unverified.
+
+GitHub documents the boolean-preserving `inputs` context in
+[workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onworkflow_dispatchinputs).
+Use [a new manual dispatch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
+to supply new confirmation inputs.

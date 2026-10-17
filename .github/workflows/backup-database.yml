@@ -26,7 +26,10 @@ jobs:
           CONFIRMED: ${{ inputs.confirm_quiet_source }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          test "$CONFIRMED" = true
+          if ! test "$CONFIRMED" = true; then
+            echo '::error::Quiet-source confirmation was not true for this dispatch. Start a new run with Run workflow and check the confirmation after pausing writes and schema/role changes. Re-running a job does not change its original inputs.'
+            exit 1
+          fi
           test "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH"
       - uses: actions/checkout@v4
         with:

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 import { decryptBackup, encryptBackup, fileHash } from '../scripts/backup-crypto.mjs';
 import { sourceConfiguration } from '../scripts/backup-database.mjs';
 
@@ -28,6 +29,42 @@ test('backup workflow is manual/default-branch guarded and uploads an explicit e
   ]);
   assert.equal(uploads[0].with['retention-days'], 7);
   assert.equal(steps.at(-1).if, 'always()');
+});
+
+test('backup confirmation accepts only checked input on the default branch', async () => {
+  const require = createRequire(import.meta.url);
+  const { load } = createRequire(require.resolve('eslint/package.json'))('js-yaml');
+  const workflow = load(await readFile(new URL('../.github/workflows/backup-database.yml', import.meta.url), 'utf8'));
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.confirm_quiet_source, {
+    description: 'I paused application writes and concurrent schema/role changes for this backup',
+    type: 'boolean', required: true, default: false,
+  });
+  const guard = workflow.jobs.backup.steps[0];
+  // Verify the real input binding; do not substitute a truthiness fallback that
+  // could accept the nonempty string "false" as confirmation.
+  assert.equal(guard.env.CONFIRMED, '${{ inputs.confirm_quiet_source }}');
+  assert.equal(guard.env.DEFAULT_BRANCH, '${{ github.event.repository.default_branch }}');
+  for (const [confirmed, ref, branch, accepted] of [
+    [true, 'refs/heads/main', 'main', true],
+    [false, 'refs/heads/main', 'main', false],
+    ['', 'refs/heads/main', 'main', false],
+    ['TRUE', 'refs/heads/main', 'main', false],
+    ['false; exit 0', 'refs/heads/main', 'main', false],
+    [true, 'refs/heads/topic', 'main', false],
+    [true, 'refs/tags/main', 'main', false],
+    [true, 'refs/heads/release', 'release', true],
+  ]) {
+    // Execute only the YAML's first guard step, with no inherited environment,
+    // credentials, backup command, network access or database connection.
+    const result = spawnSync('/bin/bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', guard.run], {
+      env: { CONFIRMED: String(confirmed), GITHUB_REF: ref, DEFAULT_BRANCH: branch },
+      encoding: 'utf8', timeout: 5000,
+    });
+    assert.ifError(result.error);
+    assert.equal(result.signal, null);
+    assert.equal(result.status, accepted ? 0 : 1, `confirmation=${confirmed}, ref=${ref}`);
+    if (String(confirmed) !== 'true') assert.match(result.stdout, /::error::Quiet-source confirmation was not true/);
+  }
 });
 
 test('backup source accepts only verified Supabase TLS/session endpoints, never local or transaction-pooler URLs', () => {
