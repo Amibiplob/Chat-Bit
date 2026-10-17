@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/test-results.log
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
@@ -23,6 +26,32 @@
 # misc
 .DS_Store
 *.pem
+
+# local credentials and certificates (never remove the local copies)
+/certs/
+/.aws/
+.pgpass
+.pg_service.conf
+*.key
+*.p12
+*.pfx
+
+# private database exports and encrypted backup archives
+/backups/
+*.dump
+*.backup
+*.sql.gz
+*.sql.enc
+*.sql.enc.sha256
+*.dump.enc
+*.dump.enc.sha256
+*.tar.enc
+*.tar.enc.sha256
+
+# local tool caches
+/.cache/
+/.pnpm-store/
+/.turbo/
 
 # debug
 npm-debug.log*
