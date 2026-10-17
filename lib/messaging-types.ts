@@ -20,6 +20,7 @@ export type Message = {
   content: string;
   createdAt: string;
   status: "sent" | "read";
+  delivery?: "sending";
   edited: boolean;
   deleted: boolean;
   reply: { id: string; senderName: string; content: string; deleted: boolean } | null;

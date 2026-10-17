@@ -1,4 +1,5 @@
 import "server-only";
+import { timedOperation } from "./request-timing.mjs";
 import { MessagingError } from "./messaging-validation.mjs";
 import { AuthError } from "./auth-validation.mjs";
 import { assertSameOrigin } from "./auth-request.mjs";
@@ -28,7 +29,8 @@ export async function jsonBody(request: Request): Promise<unknown> {
 export async function messagingResponse(request: Request, operation: () => Promise<unknown>) {
   try {
     if (request.method !== "GET") assertSameOrigin(request.headers);
-    return Response.json(await operation(), { headers: { "Cache-Control": "no-store" } });
+    const result = await timedOperation(operation);
+    return Response.json(result.value, { headers: { "Cache-Control": "no-store", "Server-Timing": result.serverTiming } });
   } catch (error) {
     const status = error instanceof MessagingError ? error.status : error instanceof AuthError ? 403 : 503;
     const message = error instanceof MessagingError || error instanceof AuthError ? error.message : "Messaging is temporarily unavailable. Please try again.";

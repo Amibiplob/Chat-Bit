@@ -11,6 +11,7 @@ import {
   Pencil,
   Reply,
   Trash2,
+  Star,
 } from "lucide-react";
 
 import { Avatar } from "@/components/profile/avatar";
@@ -55,6 +56,8 @@ function AttachmentView({ attachment, own, pending, onDelete }: { attachment: At
 
 interface MessageBubbleProps {
   message: Message;
+  saved: boolean;
+  onToggleSaved: () => void;
   pending: boolean;
   isOwn: boolean;
   senderInitials: string;
@@ -66,7 +69,7 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({
-  message,
+  saved, onToggleSaved, message,
   pending,
   isOwn,
   avatarVersion,
@@ -97,7 +100,7 @@ export function MessageBubble({
 
         <div className="relative min-w-0" tabIndex={0} role="group" onKeyDown={event=>{if(event.key==="Escape") {setMenuOpen(false);event.currentTarget.focus();}}} aria-label={`Message from ${message.senderName}`}>
           {/* Action buttons */}
-          {!message.deleted && <div
+          {!message.deleted && !message.delivery && <div
             className={`absolute bottom-full z-10 mb-1 hidden items-center gap-0.5 rounded-lg border bg-background p-1 shadow-sm sm:group-hover:flex sm:group-focus-within:flex ${
               isOwn ? "right-0" : "left-0"
             }`}
@@ -158,7 +161,7 @@ export function MessageBubble({
           </div>}
 
           {/* More menu */}
-          {menuOpen && !message.deleted && (
+          {menuOpen && !message.deleted && !message.delivery && (
             <div
               className={`absolute bottom-full z-20 mb-1 w-32 rounded-lg border bg-background p-1 shadow-lg ${
                 isOwn ? "right-0" : "left-0"
@@ -197,6 +200,7 @@ export function MessageBubble({
             </div>
           )}
 
+          {!message.deleted && !message.delivery && <button type="button" aria-label={saved?"Unsave message on this device":"Save message on this device"} aria-pressed={saved} onClick={onToggleSaved} className="mb-1 inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted"><Star className={`size-3.5 ${saved?"fill-current text-primary":""}`}/>{saved?"Saved":"Save"}</button>}
           {copyError && <p role="alert" className="text-xs text-destructive">{copyError}</p>}
           {/* Message bubble */}
           <div
@@ -217,12 +221,13 @@ export function MessageBubble({
                 isOwn ? "text-teal-100" : "text-muted-foreground"
               }`}
             >
-              {!message.deleted && <button type="button" disabled={pending} aria-label="Message actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="mr-auto flex size-9 items-center justify-center rounded sm:hidden"><MoreHorizontal className="size-3.5" /></button>}
+              {!message.deleted && !message.delivery && <button type="button" disabled={pending} aria-label="Message actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="mr-auto flex size-9 items-center justify-center rounded sm:hidden"><MoreHorizontal className="size-3.5" /></button>}
               <time dateTime={message.createdAt} title={message.createdAt} suppressHydrationWarning className="text-[10px]">{new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time>
 
               {message.edited && <span className="text-[10px]">edited</span>}
 
-              {isOwn &&
+              {message.delivery && <span role="status" className="text-[10px]">Sending…</span>}
+              {isOwn && !message.delivery &&
                 (message.status === "read" ? (
                   <CheckCheck aria-label="Read" className="size-3" />
                 ) : (

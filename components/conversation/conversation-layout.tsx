@@ -14,6 +14,17 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
 }) {
   const { register, refresh: synchronize, presence, status, typing, conversations } = useRealtime();
   const [messages, setMessages] = useState(initialPage.messages);
+  const [optimistic, setOptimistic] = useState<Message | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [saved, setSaved] = useState<string[]>([]);
+  const [saveError, setSaveError] = useState("");
+  const savedKey = `chatbit-saved:${currentUserId}:${conversation.id}`;
+  useEffect(() => {
+    const load = () => { try { const value = JSON.parse(localStorage.getItem(savedKey) ?? "[]"); setSaved(Array.isArray(value) ? value.filter((id: unknown) => typeof id === "string" && /^[a-f0-9-]{36}$/i.test(id)).slice(0, 500) : []); } catch { setSaveError("Saved markers are unavailable in this browser."); } };
+    load(); window.addEventListener("storage", load); return () => window.removeEventListener("storage", load);
+  }, [savedKey]);
+  function toggleSaved(id: string) { try { const next = saved.includes(id) ? saved.filter(value => value !== id) : [...saved, id].slice(-500); localStorage.setItem(savedKey, JSON.stringify(next)); setSaved(next); setSaveError(""); } catch { setSaveError("Could not save this marker. Browser storage may be unavailable."); } }
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -30,6 +41,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
   const receive = useCallback((page: MessagePage) => {
     oldest.current = page.messages[0] ? { id: page.messages[0].id, createdAt: page.messages[0].createdAt } : null;
     setMessages(page.messages); setNextCursor(page.nextCursor);
+    setOptimistic(current => current && !page.messages.some(row => row.id === current.id) ? current : null);
   }, []);
   useEffect(() => register({ id: conversation.id, oldest: () => oldest.current, receive }), [conversation.id, register, receive]);
 
@@ -79,12 +91,14 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
         const replyToId = replyingTo?.id ?? null;
         const fingerprint = JSON.stringify({ content, replyToId });
         if (retry.current?.fingerprint !== fingerprint) retry.current = { fingerprint, id: crypto.randomUUID() };
-        await messagingRequest(`${base}/messages`, { method: "POST", body: JSON.stringify({ content, replyToId, clientId: retry.current.id }) });
+        setOptimistic({ id: retry.current.id, conversationId: conversation.id, senderId: currentUserId, senderName: "You", content, createdAt: new Date().toISOString(), status: "sent", delivery: "sending", edited: false, deleted: false, attachments: [], reply: replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, content: replyingTo.content, deleted: false } : null });
+        const result = await messagingRequest<{id: string}>(`${base}/messages`, { method: "POST", body: JSON.stringify({ content, replyToId, clientId: retry.current.id }) });
+        setOptimistic(current => current ? { ...current, id: result.id, delivery: undefined } : null);
         retry.current = null;
       }
       confirmed = true; setReplyingTo(null); setEditingMessage(null);
-      try { await reload(); } catch { setError("Message saved, but refresh failed. Use Refresh to load it."); }
-    } catch (error) { setError(error instanceof Error ? error.message : "Message could not be saved. Try again."); }
+      void reload().catch(() => setError("Message saved, but refresh failed. Use Refresh to load it."));
+    } catch (error) { setOptimistic(null); setError(error instanceof Error ? `${error.message} Your draft is kept; send again to retry.` : "Message could not be saved. Your draft is kept; send again to retry."); }
     finally { busy.current = false; setPending(false); }
     return confirmed;
   }
@@ -143,13 +157,20 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
     finally { busy.current = false; setPending(false); }
   }
 
+  const displayed = [...messages, ...(optimistic && !messages.some(row => row.id === optimistic.id) ? [optimistic] : [])].filter(row => row.content.toLowerCase().includes(search.toLowerCase()) && (filter === "all" || filter === "saved" && saved.includes(row.id) || filter === "media" && row.attachments.some(file => /^(image|video)\//.test(file.mimeType)) || filter === "files" && row.attachments.some(file => !/^(image|video)\//.test(file.mimeType))));
   return (
     <section className="flex h-full min-w-0 flex-1 flex-col bg-muted/20" aria-label={`Conversation with ${conversation.name}`}>
       <ConversationHeader conversation={conversations.find((row) => row.id === conversation.id) ?? conversation}
         onRefresh={refresh} pending={pending} presence={presence} status={status} />
       {error && <p role="alert" className="border-b bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
       {readError && <p role="alert" className="border-b bg-destructive/10 px-4 py-3 text-sm text-destructive">{readError}</p>}
-      <MessageArea messages={messages} currentUserId={currentUserId} conversationInitials={conversation.initials} avatarVersion={conversation.avatarVersion}
+      <div className="flex flex-wrap items-center gap-2 border-b bg-background/95 px-4 py-2">
+        <input aria-label="Search loaded messages" placeholder="Search loaded messages…" value={search} onChange={event=>setSearch(event.target.value)} className="h-11 min-w-0 flex-1 rounded-xl bg-muted/60 px-3 text-sm"/>
+        <select aria-label="Filter loaded messages" value={filter} onChange={event=>setFilter(event.target.value)} className="h-11 max-w-full rounded-xl border bg-background px-2 text-sm"><option value="all">All messages</option><option value="media">Photos & videos</option><option value="files">Files</option><option value="saved">Saved on this device</option></select>
+        {(search || filter !== "all") && <p role="status" className="w-full text-xs text-muted-foreground">{displayed.length} matching loaded messages. Load older messages for more. Saved markers stay in this browser.</p>}
+      </div>
+      {saveError && <p role="alert" className="px-4 text-sm text-destructive">{saveError}</p>}
+      <MessageArea saved={saved} onToggleSaved={toggleSaved} messages={displayed} currentUserId={currentUserId} conversationInitials={conversation.initials} avatarVersion={conversation.avatarVersion}
         onReply={(message) => { setReplyingTo(message); setEditingMessage(null); }}
         onEdit={(message) => { setEditingMessage(message); setReplyingTo(null); }}
         onDelete={handleDelete} onDeleteAttachment={handleDeleteAttachment} onLoadOlder={loadOlder} hasMore={Boolean(nextCursor)} pending={pending} />

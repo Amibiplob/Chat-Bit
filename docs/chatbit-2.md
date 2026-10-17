@@ -45,3 +45,27 @@ auth surfaces and live controls. Public Help/FAQ and About routes describe actua
 capabilities and limits; a root not-found route provides recovery. Navigation
 anchors now work from auth/help routes. Existing settings, calls, profile and
 navigation components adopt the same visual vocabulary without replacing data.
+
+## Milestone 3
+
+Optimistic text sends display a clearly labelled Sending bubble immediately,
+replace its ID only after the server confirms the idempotent POST, and reconcile
+with authoritative snapshots. Failed sends keep the draft and reuse client IDs on
+retry. Snapshot refresh no longer holds the composer pending after POST success.
+Polling keeps the two-second target start cadence, subtracts request duration and
+retains one in-flight request, a 500 ms minimum rest and existing retry backoff.
+This removes measured-by-design additive waiting; it is not a measured production
+1–3 second delivery guarantee.
+
+Message search and media/file/saved filters explicitly cover loaded history only.
+Saved markers store at most 500 IDs per user/conversation in this browser, never
+message contents; they do not sync across devices. Older-history loading remains
+available. Reading older messages no longer forcibly jumps on every arrival.
+
+Successful messaging APIs expose numeric Server-Timing: app (whole operation),
+pool (transaction acquisition) and db (transaction time including BEGIN/COMMIT).
+These are partial transaction metrics, not all SQL time or browser/network time.
+Use DevTools Network POST and sync durations plus Server-Timing and React Profiler
+on an authorized deployment to measure the reported latency. Pool budget is per
+instance; provider wait/capacity and hidden-tab suspension still affect delivery.
+No production benchmark, database index or polling-frequency increase is claimed.

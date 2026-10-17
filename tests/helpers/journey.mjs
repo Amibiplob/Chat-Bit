@@ -62,6 +62,16 @@ export async function browserJourney(origin) {
     await alice.evaluate(`(()=>{const g=${group(edited)};g.focus();g.querySelector('[aria-label="Delete message"]').click();})()`);
     await bob.waitFor(`document.body.innerText.includes('Message deleted')`);
     diagnostic('edit, reply, persistence and deletion verified');
+    await alice.evaluate(`document.querySelector('[aria-label="Search loaded messages"]').focus()`);
+    await alice.fill('[aria-label="Search loaded messages"]',reply);
+    assert.ok(await alice.evaluate(`document.querySelector('[aria-label="Messages"]').innerText.includes(${JSON.stringify(reply)})`));
+    await alice.fill('[aria-label="Search loaded messages"]','');
+    await alice.evaluate(`(()=>{const g=${group(reply)};g.querySelector('[aria-label="Save message on this device"]').click();})()`);
+    await alice.waitFor(`document.querySelector('[aria-label="Unsave message on this device"]')`);
+    await alice.evaluate(`const select=document.querySelector('[aria-label="Filter loaded messages"]');select.value='saved';select.dispatchEvent(new Event('change',{bubbles:true}));`);
+    assert.ok(await alice.evaluate(`document.querySelector('[aria-label="Messages"]').innerText.includes(${JSON.stringify(reply)})`));
+    await alice.evaluate(`const select=document.querySelector('[aria-label="Filter loaded messages"]');select.value='all';select.dispatchEvent(new Event('change',{bubbles:true}));`);
+
     for(const width of [320,390,768,1280]) {
       await bob.command('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<768});
       assert.ok(await bob.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),`Conversation fits ${width}px`);

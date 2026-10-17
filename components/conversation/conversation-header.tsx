@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, History, MoreVertical, Phone, RefreshCw, Video } from "lucide-react";
+import { ArrowLeft, History, Phone, RefreshCw, Video } from "lucide-react";
 import { useCalling } from "@/components/calls/calling-provider";
 import Link from "next/link";
 import { Avatar } from "@/components/profile/avatar";
@@ -87,15 +87,7 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
           <Video className="size-5" />
         </button>
 
-        <button
-          type="button"
-          aria-label="More conversation options"
-          disabled
-          title="Not available yet"
-          className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
-        >
-          <MoreVertical className="size-5" />
-        </button>
+        <Link href="/help" aria-label="Conversation help" className="hidden size-11 items-center justify-center rounded-xl text-sm font-semibold text-muted-foreground hover:bg-muted sm:flex">?</Link>
       </div>
     </header>
   );

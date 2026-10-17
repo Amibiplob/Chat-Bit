@@ -76,3 +76,14 @@ test('bounded snapshot continuation retains older loaded history and rejects sta
   assert.deepEqual(result.nextCursor, cursor(rows[1]));
   await assert.rejects(completeWindow(initial, cursor(rows[1]), conversationId, async () => initial), /did not advance/);
 });
+
+test('poll cadence subtracts request time without overlapping slow requests', async (t) => {
+  let active = 0, maxActive = 0; const starts = [];
+  const loop = createSyncLoop(options({ interval: 600, request: async () => {
+    starts.push(performance.now()); active++; maxActive=Math.max(maxActive,active);
+    await delay(60); active--; return snapshot('1');
+  } }));
+  t.after(()=>loop.stop()); loop.start(); await until(()=>starts.length>=2); loop.stop();
+  assert.equal(maxActive,1);
+  assert.ok(starts[1]-starts[0]<650, 'A 60 ms request should not add another full interval');
+});
