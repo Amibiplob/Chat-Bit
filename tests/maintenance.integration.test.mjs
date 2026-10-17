@@ -25,7 +25,7 @@ test('upgrade from calling milestone preserves accounts; maintenance is bounded,
     assert.equal((await migrate(pool,pathToFileURL(`${directory}/`))).length,5);
     const user=randomUUID(),token='a'.repeat(64);
     await pool.query("INSERT INTO users(id,email,display_name,password_hash) VALUES($1,'upgrade@example.com','Retained','$argon2id$fixture')",[user]);
-    assert.deepEqual(await migrate(pool),['006_settings.sql','007_maintenance.sql']);
+    assert.deepEqual(await migrate(pool),['006_settings.sql','007_maintenance.sql','008_security_hardening.sql']);
     assert.deepEqual(await migrate(pool),[]);
     assert.equal((await pool.query('SELECT display_name,show_online FROM users WHERE id=$1',[user])).rows[0].display_name,'Retained');
     await pool.query("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '1 day')",[token,user]);

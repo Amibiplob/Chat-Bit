@@ -75,8 +75,8 @@ pnpm db:migrate
 
 The migration runner loads `.env.local` then `.env` without overwriting existing
 process variables. `DATABASE_MIGRATION_URL`, when nonempty, selects a direct
-endpoint for migrations; otherwise `DATABASE_URL` is used. Use the public schema
-in a dedicated database. Migration SQL creates and extends users, sessions,
+or session-pooler endpoint for migrations; otherwise `DATABASE_URL` is used. Use
+the public schema in a dedicated database. Migration SQL creates and extends users, sessions,
 canonical direct conversations, members, messages, attachments, per-message
 read states and calls. UUIDs, timestamps, indexes, foreign keys and checks enforce
 membership and relationships. Deleting messages is intended to use `deleted_at`.
@@ -94,11 +94,14 @@ migrations. Add the next numbered SQL file instead. There is no automatic reset,
 drop or rollback command. Existing conflicting tables cause migration failure;
 inspect and plan a safe reconciliation rather than removing data.
 
-In production, use a direct connection for migrations and a provider-supported
-pooled endpoint for application queries. Give the application role only needed
+In production, use a direct or session-pooler connection for migrations and a
+provider-supported pooled endpoint for application queries. Give the application role only needed
 SELECT/INSERT/UPDATE/DELETE permissions; use a separate migration role for DDL.
-The current authorization boundary is server-side membership-scoped SQL, not
-PostgreSQL row-level security. Never expose database credentials to browsers.
+Migration 008 revokes Supabase API access and enables RLS on private ChatBit
+objects. Server-side membership-scoped SQL still authorizes individual users;
+the owning server role bypasses RLS. Read the [database security and Free-plan
+backup/restore guide](docs/database-security.md) before the first migration.
+Never expose database credentials to browsers.
 
 ## Environment variables
 
