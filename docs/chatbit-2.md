@@ -69,3 +69,29 @@ Use DevTools Network POST and sync durations plus Server-Timing and React Profil
 on an authorized deployment to measure the reported latency. Pool budget is per
 instance; provider wait/capacity and hidden-tab suspension still affect delivery.
 No production benchmark, database index or polling-frequency increase is claimed.
+
+## Milestone 4
+
+The composer offers photos/videos, documents or the safe allowlist, with up to four
+files queued as separate messages. Local bounded image/video previews revoke Blob
+URLs on cleanup. Each file has progress; successful files leave the queue, failures
+and cancellations retain unsent files for retry. The first file receives the
+caption; retries after partial success do not repeat that caption.
+
+Private chat attachments share a reusable preview/download card, inline playable
+video, retry feedback and a full-screen native dialog with Escape/focus and Android
+back handling. Verified content responses support single HTTP byte ranges for
+seeking, with invalid ranges returning 416. Verification/auth still precede any
+bytes. Shared files is a real membership-scoped, keyset-paginated gallery, with
+media/document filters and conversation links. No new tables or migrations.
+
+Large-video boundary: signed direct upload already avoids Vercel's incoming body
+limit. Supabase recommends TUS above 6 MB and supports signed upload tokens via
+x-signature, but resumability alone does not solve this app's whole-object
+verification/memory/quota budget or reservation expiry. Keep 10 MiB and 100 MiB
+limits. A future reviewed TUS implementation must retain scoped path ownership,
+non-upsert, quota reservations, restart/expiry handling and content checks before
+publication; larger caps need bounded streaming verification and capacity tests.
+No arbitrary-size video, transcoding, larger bucket or paid service is enabled.
+Sources: https://supabase.com/docs/guides/storage/uploads/resumable-uploads and
+https://supabase.com/docs/guides/storage/uploads/file-limits (reviewed 2026-10-18).

@@ -23,7 +23,7 @@ export function ChatLayout({ children, user, conversations }: ChatLayoutProps) {
 function LiveChatLayout({ children, user }: { children: React.ReactNode; user: AuthUser }) {
   const { conversations, status } = useRealtime();
   const pathname = usePathname();
-  const activeSection=pathname.startsWith("/contacts")?"contacts":pathname.startsWith("/settings")?"settings":"chats";
+  const activeSection=pathname.startsWith("/shared")?"shared":pathname.startsWith("/contacts")?"contacts":pathname.startsWith("/settings")?"settings":"chats";
   const router = useRouter();
   const conversationOpen = pathname.startsWith("/chat/");
 
@@ -32,7 +32,7 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
       <AppSidebar
         activeSection={activeSection === "chats" && pathname === "/calls" ? "calls" : activeSection}
         onSectionChange={(section) => {
-          router.push(section==="calls"?"/calls":section==="contacts"?"/contacts":"/chat");
+          router.push(section==="shared"?"/shared":section==="calls"?"/calls":section==="contacts"?"/contacts":"/chat");
         }}
         user={user}
         hasUnread={conversations.some((conversation) => conversation.unread > 0)}
@@ -51,8 +51,9 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
       {activeSection === "chats" && pathname === "/calls" && children}
 
       {activeSection === "settings" && <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>}
+      {activeSection === "shared" && children}
       {activeSection === "contacts" && <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>}
-      {!conversationOpen && <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">{[["/chat","Chats"],["/calls","Calls"],["/contacts","Contacts"],["/settings","Settings"]].map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?'page':undefined} className="flex min-h-12 items-center px-3 text-sm">{label}</Link>)}</nav>}
+      {!conversationOpen && <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">{[["/chat","Chats"],["/calls","Calls"],["/contacts","Contacts"],["/shared","Files"],["/settings","Settings"]].map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?'page':undefined} className="flex min-h-12 items-center px-3 text-sm">{label}</Link>)}</nav>}
     </div>
   );
 }

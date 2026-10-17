@@ -44,6 +44,27 @@ test('attachment quotas, authorization, deletion and realtime in isolated Postgr
       await attachments.failAttachment(pool, a, reserved.id, 'late failure');
       assert.equal((await attachments.pendingAttachment(pool, a, conversation, reserved.id)).uploadState, 'available');
     });
+    await t.test('shared gallery authorizes membership and excludes unavailable records',async()=>{
+      const gallery=await attachments.sharedAttachments(pool,b,{kind:'documents'});
+      assert.equal(gallery.items.length,1);assert.equal(gallery.items[0].id,reserved.id);
+      assert.equal((await attachments.sharedAttachments(pool,c,{})).items.length,0);
+      assert.equal((await attachments.sharedAttachments(pool,b,{kind:'media'})).items.length,0);
+      assert.equal(gallery.items[0].storageKey,undefined);
+    });
+    await t.test('gallery keyset pagination retains files with identical microsecond timestamps',async()=>{
+      const created=[];
+      for(let index=0;index<41;index++){
+        const next=await attachments.reserveAttachment(pool,a,conversation,file);
+        created.push(await attachments.finalizeAttachment(pool,a,conversation,next.id,{clientId:randomUUID(),caption:''}));
+        await pool.query("UPDATE message_attachments SET created_at='2026-01-01T00:00:00.123456Z' WHERE id=$1",[next.id]);
+      }
+      const first=await attachments.sharedAttachments(pool,b,{});
+      const second=await attachments.sharedAttachments(pool,b,{cursor:first.nextCursor});
+      assert.equal(first.items.length,40);assert.equal(second.items.length,2);
+      assert.equal(new Set([...first.items,...second.items].map(item=>item.id)).size,42);
+      assert.match(first.nextCursor.createdAt,/123456Z$/);
+      for(const id of created)await messages.deleteMessage(pool,a,conversation,id);
+    });
     await t.test('concurrent reservations cannot bypass 100 MB quota, even with undersized declarations', async () => {
       const outcomes = await Promise.allSettled(Array.from({ length: 12 }, () => attachments.reserveAttachment(pool, a, conversation, { ...file, byteSize: 1 })));
       assert.equal(outcomes.filter((r) => r.status === 'fulfilled').length, 9);

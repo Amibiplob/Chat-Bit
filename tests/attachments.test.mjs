@@ -101,3 +101,15 @@ test('media response streams large verified files with fixed security headers', 
   }
   assert.equal(length, bytes.length);
 });
+
+test('verified media supports safe single ranges for seeking, including suffix and invalid bounds',async()=>{
+ const {attachmentPreviewResponse:respond}=await import('../lib/server/attachment-response.mjs');const bytes=Uint8Array.from([0,1,2,3,4]);
+ for(const [range,want] of [['bytes=1-3',[1,2,3]],['bytes=-2',[3,4]],['bytes=3-',[3,4]],['bytes=0-99',[0,1,2,3,4]]]){const response=respond(bytes,'video/mp4',range);assert.equal(response.status,206);assert.equal(response.headers.get('cache-control'),'private, no-store');assert.deepEqual([...new Uint8Array(await response.arrayBuffer())],want);}
+ for(const range of ['bytes=9-','bytes=-0','bytes=3-1','bytes=0-1,3-4','bytes=-','bad'])assert.equal(respond(bytes,'video/mp4',range).status,416);
+});
+
+test('gallery pagination validates cursors and rejects actor injection before SQL',async()=>{
+ const {sharedFilesSchema}=await import('../lib/server/attachment-validation.mjs');
+ assert.deepEqual(sharedFilesSchema.parse({}),{kind:'all',cursor:null});
+ for(const input of [{userId:'spoofed'},{kind:'unsafe'},{cursor:{id:'bad',createdAt:'bad'}}])assert.equal(sharedFilesSchema.safeParse(input).success,false);
+});

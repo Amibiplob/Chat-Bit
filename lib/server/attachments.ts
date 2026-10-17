@@ -61,11 +61,13 @@ export async function remove(conversationId: string, attachmentId: string) {
   } catch { /* delete_pending is retried opportunistically */ }
 }
 
-export async function preview(attachmentId: string) {
+export async function preview(attachmentId: string, range: string | null = null) {
   const { pool, userId } = await context();
   const row = await queries.attachmentForDownload(pool, userId, attachmentId);
   if (!/^(image|video|audio)\//.test(row.mimeType)) throw new MessagingError("Preview unavailable.", 404);
   const bytes = await readAttachmentObject(row.storageKey);
   validateAttachmentContent(bytes, row.byteSize, row.mimeType, row.filename.split(".").at(-1) ?? "");
-  return attachmentPreviewResponse(bytes, row.mimeType);
+  return attachmentPreviewResponse(bytes, row.mimeType, range);
 }
+
+export async function sharedFiles(input: unknown) { const {pool,userId}=await context(); return queries.sharedAttachments(pool,userId,input); }

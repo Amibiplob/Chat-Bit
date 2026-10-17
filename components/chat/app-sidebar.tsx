@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MessageCircle, Phone, Settings, Users } from "lucide-react";
+import { MessageCircle, Phone, Settings, Users, FolderOpen } from "lucide-react";
 import { Avatar } from "@/components/profile/avatar";
 import { useSettings } from "@/components/settings/settings-provider";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ interface AppSidebarProps {
 }
 
 const navigation = [
+  { id: "shared", label: "Shared files", icon: FolderOpen },
   {
     id: "chats",
     label: "Chats",
