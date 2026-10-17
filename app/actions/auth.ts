@@ -7,11 +7,13 @@ import { getDatabase } from "@/lib/server/db";
 import { loginAccount, registerAccount } from "@/lib/server/auth-service.mjs";
 import { assertSameOrigin, clientIdentity, rateLimitSecret } from "@/lib/server/auth-request.mjs";
 import { publicAuthError, AuthError } from "@/lib/server/auth-validation.mjs";
+import { reportAuthFailure } from "@/lib/server/auth-diagnostics.mjs";
 import { revokeSession, sessionCookieName, sessionCookieOptions, validSessionToken } from "@/lib/server/session-core.mjs";
 
 export type AuthState = { error?: string; values?: { email: string; name: string } };
 
 async function authenticate(form: FormData, register: boolean): Promise<AuthState> {
+  let stage = "request";
   try {
     const requestHeaders = await headers();
     assertSameOrigin(requestHeaders);
@@ -20,10 +22,16 @@ async function authenticate(form: FormData, register: boolean): Promise<AuthStat
     if (register && input.password !== form.get("confirmPassword")) {
       throw new AuthError("VALIDATION", "Passwords do not match.");
     }
+    stage = "auth-secret";
     const context = { clientId: clientIdentity(requestHeaders), secret: rateLimitSecret(), previousToken: cookieStore.get(sessionCookieName())?.value };
-    const session = await (register ? registerAccount : loginAccount)(getDatabase(), input, context);
+    stage = "database-config";
+    const database = getDatabase();
+    stage = "authentication";
+    const session = await (register ? registerAccount : loginAccount)(database, input, context);
+    stage = "session-cookie";
     cookieStore.set(sessionCookieName(), session.token, sessionCookieOptions(session.expires));
   } catch (error) {
+    reportAuthFailure(error, register ? "register" : "login", stage);
     // React resets successful action dispatches, including returned errors.
     // Return only bounded, non-sensitive fields; never serialize passwords.
     const text = (name: string, max: number) => typeof form.get(name) === "string" ? String(form.get(name)).slice(0, max) : "";

@@ -119,3 +119,104 @@ References checked against the installed Next.js guides and official sources:
 Milestone 7 password changes reauthenticate, update Argon2id hashes and revoke all
 sessions atomically. Login locks and rechecks the verified hash before issuing a
 session. See [settings lifecycle](settings.md) for supported account controls.
+
+## Investigating authentication availability on Vercel (2026-10-18)
+
+The exact `Authentication is temporarily unavailable. Please try again.` message
+is returned only by `publicAuthError` for an unexpected (non-`AuthError`) failure
+caught in the login/register Server Action. It is not evidence of a bad password,
+short password, origin rejection or rate-limit denial: those have explicit public
+errors. The action previously discarded the unexpected exception without logging
+anything. The added `chatbit.auth.unavailable` event repairs that diagnostic gap;
+it does **not** establish or resolve a particular deployed incident.
+
+Trace: the browser validates shared schemas and dispatches the Server Action;
+the action checks origin, reads cookies, checks the rate-limit secret and creates
+the lazy database pool. Both services first write rate-limit buckets inside a
+transaction, then validate input. Registration hashes with Argon2id and inserts
+the user and hashed-token session atomically. Login selects the hash, verifies it,
+locks/rechecks it inside a transaction and creates a session. Both commit before
+the action writes its secure host-only seven-day cookie and redirects to `/chat`.
+Rate-limit storage errors fail closed before credential validation. Errors in
+pool acquisition, SQL, hashing, BEGIN/COMMIT or cookie creation can reach the same
+generic response. A cookie failure can occur after database COMMIT; do not assume
+a failed signup response proves that no account was created.
+
+Local environment inspection (values never printed) passed the production auth
+configuration contract: DATABASE_URL, verified TLS/CA and AUTH_RATE_LIMIT_SECRET.
+The local runtime URL selects a Supabase transaction pooler and contains no TLS
+URL parameters. This is configuration shape evidence, not a Vercel environment
+comparison or a live connection test. No production connection, mutation or
+credential change was performed for this investigation.
+
+Privately verify the **active Vercel deployment's** Production/Preview scope:
+
+- DATABASE_URL must be the intended runtime Postgres connection, not the Storage
+  URL/API key or merely DATABASE_MIGRATION_URL. Use the Dashboard-provided host,
+  database and pooler username, with a percent-encoded database password.
+- DATABASE_SSL must be `verify` (also the default); DATABASE_SSL_CA is optional
+  provider CA PEM text, not a file path, quoted JSON or literal `\\n` sequences.
+  No `ssl*`/`uselibpqcompat` URL parameters are accepted, including `sslmode=require`:
+  pg URL options can replace the explicit verified TLS object.
+- AUTH_RATE_LIMIT_SECRET must be server-only and at least 32 characters, shared
+  across instances. DATABASE_POOL_MAX defaults to 3 (valid 1–20 per instance).
+  Never disable TLS/rate limits or broaden database permissions to bypass errors.
+- Node 24 is the supported runtime. Do not set CHATBIT_AUTH_HTTP_TEST in deployment.
+  Storage/TURN/cron variables do not participate in login or signup.
+- Migration success and a separate TLS check do not establish that the deployed
+  runtime uses the same endpoint/role/schema/CA. Migration 008 enables RLS without
+  API policies; a separate restricted role needs a reviewed RLS/grant strategy,
+  including trigger-function access (see database-security.md). DML grants alone
+  are insufficient. Do not grant API roles access or disable RLS.
+
+Supabase recommends transaction pooling for serverless functions. Auth queries
+have no named prepared statements and transactions retain one PoolClient from
+BEGIN through COMMIT/ROLLBACK; no session-level auth state is assumed. Session
+pooling also supports these SQL operations, with different connection budgeting.
+The pg `statement_timeout` option is sent during connection startup; its effective
+handling by a particular pooler is not proven by a local build or TLS check.
+Do not remove timeouts or change pooler modes without runtime evidence.
+See [Supabase connections](https://supabase.com/docs/guides/database/connecting-to-postgres),
+[timeouts](https://supabase.com/docs/guides/database/postgres/timeouts),
+[pg SSL](https://node-postgres.com/features/ssl) and
+[named queries](https://node-postgres.com/features/queries).
+
+### Runtime evidence needed
+
+For one failed POST `/login` or `/signup`, collect timestamp **with timezone**,
+Vercel request ID, deployment commit/environment, Node runtime and function region.
+Look for `chatbit.auth.unavailable` on a deployment containing this change. Its
+only fields are operation, stage and a strict allowlisted code (or UNCLASSIFIED).
+Expected auth errors produce no availability event. Stages distinguish request,
+auth-secret, database-config, authentication (service/transaction) and
+session-cookie failures. Wrapped/aggregate network errors retain allowlisted
+codes; no raw exception/message/stack, SQL or parameters are logged.
+
+Useful codes: 28P01/28000 = database authentication; 42501 = privilege/RLS;
+42P01/42703 = missing relation/column; 53300 = connection capacity;
+57014 = query cancellation; 40001/40P01 = serialization/deadlock;
+ENOTFOUND/EAI_AGAIN/ENETUNREACH/ECONNREFUSED/ETIMEDOUT = network;
+certificate codes identify TLS failures. These are diagnostic categories,
+not confirmed causes for the reported incident.
+
+If UNCLASSIFIED or running older code, supply any existing original exception
+name/code and a **manually redacted** stack (module/function/line only), plus a
+matching sanitized Supabase log if available. Older catches may have emitted no
+exception at all; say that explicitly. Do not paste URLs, hosts/project IDs,
+credentials, headers/cookies/tokens, email/password, SQL parameters, row contents
+or certificate contents. Report only variable presence/contract pass/fail,
+connection mode/port and whether the deployed runtime role/schema match the
+migration target. Do not send environment dumps or unredacted error objects.
+
+After any separately authorized environment corrections, a new deployment must
+use those settings. This investigation does not push, deploy, mutate production
+records or claim deployed login/signup is fixed without runtime evidence.
+
+Verification: 63 tests passed, zero failed, 10 database-dependent suites skipped;
+TypeScript, ESLint, Webpack production build and whitespace checks passed. Build
+traces include pg and the Argon2 native binary for login/signup (local packaging
+evidence only). Isolated real Chrome against a loopback production server passed
+the public frontend journey and a deliberate missing-DATABASE_URL failure: the
+real login Server Action returned the generic message and logged database-config /
+UNCLASSIFIED without the raw exception. Database/storage URLs were explicitly
+blank; no live PostgreSQL or deployed Vercel authentication test was performed.
