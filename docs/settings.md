@@ -96,7 +96,7 @@ of full WCAG conformance or a complete contrast/screen-reader audit is made.
 ## Passwords and sessions
 
 POST `/api/settings/password` requires the current password and a different,
-matching new password of 12–128 characters. Existing Argon2id settings are reused.
+matching new password of 8–128 characters. Existing Argon2id settings are reused.
 Password verification is rate-limited, then the user row is locked and the verified
 hash/current session are rechecked before updating. Every session, including the
 current one, is revoked atomically; the response clears its cookie and the UI

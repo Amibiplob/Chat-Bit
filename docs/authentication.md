@@ -14,7 +14,7 @@ Application database roles need DML access to users, sessions and auth_rate_limi
 No authentication provider, email service, ORM or new paid infrastructure is needed.
 
 Registration uses a trimmed display name (1–80 characters), normalized email
-(trimmed, lowercase, validated, at most 254 characters), and a password of 12–128
+(trimmed, lowercase, validated, at most 254 characters), and a password of 8–128
 characters. Passwords are never trimmed, normalized or truncated. Long passphrases
 and spaces are supported. The database's unique email constraint resolves races;
 account and initial session creation commit atomically. Login returns the same

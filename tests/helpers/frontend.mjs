@@ -15,7 +15,7 @@ export async function frontendJourney(origin) {
     assert.ok(await evaluate(`document.querySelector('[role="alert"]').textContent.includes('correct')`));
     for (const [field,value] of Object.entries({name:'   ',email:'not-an-email',password:'short',confirmPassword:'different'})) await fill(`input[name="${field}"]`, value);
     await evaluate(`document.querySelector('form').requestSubmit()`);
-    await waitFor(`document.querySelector('#signup-password-error')?.textContent.includes('12')`);
+    await waitFor(`document.querySelector('#signup-password-error')?.textContent.includes('8')`);
     assert.ok(await evaluate(`document.querySelector('#signup-email-error').textContent.includes('valid email')`));
     assert.ok(await evaluate(`document.querySelector('#confirm-password-error').textContent.includes('match')`));
     assert.equal(await evaluate(`document.querySelector('#name').value`), '   ');

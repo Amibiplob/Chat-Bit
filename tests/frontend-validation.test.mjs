@@ -6,14 +6,14 @@ import { passwordSchema as serverPassword, profileSchema as serverProfile } from
 import { allowedAttachments, MAX_ATTACHMENT_BYTES, attachmentFileError, normalizedFileType } from '../lib/attachment-policy.mjs';
 import { validateAttachmentMetadata } from '../lib/server/attachment-validation.mjs';
 
-test('browser and server share authoritative schemas and unchanged password bounds', () => {
+test('browser and server share authoritative schemas and eight-character new-password bounds', () => {
   assert.equal(serverRegistration, registrationSchema); assert.equal(serverLogin, loginSchema);
   assert.equal(serverPassword, passwordSchema); assert.equal(serverProfile, profileSchema);
-  assert.equal(PASSWORD_MIN, 12); assert.equal(PASSWORD_MAX, 128);
+  assert.equal(PASSWORD_MIN, 8); assert.equal(PASSWORD_MAX, 128);
   const base = { name: ' Person ', email: ' TEST@EXAMPLE.COM ', password: 'x'.repeat(PASSWORD_MIN) };
   assert.equal(registrationSchema.parse(base).email, 'test@example.com');
-  for (const length of [12, 128]) assert.equal(registrationSchema.safeParse({ ...base, password: 'x'.repeat(length) }).success, true);
-  for (const length of [0, 11, 129]) assert.ok(formErrors(registrationSchema, { ...base, password: 'x'.repeat(length) }).password);
+  for (const length of [8, 12, 128]) assert.equal(registrationSchema.safeParse({ ...base, password: 'x'.repeat(length) }).success, true);
+  for (const length of [0, 7, 129]) assert.ok(formErrors(registrationSchema, { ...base, password: 'x'.repeat(length) }).password);
   assert.equal(loginSchema.safeParse({ email: base.email, password: 'x' }).success, true, 'Login must accept existing short passwords');
   assert.deepEqual(Object.keys(formErrors(loginSchema, { email: '', password: '' })), ['email', 'password']);
   for (const email of ['invalid', 'a@', 'a'.repeat(255)]) assert.ok(formErrors(loginSchema, { email, password: 'valid' }).email);
@@ -26,7 +26,7 @@ test('password-change and profile validation explains field failures without cha
   const input = { currentPassword: 'old password', newPassword: 'new passphrase', confirmPassword: 'new passphrase' };
   assert.deepEqual(formErrors(passwordSchema, input), {});
   assert.ok(formErrors(passwordSchema, { ...input, currentPassword: '' }).currentPassword);
-  assert.ok(formErrors(passwordSchema, { ...input, newPassword: 'short', confirmPassword: 'short' }).newPassword.includes('12'));
+  assert.ok(formErrors(passwordSchema, { ...input, newPassword: 'short', confirmPassword: 'short' }).newPassword.includes('8'));
   assert.equal(formErrors(passwordSchema, { ...input, confirmPassword: 'different passphrase' }).confirmPassword, 'New passwords must match.');
   assert.equal(formErrors(passwordSchema, { ...input, newPassword: input.currentPassword, confirmPassword: input.currentPassword }).newPassword, 'Choose a different new password.');
   assert.ok(formErrors(profileSchema, { displayName: '   ', bio: '' }).displayName);
