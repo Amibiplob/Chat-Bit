@@ -9,24 +9,37 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 // Native Chrome DevTools protocol: browser verification without a new dependency.
 export async function withBrowser(operation, extraArgs = []) {
+  assert.ok(process.env.CHROME_BIN, 'CHROME_BIN must identify an installed Chrome executable');
   const diagnostic = (phase) => { if (process.env.DEBUG_CHATBIT_BROWSER === '1') console.log(`Browser check: ${phase}`); };
   const profile = await mkdtemp(join(tmpdir(), 'chatbit-browser-'));
   const listener = createServer();
   listener.listen(0, '127.0.0.1'); await once(listener, 'listening');
   const port = listener.address().port;
   await new Promise((resolve) => listener.close(resolve));
-  const child = spawn(process.env.CHROME_BIN, ['--headless', '--no-sandbox', '--disable-gpu', '--no-first-run', '--disable-background-networking', '--disable-extensions', `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, ...extraArgs, 'about:blank'], { detached: true, stdio: 'ignore' });
+  // Hosted runners can have constrained shared memory and slow cold starts.
+  const child = spawn(process.env.CHROME_BIN, ['--headless', '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--no-first-run', '--disable-background-networking', '--disable-extensions', `--user-data-dir=${profile}`, '--remote-debugging-address=127.0.0.1', `--remote-debugging-port=${port}`, ...extraArgs, 'about:blank'], { detached: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  let startupLog = '';
+  let launchError;
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk) => { startupLog = `${startupLog}${chunk}`.slice(-8000); });
+  child.on('error', (error) => { launchError = error; });
   diagnostic('process launched');
   let socket;
   try {
     let target;
-    for (let i = 0; i < 30; i++) {
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      if (launchError || child.exitCode !== null || child.signalCode !== null) break;
       try {
         const response = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT', signal: AbortSignal.timeout(1000) });
-        target = await response.json(); break;
-      } catch { if (child.exitCode !== null) break; await delay(100); }
+        if (response.ok) {
+          target = await response.json();
+          if (target?.webSocketDebuggerUrl) break;
+        }
+      } catch { /* Chrome has not opened its debugging endpoint yet. */ }
+      await delay(100);
     }
-    assert.ok(target?.webSocketDebuggerUrl, 'Isolated Chrome should start');
+    assert.ok(target?.webSocketDebuggerUrl, `Isolated Chrome should start: executable=${process.env.CHROME_BIN}; exit=${child.exitCode}; signal=${child.signalCode}; error=${launchError?.message ?? 'none'}\n${startupLog}`);
     diagnostic('debug target created');
     socket = new WebSocket(target.webSocketDebuggerUrl);
     await once(socket, 'open', { signal: AbortSignal.timeout(10000) });
@@ -75,7 +88,7 @@ export async function withBrowser(operation, extraArgs = []) {
     await operation({ command, evaluate, waitFor, fill });
   } finally {
     socket?.close();
-    if (child.exitCode === null && child.signalCode === null) {
+    if (child.pid && child.exitCode === null && child.signalCode === null) {
       const stopped = once(child, 'exit');
       process.kill(-child.pid, 'SIGTERM');
       await Promise.race([stopped, delay(3000)]);

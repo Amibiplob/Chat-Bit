@@ -27,10 +27,16 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Verify isolated headless Chrome and runtime dependencies
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+        run: |
+          test -x "$CHROME_BIN"
+          "$CHROME_BIN" --version
+          node --input-type=module -e 'import { withBrowser } from "./tests/helpers/browser.mjs"; await withBrowser(async ({ evaluate }) => { if (await evaluate("1 + 1") !== 2) throw new Error("Chrome JavaScript smoke test failed"); });'
       - name: Prepare disposable Supabase-compatible security roles
         run: |
           test "$(psql -h 127.0.0.1 -U chatbit -d chatbit_test -Atc 'SHOW server_version_num' | cut -c1-2)" = 17
-          test -x /usr/bin/google-chrome
           psql -h 127.0.0.1 -U chatbit -d chatbit_test -v ON_ERROR_STOP=1 -f tests/fixtures/supabase-security.sql
         env:
           PGPASSWORD: isolated-ci-only
