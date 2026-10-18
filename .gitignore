@@ -109,3 +109,15 @@ next-env.d.ts
 /.idea/
 Thumbs.db
 Desktop.ini
+
+# Android packaging and generated binaries (source config remains trackable)
+/android/generated/
+/android/signing/
+/android/node_modules/
+**/.gradle/
+**/local.properties
+*.apk
+*.aab
+*.apks
+*.idsig
+*.hprof

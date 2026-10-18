@@ -1,0 +1,2 @@
+import Link from 'next/link';
+export default function OfflinePage(){return <main className="cb-hero flex min-h-svh flex-col items-center justify-center gap-5 p-6 text-center"><p className="cb-kicker">Connection paused</p><h1 className="text-3xl font-semibold">Let’s reconnect.</h1><p className="max-w-sm text-sm leading-7 text-muted-foreground">ChatBit needs a connection to load your conversations and send messages. Your chats are not stored in this offline page.</p><Link href="/chat" className="cb-button">Try opening chats</Link></main>;}

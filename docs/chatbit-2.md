@@ -95,3 +95,26 @@ publication; larger caps need bounded streaming verification and capacity tests.
 No arbitrary-size video, transcoding, larger bucket or paid service is enabled.
 Sources: https://supabase.com/docs/guides/storage/uploads/resumable-uploads and
 https://supabase.com/docs/guides/storage/uploads/file-limits (reviewed 2026-10-18).
+
+## Milestone 5
+
+Web manifest, generated ChatBit launcher/maskable icons, viewport/safe areas and
+a public-only offline fallback are installed. No API, media, auth or chat response
+is cached by the worker. Chats still require a connection; no offline outbox.
+Android browser file selection and existing HTTPS media permissions remain native
+to the browser; no duplicate backend or static Next export.
+
+The Android package ID is com.chatbit.messenger. Its Bubblewrap manifest is
+generated from an explicitly supplied stable production origin and public release
+certificate fingerprints. Invalid/missing configuration fails closed. Digital
+Asset Links returns 404 until configured on the correct origin. Signing material
+and generated Android/APK/AAB output are ignored. APK/real-device verification
+remains blocked by the missing SDK/JDK, stable origin and release key; never
+publish a package with guessed origin or an unrelated/debug certificate.
+
+Local verification: production Webpack build, TypeScript, ESLint and isolated
+Bubblewrap generation using fixture icons passed. The available suite passed
+69 tests with 10 database/HTTP integration skips before PWA-specific tests were
+added; worker behavior and Android configuration tests also pass. No PostgreSQL
+server binaries, Java or Android SDK are installed here. Source generation does
+not establish Gradle compilation, signing, site verification or device behavior.

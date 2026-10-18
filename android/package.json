@@ -1,0 +1,11 @@
+{
+  "name": "chatbit-android-build",
+  "private": true,
+  "dependencies": {
+    "@bubblewrap/cli": "1.27.0"
+  },
+  "scripts": {
+    "test": "node test.mjs",
+    "generate": "node generate.mjs"
+  }
+}

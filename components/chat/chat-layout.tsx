@@ -28,7 +28,7 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
   const conversationOpen = pathname.startsWith("/chat/");
 
   return (
-    <div className={`flex h-svh overflow-hidden bg-background ${conversationOpen?"":"pb-[calc(3.5rem+env(safe-area-inset-bottom))]"} md:pb-0`}>
+    <div className={`flex h-dvh overflow-hidden bg-background ${conversationOpen?"":"pb-[calc(3.5rem+env(safe-area-inset-bottom))]"} md:pb-0`}>
       <AppSidebar
         activeSection={activeSection === "chats" && pathname === "/calls" ? "calls" : activeSection}
         onSectionChange={(section) => {
