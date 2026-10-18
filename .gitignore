@@ -114,6 +114,7 @@ Desktop.ini
 /android/generated/
 /android/signing/
 /android/node_modules/
+/release-assets/
 **/.gradle/
 **/local.properties
 *.apk

@@ -41,19 +41,18 @@ public icons/web manifest from the configured origin. It fails if these are abse
 Generated source is reproducible from the locked generator, local config and
 versioned web assets; artifact bytes/tool downloads are not claimed bit-identical.
 
-Then run:
+Then run from the repository root (Linux/macOS or CI):
 
 ```bash
-cd android/generated
-../node_modules/.bin/bubblewrap updateConfig --jdkPath="$JAVA_HOME" --androidSdkPath="$ANDROID_HOME"
-../node_modules/.bin/bubblewrap doctor
-../node_modules/.bin/bubblewrap build
+node android/check-site.mjs
+node android/build.mjs
 ```
 
-Do not use skip-validation flags for releases. Bubblewrap builds a signed
+The script uses Gradle, zip alignment verification, apksigner and jarsigner
+without interactive downloads or shell password interpolation. It builds a signed
 `app-release-signed.apk` and `app-release-bundle.aab`. You can inspect/build the
 regular generated Gradle project in Android Studio. For local unsigned compile
-checks only, `bubblewrap build --skipSigning` is available; never publish unsigned
+checks only, `node android/build.mjs --unsigned` is available; never publish unsigned
 output. No APK or AAB was compiled or signed in this environment.
 
 ## Digital Asset Links and deployment
@@ -91,3 +90,35 @@ platform-policy work. Neither comes automatically from TWA packaging.
 Official references:
 - https://github.com/GoogleChromeLabs/bubblewrap/tree/main/packages/cli
 - https://developer.chrome.com/docs/android/trusted-web-activity/quick-start
+
+## GitHub Actions setup (not executed)
+
+`.github/workflows/android-release.yml` runs only through **Run workflow**.
+It does nothing until repository variable `CHATBIT_ANDROID_BUILDS_ENABLED=true`.
+Set repository variables `CHATBIT_ANDROID_ORIGIN`, `ANDROID_SHA256_FINGERPRINTS`
+and `ANDROID_KEY_ALIAS` to the reviewed values above. Store these GitHub Secrets:
+
+- `ANDROID_KEYSTORE_BASE64`: base64 encoding of the backed-up release keystore.
+- `ANDROID_KEYSTORE_PASSWORD`: keystore password.
+- `ANDROID_KEY_PASSWORD`: signing-key password.
+
+Deploy matching Digital Asset Links first. CI compares the actual keystore's
+public certificate to the configured fingerprints and requires matching HTTPS
+DAL without redirects. Tests, build, lint, TypeScript and fixture Android source
+generation precede signing. Signed APK/AAB artifacts are retained for 14 days.
+The key is never uploaded; its runner copy is removed even on failure.
+Do not run untrusted changes with signing secrets. Protect repository write access,
+release tags and workflow edits; optionally configure a protected environment.
+
+For artifacts, run manually with `publish=false`, x.y.z version and an increasing
+version code. For a future release, review and push the matching `vx.y.z` tag
+yourself, set `CHATBIT_ANDROID_RELEASES_ENABLED=true`, and explicitly run the
+workflow **from that tag** with `publish=true`. Only publication receives
+`contents: write`; other jobs have read access. Repository/org Actions policy must
+permit that scope. Publishing remains off by default; existing releases are never
+overwritten. The APK is named `ChatBit-vx.y.z.apk`; an AAB is also attached for
+future Play distribution, which still requires Play Console setup and review.
+
+No workflow, live DAL verification, Gradle compile, signing, upload or GitHub
+Release was executed during implementation. GitHub-hosted Android tooling and
+network downloads remain CI verification boundaries.

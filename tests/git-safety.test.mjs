@@ -8,4 +8,6 @@ test('git ignore protects private/generated artifacts without hiding configurati
   const ignored = execFileSync('git', ['check-ignore', '--no-index', '--stdin'], { input: [...privatePaths, ...sourcePaths].join('\n'), encoding: 'utf8' }).trim().split('\n');
   assert.deepEqual(ignored, privatePaths);
   assert.equal(execFileSync('git', ['check-ignore', '--no-index', '--stdin'], { input: '.ssh/config\nid_ed25519\nexport.sql.xz\nexport.sql.zst\n', encoding: 'utf8' }), '.ssh/config\nid_ed25519\nexport.sql.xz\nexport.sql.zst\n');
+  const android = ['android/generated/app/build.gradle', 'android/node_modules/tool/index.js', 'android/signing/release.jks', 'android/local.properties', 'release-assets/ChatBit-v1.0.0.apk', 'app-release.aab', 'android/.gradle/cache'];
+  assert.deepEqual(execFileSync('git', ['check-ignore', '--no-index', '--stdin'], { input: android.join('\n'), encoding: 'utf8' }).trim().split('\n'), android);
 });

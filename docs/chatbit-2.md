@@ -118,3 +118,25 @@ Bubblewrap generation using fixture icons passed. The available suite passed
 added; worker behavior and Android configuration tests also pass. No PostgreSQL
 server binaries, Java or Android SDK are installed here. Source generation does
 not establish Gradle compilation, signing, site verification or device behavior.
+
+## Milestone 6
+
+Manual-only Android CI prepares APK/AAB artifacts after web validation, isolated
+generator checks, certificate matching and deployed Digital Asset Links checks.
+Build and release repository opt-ins default to disabled. Publication additionally
+requires an explicit input and matching version tag. Signing secrets never enter
+arguments or artifact paths; only publication can write Releases. Direct Gradle
+and native signing avoid Bubblewrap's first-run interactive prompts. See
+android/README.md for variables, secrets and exact device/setup boundaries.
+
+Local Chrome checked six public routes at 360, 412 and 1280 pixels (18 checks),
+without horizontal overflow, plus production worker registration. Manifest,
+worker cache headers and unconfigured DAL 404 were checked over local HTTP.
+Authenticated two-user browser, live database, provider media, production latency,
+TURN and real Android checks remain unperformed in this run. APK/AAB output and
+GitHub workflow execution remain blocked by external setup/tools above.
+
+Final local suite: 82 tests, 72 passed, 10 skipped, zero failures. TypeScript,
+ESLint, production Webpack build, Android fixture generation, YAML parse/release
+gate checks and Git whitespace checks passed. Signing orchestration used fake
+tools and fixture outputs; it is not evidence of a real APK/AAB build.

@@ -1,0 +1,121 @@
+name: Build ChatBit Android
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version name (x.y.z); publishing requires running from matching vx.y.z tag'
+        required: true
+        type: string
+      version_code:
+        description: 'Increasing Android version code'
+        required: true
+        type: string
+      publish:
+        description: 'Publish signed APK and AAB to GitHub Releases (requires repository opt-in)'
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: chatbit-android-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    if: vars.CHATBIT_ANDROID_BUILDS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CHATBIT_ANDROID_ORIGIN: ${{ vars.CHATBIT_ANDROID_ORIGIN }}
+      ANDROID_SHA256_FINGERPRINTS: ${{ vars.ANDROID_SHA256_FINGERPRINTS }}
+      ANDROID_VERSION_NAME: ${{ inputs.version }}
+      ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+      ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+      ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/signing/chatbit.keystore
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.1.0'
+      - run: pnpm install --frozen-lockfile
+      - run: npm ci --prefix android --ignore-scripts --no-audit --no-fund
+      - run: node android/generate.mjs --check
+      - run: pnpm test
+      - run: npm test --prefix android
+      - run: pnpm build
+      - run: pnpm exec tsc --noEmit
+      - run: pnpm lint
+      - run: git diff --check
+      - name: Restore private signing material and verify certificate
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64"
+          test -n "$BUBBLEWRAP_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          umask 077
+          mkdir -p android/signing
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          keytool -exportcert -keystore "$ANDROID_KEYSTORE_PATH" -alias "$ANDROID_KEY_ALIAS" -storepass:env BUBBLEWRAP_KEYSTORE_PASSWORD -file "$RUNNER_TEMP/chatbit-release.der"
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs';
+          import { X509Certificate } from 'node:crypto';
+          import { fingerprints } from './android/config.mjs';
+          const actual = new X509Certificate(readFileSync(process.env.RUNNER_TEMP + '/chatbit-release.der')).fingerprint256;
+          if (!fingerprints(process.env.ANDROID_SHA256_FINGERPRINTS).includes(actual)) throw new Error('Release key does not match configured Digital Asset Links fingerprint');
+          JS
+      - run: node android/check-site.mjs
+      - run: node android/generate.mjs
+      - name: Compile and sign APK and AAB
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$BUBBLEWRAP_KEY_PASSWORD"
+          node android/build.mjs
+          mkdir -p release-assets
+          cp android/generated/app-release-signed.apk "release-assets/ChatBit-v${ANDROID_VERSION_NAME}.apk"
+          cp android/generated/app-release-bundle.aab "release-assets/ChatBit-v${ANDROID_VERSION_NAME}.aab"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chatbit-android
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove signing material
+        if: always()
+        run: rm -rf android/signing "$RUNNER_TEMP/chatbit-release.der"
+  publish:
+    needs: build
+    if: inputs.publish && vars.CHATBIT_ANDROID_RELEASES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Require matching version tag
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$GITHUB_REF" = "refs/tags/v$VERSION"
+      - uses: actions/download-artifact@v4
+        with:
+          name: chatbit-android
+          path: release-assets
+      - name: Publish explicitly requested signed release
+        run: gh release create "v$VERSION" release-assets/* --verify-tag --title "ChatBit v$VERSION" --notes 'Signed ChatBit Android package. See android/README.md for capabilities and device testing requirements.'
