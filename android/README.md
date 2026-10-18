@@ -5,6 +5,57 @@ application, not a second frontend or a static export. Package ID is
 `com.chatbit.messenger`; keep it and the release signing key stable for updates.
 The pinned Bubblewrap 1.27.0 CLI/core and npm lockfile are build-only dependencies.
 
+## Build a testing APK in GitHub Actions (no local SDK)
+
+1. Push the reviewed commit yourself to the repository's default branch so GitHub
+   can discover `.github/workflows/android-debug.yml`.
+2. Open **Actions → Build ChatBit Debug APK → Run workflow**. Select the branch
+   to test and enter the deployed ChatBit HTTPS origin in `origin`, with no path,
+   query or credentials. Use the actual deployment you intend to test.
+3. Wait for the `debug-apk` job to finish. Open the run's **Artifacts** section,
+   download **ChatBit-debug-apk**, unzip it and install **ChatBit-debug.apk** on
+   your Android phone. Allow installation from that download source when Android
+   prompts. Chrome must be available. Optionally use `adb install -r` if installed.
+
+This workflow is manual only, needs no repository variables, signing secrets or
+Digital Asset Links, and cannot publish a GitHub Release. GitHub installs Node 24,
+Temurin JDK 17, Android platform 36 and build tools 36.1.0. The pinned generator
+reuses the existing TWA project template, Gradle 8.11.1 and Android Gradle plugin
+8.9.1. Generated repositories use Google Maven/Maven Central instead of retired
+JCenter. APKs are retained for 14 days. No local Android SDK installation is needed.
+
+Debug generation uses the checked-in ChatBit icons and packaging metadata, so a
+deployment missing the new PWA assets does not block compilation. The app still
+loads `/chat` from your supplied deployment and uses its real backend/accounts.
+The workflow neither deploys web changes nor bundles an offline web application.
+
+Gradle's `assembleDebug` automatically signs this testing APK using a disposable
+runner debug key; `apksigner verify` must pass before the exact APK is uploaded.
+It uses package **com.chatbit.messenger.debug** and launcher name **ChatBit Debug**
+so it can coexist with a future release. No release certificate is fabricated or
+added to the site's Digital Asset Links. Until a certificate/site association is
+verified, Chrome may display its Custom Tab toolbar. Do not disable verification.
+Debug keys can differ between runs: if Android rejects an update with a signing
+conflict, uninstall the previous **ChatBit Debug** app before installing this one.
+Never distribute this APK as a signed public release or Play submission.
+
+Equivalent commands on a machine that already has the SDK/JDK (optional):
+
+```bash
+npm ci --prefix android --ignore-scripts
+# Set CHATBIT_ANDROID_ORIGIN to your deployed HTTPS origin first.
+node android/generate.mjs --debug
+node android/build.mjs --debug
+```
+
+The existing release workflow below remains separately gated by repository
+opt-ins, release signing credentials, certificate matching and deployed DAL.
+Local source generation and simulated build orchestration passed; actual Android
+compilation and device installation have not been verified in this workspace.
+A successful GitHub run is required before an APK is available to download.
+
+Reference: [Android command-line debug builds](https://developer.android.com/build/building-cmdline#build_a_debug_apk).
+
 ## Prerequisites and generation
 
 1. Deploy the web changes to the reviewed stable HTTPS origin. Verify manifest,

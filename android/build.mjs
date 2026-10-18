@@ -10,7 +10,9 @@ const directory = fileURLToPath(new URL('./generated/', import.meta.url));
 const env = process.env;
 if (!env.JAVA_HOME || !env.ANDROID_HOME) throw new Error('Set JAVA_HOME (JDK 17) and ANDROID_HOME.');
 const unsigned = process.argv.includes('--unsigned');
-if (!unsigned && ['ANDROID_KEYSTORE_PATH', 'ANDROID_KEY_ALIAS', 'BUBBLEWRAP_KEYSTORE_PASSWORD', 'BUBBLEWRAP_KEY_PASSWORD'].some(key => !env[key])) {
+const debug = process.argv.includes('--debug');
+if (debug && unsigned) throw new Error('Choose debug or unsigned release, not both.');
+if (!unsigned && !debug && ['ANDROID_KEYSTORE_PATH', 'ANDROID_KEY_ALIAS', 'BUBBLEWRAP_KEYSTORE_PASSWORD', 'BUBBLEWRAP_KEY_PASSWORD'].some(key => !env[key])) {
   throw new Error('Release builds require a keystore, alias and both password environment variables.');
 }
 function run(command, args) {
@@ -18,6 +20,13 @@ function run(command, args) {
   if (result.error || result.status !== 0) throw new Error(`Android build tool failed: ${command}`);
 }
 await access(join(directory, 'gradlew'), constants.R_OK);
+if (debug) {
+  run('bash', ['./gradlew', '--no-daemon', 'assembleDebug']);
+  const apk = join(directory, 'app/build/outputs/apk/debug/app-debug.apk');
+  run(join(env.ANDROID_HOME, 'build-tools/36.1.0/apksigner'), ['verify', '--verbose', '--print-certs', apk]);
+  await copyFile(apk, join(directory, 'ChatBit-debug.apk'));
+  console.log('Installable debug-signed APK: android/generated/ChatBit-debug.apk. Testing only.');
+} else {
 run('bash', ['./gradlew', '--no-daemon', 'assembleRelease', 'bundleRelease']);
 const apk = join(directory, 'app/build/outputs/apk/release/app-release-unsigned.apk');
 const bundle = join(directory, 'app/build/outputs/bundle/release/app-release.aab');
@@ -36,4 +45,5 @@ if (unsigned) {
     '-keypass:env', 'BUBBLEWRAP_KEY_PASSWORD', '-signedjar', 'app-release-bundle.aab', bundle, env.ANDROID_KEY_ALIAS]);
   run(join(env.JAVA_HOME, 'bin/jarsigner'), ['-verify', 'app-release-bundle.aab']);
   console.log('Signed APK and AAB created. Verify installation and DAL on a real device.');
+}
 }
