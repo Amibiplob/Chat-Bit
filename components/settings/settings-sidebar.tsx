@@ -106,7 +106,7 @@ export function SettingsSidebar({
               className={cn(
                 "flex shrink-0 items-center gap-3 md:w-full rounded-xl px-3 py-3 text-left transition-colors",
                 active
-                  ? "bg-teal-600/10 text-teal-700 dark:text-blue-400"
+                  ? "bg-teal-600/10 text-teal-700 dark:text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >

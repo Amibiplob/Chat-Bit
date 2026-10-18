@@ -48,7 +48,7 @@ export function SettingsLayout() {
   }
 
   return (
-    <main className="flex min-h-svh flex-col bg-background md:flex-row">
+    <main className="flex min-h-full flex-col bg-background md:flex-row">
       <SettingsSidebar
         activeSection={activeSection}
         onSectionChange={setActiveSection}

@@ -23,7 +23,7 @@ export default async function SignupPage() {
         Already have an account?
         <Link
           href="/login"
-          className="font-semibold text-blue-500 hover:text-blue-600 hover:underline ml-1"
+          className="font-semibold text-primary hover:text-primary/80 hover:underline ml-1"
         >
           Sign in
         </Link>

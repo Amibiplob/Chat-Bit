@@ -34,7 +34,7 @@ export function LoginForm() {
             maxLength={254}
             autoComplete="email"
             required
-            className="h-11 w-full rounded-lg border bg-background pl-10 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="h-12 w-full rounded-xl border bg-background pl-10 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
         </div>
         <FieldError id="email" error={errors.email} />
@@ -67,7 +67,7 @@ export function LoginForm() {
             maxLength={128}
             autoComplete="current-password"
             required
-            className="h-11 w-full rounded-lg border bg-background pl-10 pr-11 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="h-12 w-full rounded-xl border bg-background pl-10 pr-11 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
 
           <button
@@ -94,7 +94,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="h-11 w-full rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-12 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {pending ? "Signing in…" : "Sign in"}
       </button>

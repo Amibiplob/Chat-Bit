@@ -48,3 +48,20 @@ only `.github/workflows/android-debug.yml` and `android-release.yml`.
 The supplied origin is https://chat-bit-rouge.vercel.app. A read-only browser-tool
 request was unavailable; no live login, private message or provider test has been
 performed. Never infer production auth/latency/TURN success from local checks.
+
+## Responsive design milestone
+
+Shared paper/teal surfaces, dark cards, larger form controls and restrained
+typography apply to public/auth screens and the functional account sections.
+The app shell uses a dynamic-height flex column on phones, a desktop rail and
+four icon/label bottom destinations. Navigation occupies layout space and hides
+for individual conversations and live calls. Shared files remains accessible
+from Chats and the desktop rail. Settings uses its parent's available height.
+Conversation previews/unread badges/search remain real data; no unsupported
+pinning or online indicator was invented for the list.
+
+Local checks: 69 tests passed, 10 database/HTTP tests skipped; TypeScript, ESLint
+and production build passed. Isolated Chrome checked seven public routes at
+320/390/430/768/1280 pixels (35 combinations), frontend signup validation and
+uncaught errors/hydration console errors. These signed-out checks do not establish
+authenticated navigation or Android keyboard/device behavior.

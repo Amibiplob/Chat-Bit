@@ -14,8 +14,8 @@ export function PersistentConversationList({ conversations }: { conversations: C
       {!conversations.length && <p className="p-5 text-sm text-muted-foreground">No conversations found. Start a conversation with another user.</p>}
       {conversations.map((conversation) => (
         <Link key={conversation.id} href={`/chat/${conversation.id}`} aria-current={pathname === `/chat/${conversation.id}` ? "page" : undefined}
-          className={cn("flex w-full gap-3 border-b px-4 py-3.5 text-left transition-colors hover:bg-muted/50", pathname === `/chat/${conversation.id}` && "bg-muted/40")}>
-          <Avatar userId={conversation.participantId} name={conversation.name} version={conversation.avatarVersion} className="size-11"/>
+          className={cn("flex min-h-21 w-full gap-3 border-b border-border/60 px-5 py-4 text-left transition-colors hover:bg-accent/60", pathname === `/chat/${conversation.id}` && "bg-accent border-l-4 border-l-primary")}>
+          <Avatar userId={conversation.participantId} name={conversation.name} version={conversation.avatarVersion} className="size-12"/>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-semibold">{conversation.name}</p>

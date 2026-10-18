@@ -7,17 +7,19 @@ import { NewConversation } from "./new-conversation";
 import type { Conversation } from "@/lib/messaging-types";
 import { LogoutButton } from "@/components/auth/logout-button";
 import type { ConnectionStatus } from "@/lib/realtime-types";
+import Link from 'next/link';
+import { FolderOpen } from 'lucide-react';
 
 export function ConversationSidebar({ conversations, status }: { conversations: Conversation[]; status: ConnectionStatus }) {
   const [search, setSearch] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const filtered = conversations.filter((conversation) => (!unreadOnly || conversation.unread > 0) && `${conversation.name} ${conversation.lastMessage ?? ""}`.toLowerCase().includes(search.toLowerCase()));
   return (
-    <aside className="flex h-full w-full shrink-0 flex-col border-r bg-background md:w-90">
+    <aside className="flex h-full min-h-0 w-full shrink-0 flex-col border-r bg-card md:w-90">
       {/* Header */}
-      <div className="flex h-16 items-center justify-between border-b px-5">
+      <div className="flex min-h-20 shrink-0 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">Chats</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Chats<span className="ml-2 text-primary">.</span></h1>
 
           <p role="status" className="text-xs text-muted-foreground">{status === "connected" ? "Stay connected" : status === "connecting" ? "Connecting…" : status === "offline" ? "Updates paused" : "Reconnecting…"}</p>
         </div>
@@ -43,12 +45,12 @@ export function ConversationSidebar({ conversations, status }: { conversations: 
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 overflow-x-auto border-b px-4 py-3">
+      <div className="flex shrink-0 items-center gap-2 border-b px-4 py-3">
         <button
           type="button"
           aria-pressed={!unreadOnly}
           onClick={() => setUnreadOnly(false)}
-          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${!unreadOnly ? "bg-teal-600 text-white" : "bg-muted text-muted-foreground"}`}
+          className={`min-h-11 shrink-0 rounded-full px-4 text-xs font-medium ${!unreadOnly ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
         >
           All
         </button>
@@ -57,10 +59,11 @@ export function ConversationSidebar({ conversations, status }: { conversations: 
           type="button"
           aria-pressed={unreadOnly}
           onClick={() => setUnreadOnly(true)}
-          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${unreadOnly ? "bg-teal-600 text-white" : "bg-muted text-muted-foreground"}`}
+          className={`min-h-11 shrink-0 rounded-full px-4 text-xs font-medium ${unreadOnly ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
         >
           Unread
         </button>
+        <Link href="/shared" className="ml-auto flex min-h-11 items-center gap-1 rounded-full px-3 text-xs font-medium text-primary"><FolderOpen className="size-4"/>Files</Link>
 
       </div>
 

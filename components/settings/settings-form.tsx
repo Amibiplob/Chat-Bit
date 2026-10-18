@@ -1,9 +1,9 @@
 "use client";
 import { useRef,useState } from 'react';
-export const fieldClass='mt-1 min-h-11 w-full rounded-lg border bg-background px-3 py-2 text-sm';
-export const actionClass='min-h-11 rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50';
+export const fieldClass='mt-2 min-h-12 w-full rounded-xl border bg-card px-4 py-3 text-sm focus:border-primary';
+export const actionClass='min-h-12 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground disabled:opacity-50';
 export function SettingsSection({title,description,children}:{title:string;description:string;children:React.ReactNode}) {
-  return <div className="mx-auto w-full max-w-4xl"><header className="border-b px-5 py-6 md:px-8"><h2 className="text-xl font-semibold">{title}</h2><p className="mt-1 text-sm text-muted-foreground">{description}</p></header><div className="space-y-6 px-5 py-6 md:px-8">{children}</div></div>;
+  return <div className="mx-auto w-full max-w-4xl"><header className="border-b px-5 py-7 md:px-8"><p className="cb-kicker mb-3">Make it yours</p><h2 className="text-2xl font-semibold tracking-tight">{title}</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p></header><div className="space-y-6 px-5 py-6 md:px-8">{children}</div></div>;
 }
 export function useSubmission() {
   const [pending,setPending]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');const busy=useRef(false);

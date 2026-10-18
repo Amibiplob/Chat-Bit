@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 import { AppSidebar } from "./app-sidebar";
 import { ConversationSidebar } from "./conversation-sidebar";
 import { CallingProvider } from "@/components/calls/calling-provider";
@@ -9,6 +7,8 @@ import type { AuthUser } from "@/lib/auth-types";
 import type { Conversation } from "@/lib/messaging-types";
 import { usePathname, useRouter } from "next/navigation";
 import { RealtimeProvider, useRealtime } from "./realtime-provider";
+import { MobileNavigation } from './mobile-navigation';
+import { useCalling } from '@/components/calls/calling-provider';
 
 interface ChatLayoutProps {
   children: React.ReactNode;
@@ -26,9 +26,11 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
   const activeSection=pathname.startsWith("/shared")?"shared":pathname.startsWith("/contacts")?"contacts":pathname.startsWith("/settings")?"settings":"chats";
   const router = useRouter();
   const conversationOpen = pathname.startsWith("/chat/");
+  const { state: calling } = useCalling();
+  const callOpen = Boolean(calling.call && ['ringing', 'connecting', 'active'].includes(calling.call.status));
 
   return (
-    <div className={`flex h-dvh overflow-hidden bg-background ${conversationOpen?"":"pb-[calc(3.5rem+env(safe-area-inset-bottom))]"} md:pb-0`}>
+    <div className="cb-app-shell flex flex-col overflow-hidden bg-background md:flex-row">
       <AppSidebar
         activeSection={activeSection === "chats" && pathname === "/calls" ? "calls" : activeSection}
         onSectionChange={(section) => {
@@ -37,6 +39,8 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
         user={user}
         hasUnread={conversations.some((conversation) => conversation.unread > 0)}
       />
+
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
 
       {activeSection === "chats" && pathname !== "/calls" && (
         <>
@@ -53,7 +57,8 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
       {activeSection === "settings" && <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>}
       {activeSection === "shared" && children}
       {activeSection === "contacts" && <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>}
-      {!conversationOpen && <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">{[["/chat","Chats"],["/calls","Calls"],["/contacts","Contacts"],["/shared","Files"],["/settings","Settings"]].map(([href,label])=><Link key={href} href={href} aria-current={pathname===href?'page':undefined} className="flex min-h-12 items-center px-3 text-sm">{label}</Link>)}</nav>}
+      </div>
+      {!conversationOpen && !callOpen && <MobileNavigation pathname={pathname} unread={conversations.some(conversation => conversation.unread > 0)}/>}
     </div>
   );
 }
