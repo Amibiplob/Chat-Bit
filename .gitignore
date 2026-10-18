@@ -110,7 +110,7 @@ next-env.d.ts
 Thumbs.db
 Desktop.ini
 
-# Android packaging and generated binaries (source config remains trackable)
+# Retired packaging residue: keep local keys, dependencies and build output private
 /android/generated/
 /android/signing/
 /android/node_modules/

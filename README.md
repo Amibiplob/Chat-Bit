@@ -1,5 +1,9 @@
 # ChatBit
 
+Install directly from supported browsers: see [browser installation](docs/pwa.md)
+and the [ChatBit 3 audit](docs/chatbit-3.md). The same Next.js application serves
+desktop, mobile and installed mode; Android packaging has been retired.
+
 ChatBit is a portfolio communication application with an existing responsive
 landing page, authentication screens, chat interface, calls page and settings.
 Conversations and text messages persist in PostgreSQL. Registration, login,
