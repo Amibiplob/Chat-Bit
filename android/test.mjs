@@ -10,6 +10,15 @@ const {TwaManifest}=require('@bubblewrap/core');
 const {fetchUtils}=require('@bubblewrap/core/dist/lib/FetchUtils.js');
 const original=fetchUtils.fetch;
 const directory=await mkdtemp(join(tmpdir(),'chatbit-twa-fixture-'));
+function assertAndroidCompatibility(xml, gradle, packageId) {
+ const opening=xml.match(/<manifest\b[^>]*>/)?.[0];
+ assert.ok(opening, 'Source manifest must have a root element');
+ assert.doesNotMatch(opening, /\bpackage\s*=/);
+ assert.doesNotMatch(xml, /tools:overrideLibrary/);
+ assert.match(gradle, /minSdkVersion 24\b/);
+ assert.ok(gradle.includes(`namespace "${packageId}"`));
+ assert.ok(gradle.includes(`applicationId "${packageId}"`));
+}
 try{
  const value=twaManifest({CHATBIT_ANDROID_ORIGIN:'https://chatbit.test',ANDROID_SHA256_FINGERPRINTS:Array(32).fill('AB').join(':')});
  const manifest=new TwaManifest(value);assert.equal(manifest.validate(),null);
@@ -17,6 +26,7 @@ try{
  await generateProject(directory,value);
  const xml=await readFile(join(directory,'app/src/main/AndroidManifest.xml'),'utf8');
  const gradle=await readFile(join(directory,'app/build.gradle'),'utf8');
+ assertAndroidCompatibility(xml,gradle,'com.chatbit.messenger');
  assert.match(xml,/android\.intent\.category\.BROWSABLE/);assert.match(xml,/android:exported="true"/);assert.ok(!xml.includes('android.permission.MANAGE_EXTERNAL_STORAGE'));
  assert.match(gradle,/com\.chatbit\.messenger/);
  assert.match(gradle,/buildToolsVersion '36.1.0'/);
@@ -34,6 +44,8 @@ try {
  fetchUtils.fetch=()=>{throw new Error('Debug generation must not fetch remote assets');};
  await generateProject(debugDirectory,value,{localAssets:true});
  const gradle=await readFile(join(debugDirectory,'app/build.gradle'),'utf8');
+ const xml=await readFile(join(debugDirectory,'app/src/main/AndroidManifest.xml'),'utf8');
+ assertAndroidCompatibility(xml,gradle,'com.chatbit.messenger.debug');
  assert.match(gradle,/com\.chatbit\.messenger\.debug/);
  assert.match(gradle,/ChatBit Debug/);
  assert.match(gradle,/buildToolsVersion '36.1.0'/);

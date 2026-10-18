@@ -22,6 +22,13 @@ export async function generateProject(directory, value, { localAssets = false } 
       return new Response(await readFile(new URL(`../public${url.pathname}`, import.meta.url)), { headers: { 'Content-Type': 'image/png' } });
     };
     await new TwaGenerator().createTwaProject(directory, manifest, new ConsoleLog('ChatBit Android'));
+    // Modern AGP takes the namespace from Gradle, not the source manifest.
+    // Normalize the pinned upstream template on every regeneration.
+    const manifestFile = join(directory, 'app/src/main/AndroidManifest.xml');
+    const sourceManifest = (await readFile(manifestFile, 'utf8'))
+      .replace(/<!-- The "package" attribute[\s\S]*?-->\s*/, '')
+      .replace(/<manifest\b[^>]*>/, opening => opening.replace(/\s+package\s*=\s*("[^"]*"|'[^']*')/, ''));
+    await writeFile(manifestFile, sourceManifest);
     // The pinned generator still emits retired JCenter repositories. All current
     // dependencies resolve from Google Maven / Maven Central.
     for (const path of ['build.gradle', 'app/build.gradle']) {

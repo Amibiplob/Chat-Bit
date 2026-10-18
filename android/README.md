@@ -24,6 +24,14 @@ reuses the existing TWA project template, Gradle 8.11.1 and Android Gradle plugi
 8.9.1. Generated repositories use Google Maven/Maven Central instead of retired
 JCenter. APKs are retained for 14 days. No local Android SDK installation is needed.
 
+Minimum supported device OS is **Android 7.0 (API 24)** for both debug and release
+packages. Android Browser Helper 2.7.4 requires API 24, so older devices are not
+supported; no manifest SDK override is used. The maintained generator removes the
+upstream template's obsolete source-manifest `package` attribute after generation.
+Gradle retains both `namespace` and `applicationId`: `com.chatbit.messenger.debug`
+for debug and `com.chatbit.messenger` for release. Packaging tests regenerate both
+variants and verify these settings before CI compiles an APK.
+
 Debug generation uses the checked-in ChatBit icons and packaging metadata, so a
 deployment missing the new PWA assets does not block compilation. The app still
 loads `/chat` from your supplied deployment and uses its real backend/accounts.

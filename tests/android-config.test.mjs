@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { productionOrigin,assetLinks,twaManifest,debugManifest,PACKAGE_ID } from '../android/config.mjs';
 const env={CHATBIT_ANDROID_ORIGIN:'https://chatbit.test',ANDROID_SHA256_FINGERPRINTS:Array(32).fill('AB').join(':')};
+test('release and debug minimum SDK match Android Browser Helper API 24 requirement',()=>{
+ assert.equal(twaManifest(env).minSdkVersion,24);
+ assert.equal(debugManifest({CHATBIT_ANDROID_ORIGIN:env.CHATBIT_ANDROID_ORIGIN}).minSdkVersion,24);
+});
 test('debug packaging needs a real HTTPS origin but no release identity or signing secrets',()=>{
  const value=debugManifest({CHATBIT_ANDROID_ORIGIN:env.CHATBIT_ANDROID_ORIGIN});
  assert.equal(value.packageId,PACKAGE_ID+'.debug');
