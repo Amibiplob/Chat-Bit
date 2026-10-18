@@ -19,13 +19,13 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
   const calling = useCalling();
   const busy = calling.state.working || Boolean(calling.state.call && ["ringing", "connecting", "active"].includes(calling.state.call.status));
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-background px-4 md:px-5">
+    <header className="flex min-h-16 shrink-0 items-center justify-between border-b bg-card px-2 pt-[env(safe-area-inset-top)] md:px-5">
       <div className="flex min-w-0 items-center gap-3">
         {/* Mobile back button */}
         <Link
           href="/chat"
           aria-label="Back to conversations"
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
         >
           <ArrowLeft className="size-5" />
         </Link>
@@ -53,14 +53,14 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
 
       {/* Actions */}
       <div className="flex shrink-0 items-center gap-0 md:gap-1">
-        <Link href="/calls" aria-label="Call history" title="Call history" className="hidden size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted sm:flex"><History className="size-5" /></Link>
+        <Link href="/calls" aria-label="Call history" title="Call history" className="hidden size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted sm:flex"><History className="size-5" /></Link>
         <button
           type="button"
           aria-label="Refresh messages"
           title="Refresh messages"
           disabled={pending}
           onClick={onRefresh}
-          className="hidden size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
+          className="hidden size-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:flex"
         >
           <RefreshCw className={`size-5 ${pending ? "animate-spin" : ""}`} />
         </button>
@@ -71,7 +71,7 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
           disabled={busy}
           onClick={() => calling.start(conversation.id, "voice")}
           title="Start audio call"
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Phone className="size-5" />
         </button>
@@ -82,7 +82,7 @@ export function ConversationHeader({ conversation, onRefresh, pending, presence,
           disabled={busy}
           onClick={() => calling.start(conversation.id, "video")}
           title="Start video call"
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Video className="size-5" />
         </button>

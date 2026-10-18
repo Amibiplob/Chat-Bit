@@ -65,3 +65,25 @@ and production build passed. Isolated Chrome checked seven public routes at
 320/390/430/768/1280 pixels (35 combinations), frontend signup validation and
 uncaught errors/hydration console errors. These signed-out checks do not establish
 authenticated navigation or Android keyboard/device behavior.
+
+## Mobile conversation milestone
+
+Search/filter controls collapse to preserve message space. The composer grows
+with text, exposes emoji on phones and offers camera capture as a browser hint
+(gallery fallback; backend validation stays authoritative). Queue limits,
+previews, progress, cancellation and private downloads remain unchanged.
+Stationary touch/pen long press opens message actions; movement/release cancels
+it and Shift+F10/the visible actions button provide alternatives. Mobile menus
+are in flow with 44px rows rather than clipped above the scroll container.
+
+Confirmed scroll issue: a media preview loading after the last message render
+changes the content height without a new message. The prior message-only effect
+could leave a reader who was at the bottom behind. A content ResizeObserver
+keeps the bottom pinned only when already following; it disconnects on unmount.
+Keyboard height uses supported dynamic viewport CSS and the existing viewport
+resize hint; real Android keyboards still require device tests.
+
+Explicit `pageshow` recovery now forces a fresh snapshot after browser history/
+back-forward cache restoration. Regression tests cover resumed missed messages,
+stationary long press and cancellation. Existing ordering/idempotency/read-receipt
+tests remain. No faster polling, provider change or live delivery claim is made.

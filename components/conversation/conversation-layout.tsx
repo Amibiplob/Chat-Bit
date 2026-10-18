@@ -159,16 +159,19 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
 
   const displayed = [...messages, ...(optimistic && !messages.some(row => row.id === optimistic.id) ? [optimistic] : [])].filter(row => row.content.toLowerCase().includes(search.toLowerCase()) && (filter === "all" || filter === "saved" && saved.includes(row.id) || filter === "media" && row.attachments.some(file => /^(image|video)\//.test(file.mimeType)) || filter === "files" && row.attachments.some(file => !/^(image|video)\//.test(file.mimeType))));
   return (
-    <section className="flex h-full min-w-0 flex-1 flex-col bg-muted/20" aria-label={`Conversation with ${conversation.name}`}>
+    <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-muted/20" aria-label={`Conversation with ${conversation.name}`}>
       <ConversationHeader conversation={conversations.find((row) => row.id === conversation.id) ?? conversation}
         onRefresh={refresh} pending={pending} presence={presence} status={status} />
       {error && <p role="alert" className="border-b bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
       {readError && <p role="alert" className="border-b bg-destructive/10 px-4 py-3 text-sm text-destructive">{readError}</p>}
-      <div className="flex flex-wrap items-center gap-2 border-b bg-background/95 px-4 py-2">
+      <details className="shrink-0 border-b bg-card px-4">
+        <summary className="min-h-11 cursor-pointer py-3 text-xs font-medium text-muted-foreground">Search & filter{(search || filter !== 'all') ? ` · ${displayed.length} matches` : ' · loaded history'}</summary>
+      <div className="flex flex-wrap items-center gap-2 pb-3">
         <input aria-label="Search loaded messages" placeholder="Search loaded messages…" value={search} onChange={event=>setSearch(event.target.value)} className="h-11 min-w-0 flex-1 rounded-xl bg-muted/60 px-3 text-sm"/>
         <select aria-label="Filter loaded messages" value={filter} onChange={event=>setFilter(event.target.value)} className="h-11 max-w-full rounded-xl border bg-background px-2 text-sm"><option value="all">All messages</option><option value="media">Photos & videos</option><option value="files">Files</option><option value="saved">Saved on this device</option></select>
         {(search || filter !== "all") && <p role="status" className="w-full text-xs text-muted-foreground">{displayed.length} matching loaded messages. Load older messages for more. Saved markers stay in this browser.</p>}
       </div>
+      </details>
       {saveError && <p role="alert" className="px-4 text-sm text-destructive">{saveError}</p>}
       <MessageArea saved={saved} onToggleSaved={toggleSaved} messages={displayed} currentUserId={currentUserId} conversationInitials={conversation.initials} avatarVersion={conversation.avatarVersion}
         onReply={(message) => { setReplyingTo(message); setEditingMessage(null); }}

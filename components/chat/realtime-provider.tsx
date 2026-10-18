@@ -72,11 +72,13 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
     document.addEventListener("visibilitychange", wake);
     window.addEventListener("online", wake);
     window.addEventListener("focus", wake);
+    window.addEventListener("pageshow", wake);
     window.addEventListener("offline", offline);
     return () => {
       sync.stop(); if (loop.current === sync) loop.current = null;
       document.removeEventListener("visibilitychange", wake);
       window.removeEventListener("online", wake); window.removeEventListener("focus", wake);
+      window.removeEventListener("pageshow", wake);
       window.removeEventListener("offline", offline);
     };
   }, [conversationId, router]);

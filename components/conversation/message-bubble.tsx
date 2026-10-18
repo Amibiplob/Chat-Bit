@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { longPress } from '@/lib/touch-actions.mjs';
 import {
   Check,
   CheckCheck,
@@ -42,6 +43,10 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [copyError, setCopyError] = useState("");
+  const press = useMemo(() => longPress(() => setMenuOpen(true)), []);
+  const menu = useRef<HTMLDivElement>(null);
+  useEffect(() => () => press.stop(), [press]);
+  useEffect(() => { if (menuOpen) menu.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus(); }, [menuOpen]);
 
   async function handleCopy() {
     try { await navigator.clipboard.writeText(message.content); setMenuOpen(false); }
@@ -60,7 +65,10 @@ export function MessageBubble({
           <Avatar userId={message.senderId} name={message.senderName} version={avatarVersion} className="mb-1 size-8"/>
         )}
 
-        <div className="relative min-w-0" tabIndex={0} role="group" onKeyDown={event=>{if(event.key==="Escape") {setMenuOpen(false);event.currentTarget.focus();}}} aria-label={`Message from ${message.senderName}`}>
+        <div className="relative min-w-0" tabIndex={0} role="group"
+          onPointerDown={event=>{if(!pending && !message.deleted && !message.delivery && !(event.target as HTMLElement).closest('button,a,video,audio,input'))press.start(event);}}
+          onPointerMove={press.move} onPointerUp={press.stop} onPointerCancel={press.stop} onPointerLeave={press.stop}
+          onKeyDown={event=>{if(event.key==="Escape") {setMenuOpen(false);event.currentTarget.focus();}else if(event.key==='F10' && event.shiftKey && !message.deleted && !message.delivery){event.preventDefault();setMenuOpen(true);}}} aria-label={`Message from ${message.senderName}`}>
           {/* Action buttons */}
           {!message.deleted && !message.delivery && <div
             className={`absolute bottom-full z-10 mb-1 hidden items-center gap-0.5 rounded-lg border bg-background p-1 shadow-sm sm:group-hover:flex sm:group-focus-within:flex ${
@@ -125,7 +133,8 @@ export function MessageBubble({
           {/* More menu */}
           {menuOpen && !message.deleted && !message.delivery && (
             <div
-              className={`absolute bottom-full z-20 mb-1 w-32 rounded-lg border bg-background p-1 shadow-lg ${
+              ref={menu}
+              className={`relative z-20 mb-1 w-40 rounded-xl border bg-card p-1 shadow-lg sm:absolute sm:bottom-full ${
                 isOwn ? "right-0" : "left-0"
               }`}
             >
@@ -133,7 +142,7 @@ export function MessageBubble({
                 type="button"
                 disabled={pending}
                 onClick={handleCopy}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted"
+                className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs hover:bg-muted"
               >
                 <Copy className="size-3.5" />
                 Copy
@@ -146,30 +155,30 @@ export function MessageBubble({
                   onReply(message);
                   setMenuOpen(false);
                 }}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted"
+                className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs hover:bg-muted"
               >
                 <Reply className="size-3.5" />
                 Reply
               </button>
               {isOwn && <>
-                <button type="button" disabled={pending} onClick={() => { onEdit(message); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted">
+                <button type="button" disabled={pending} onClick={() => { onEdit(message); setMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs hover:bg-muted">
                   <Pencil className="size-3.5" />Edit
                 </button>
-                <button type="button" disabled={pending} onClick={() => { onDelete(message.id); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted hover:text-destructive">
+                <button type="button" disabled={pending} onClick={() => { onDelete(message.id); setMenuOpen(false); }} className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs hover:bg-muted hover:text-destructive">
                   <Trash2 className="size-3.5" />Delete
                 </button>
               </>}
             </div>
           )}
 
-          {!message.deleted && !message.delivery && <button type="button" aria-label={saved?"Unsave message on this device":"Save message on this device"} aria-pressed={saved} onClick={onToggleSaved} className="mb-1 inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted"><Star className={`size-3.5 ${saved?"fill-current text-primary":""}`}/>{saved?"Saved":"Save"}</button>}
+          {!message.deleted && !message.delivery && <button type="button" aria-label={saved?"Unsave message on this device":"Save message on this device"} aria-pressed={saved} onClick={onToggleSaved} className="mb-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted"><Star className={`size-3.5 ${saved?"fill-current text-primary":""}`}/>{saved?"Saved":"Save"}</button>}
           {copyError && <p role="alert" className="text-xs text-destructive">{copyError}</p>}
           {/* Message bubble */}
           <div
             className={
               isOwn
-                ? "rounded-2xl rounded-br-md bg-teal-600 px-4 py-2.5 text-sm text-white shadow-sm"
-                : "rounded-2xl rounded-bl-md border bg-background px-4 py-2.5 text-sm shadow-sm"
+                ? "rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground shadow-sm"
+                : "rounded-2xl rounded-bl-md border bg-card px-4 py-2.5 text-sm shadow-sm"
             }
           >
             {!message.deleted && message.attachments.map((attachment) => <AttachmentView key={attachment.id} attachment={attachment} own={isOwn} pending={pending} onDelete={() => onDeleteAttachment(attachment.id)} />)}
@@ -180,7 +189,7 @@ export function MessageBubble({
 
             <div
               className={`mt-1 flex items-center justify-end gap-1 ${
-                isOwn ? "text-teal-100" : "text-muted-foreground"
+                isOwn ? "text-primary-foreground/80" : "text-muted-foreground"
               }`}
             >
               {!message.deleted && !message.delivery && <button type="button" disabled={pending} aria-label="Message actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="mr-auto flex size-9 items-center justify-center rounded sm:hidden"><MoreHorizontal className="size-3.5" /></button>}

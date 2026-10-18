@@ -57,6 +57,22 @@ test('hidden tabs suspend requests and resume with a full snapshot', async (t) =
   visible = true; await loop.refresh(); loop.stop(); assert.equal(calls, 1);
 });
 
+test('foreground recovery after a previous revision forces missed messages and remains serialized', async (t) => {
+  let visible = true; const inputs = []; const received = [];
+  const id = randomUUID();
+  const loop = createSyncLoop(options({ isVisible: () => visible, request: async input => {
+    inputs.push(input); return snapshot(String(inputs.length), inputs.length > 1 ? [row(id, 'arrived while hidden')] : []);
+  }, onSnapshot: value => received.push(value) }));
+  t.after(() => loop.stop());
+  await loop.refresh();
+  visible = false;
+  const recovery = loop.refresh();
+  await delay(25); assert.equal(inputs.length, 1);
+  visible = true; await loop.refresh(); await recovery;
+  assert.equal(inputs[1].force, true);
+  assert.equal(received.at(-1).page.messages[0].id, id);
+});
+
 test('session rejection stops synchronization and unmount aborts active requests', async (t) => {
   let unauthorized = 0; let calls = 0;
   const loop = createSyncLoop(options({ request: async () => { calls++; throw Object.assign(new Error('Expired'), { status: 401 }); }, onUnauthorized: () => unauthorized++ }));
