@@ -71,3 +71,74 @@ Retain source rows and objects; do not delete the original project.
 
 Sources checked 2026-10-19: [Neon pooling](https://neon.com/docs/connect/connection-pooling),
 [Postgres migration](https://neon.com/docs/import/migrate-from-postgres).
+
+## Private object storage
+
+Implementation follows the documented [S3 compatibility](https://neon.com/docs/storage/s3-compatibility)
+and [authentication](https://neon.com/docs/storage/authentication) contract, checked
+2026-10-19. SigV4, path-style addressing, scoped Neon credentials and the official
+AWS SDK are used. No AWS account, Neon management API key or public bucket is
+needed at runtime. Credentials stay on the server. Neon `token_id` maps to
+AWS_ACCESS_KEY_ID; `s3_secret_access_key` maps to AWS_SECRET_ACCESS_KEY. Use a
+credential on the intended production branch with storage:write (includes read).
+The branch endpoint and region come from Neon; do not guess them.
+
+Set ATTACHMENT_STORAGE_PROVIDER=neon explicitly; default/absent remains supabase.
+No failed operation falls back to Supabase. Database and storage selection are
+independent so existing rows can be copied before changing the runtime target.
+Use the already-created private chatbit-attachments bucket; app code never changes
+bucket access or provisions infrastructure. The adapter checks owner-only ACLs
+and rejects allow policies/unknown privacy metadata before access. Verify this
+metadata against the real Neon branch before enabling production; failures remain
+closed. A public bucket is never accepted merely because uploads would work.
+
+Uploads use a 60-second presigned POST policy bound to exact size, MIME and a
+random reservation staging key. Browser sends the signed form fields and file,
+with progress, abort and retry preserved. Configure bucket CORS manually to allow
+only your local/deployed origins and POST/GET/HEAD with Content-Type (AWS CLI
+PutBucketCors is supported). Browser CORS does not grant private reads. Test exact
+size policy enforcement, expiry, oversize rejection and wrong MIME on an isolated
+branch: generic S3 compatibility and mock success cannot prove provider behavior.
+
+After validating bytes on the server, completion writes a content-addressed sealed
+object and atomically records its key with the message. Replaying the browser
+upload cannot modify that final object. Concurrent completions remain idempotent.
+Pending uploads reserve the existing 10 MiB capacity against the 100 MiB per-user
+quota. Staging/sealed retry duplicates temporarily add physical storage overhead;
+maintenance prunes staging and unused siblings after three hours, preserving the
+available object. Existing deletion cleanup retains its three-hour retry fence to
+handle late signed uploads. Lifecycle rules are not used: Neon documents them as
+stored but not enforced. Schedule authenticated maintenance; do not rely on bucket
+lifecycle expiration. Downloads still authorize membership first and expire after
+60 seconds; previews stay behind the authenticated app endpoint. Avatars remain
+in PostgreSQL bytea, so the database restore preserves them.
+
+## Existing objects: separate operator copy
+
+Keep source writes/cleanup and target writes/cleanup paused during the final copy.
+Drain pending uploads first; failed/deleted rows are retained as metadata, and only
+available attachments need content copied. Preserve source Supabase credentials
+alongside new Neon variables in an ignored private operator environment.
+
+- Set MIGRATION_SOURCE_DATABASE_URL to the **source direct** database endpoint.
+  DATABASE_SSL_CA must trust that source (if Supabase needs a private CA). This
+  tool's database connection is read-only; it never changes source/target rows.
+- `node scripts/migrate-attachment-objects.mjs --verify` reads the available source
+  rows and both object stores, and fails if any target object is missing/different.
+  It never writes. No mode is selected implicitly.
+- After explicitly authorizing the chosen isolated/production copy target, run
+  `node scripts/migrate-attachment-objects.mjs --copy --confirm-frozen-target`.
+  This writes only missing target objects, preserving storage_key exactly, and
+  verifies SHA-256 bytes by reading back every object. Equal objects are skipped
+  on restart; conflicting or inaccessible objects fail without overwriting them.
+  It never deletes/updates source objects. Target must remain frozen: the
+  existence check and write are separate operations, not an atomic create-only
+  claim. A partially interrupted run can safely be verified and resumed.
+- Re-run --verify and compare all database rows independently. Copy logs emit only
+  aggregate counts. No signed URLs, object names, content or credentials are logged.
+  Do not copy Supabase storage catalog rows to Neon PostgreSQL. The application
+  uses its own message_attachments rows, not the Supabase storage metadata schema.
+
+Use a separate isolated bucket/branch for upload/delete acceptance tests. Production
+chatbit-attachments is never an automated-test target. Keep original Supabase files
+for rollback. Do not activate Neon against uncopied attachments.

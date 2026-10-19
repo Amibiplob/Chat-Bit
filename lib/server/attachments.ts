@@ -9,7 +9,7 @@ import { finalizeAttachmentSchema, validateAttachmentContent } from "./attachmen
 import { attachmentPreviewResponse } from "./attachment-response.mjs";
 import { verifyAndFinalize, reconcileAttachments } from "./attachment-workflow.mjs";
 import * as queries from "./attachment-queries.mjs";
-import { createAttachmentDownload, createAttachmentUpload, readAttachmentObject, removeAttachmentObjects } from "./attachment-storage";
+import { createAttachmentDownload, createAttachmentUpload, readAttachmentObject, readAttachmentUpload, sealAttachmentUpload, pruneAttachmentUploads, removeAttachmentObjects } from "./attachment-storage";
 
 async function context(write = false) {
   const user = await getCurrentUser();
@@ -20,7 +20,7 @@ async function context(write = false) {
 }
 
 export async function cleanupAttachments() {
-  await reconcileAttachments(getDatabase(), queries, { remove: removeAttachmentObjects });
+  await reconcileAttachments(getDatabase(), queries, { remove: removeAttachmentObjects, prune: pruneAttachmentUploads });
 }
 
 export async function reserve(conversationId: string, input: unknown) {
@@ -28,8 +28,8 @@ export async function reserve(conversationId: string, input: unknown) {
   await diagnosticStep("attachment-cleanup", () => cleanupAttachments()).catch((error) => failureDetails(error, "attachment.cleanup"));
   const row = await queries.reserveAttachment(pool, userId, conversationId, input);
   try {
-    const signed = await createAttachmentUpload(row.key);
-    return { attachmentId: row.id, path: signed.path, token: signed.token, signedUrl: signed.signedUrl };
+    const signed = await createAttachmentUpload(row.key, row);
+    return { attachmentId: row.id, path: signed.path, token: signed.token, signedUrl: signed.signedUrl, ...("fields" in signed ? { fields: signed.fields } : {}) };
   } catch (error) {
     await queries.failAttachment(pool, userId, row.id, "Upload authorization failed").catch((cleanupError: unknown) => failureDetails(cleanupError, "attachment.cleanup"));
     throw error;
@@ -39,7 +39,7 @@ export async function reserve(conversationId: string, input: unknown) {
 export async function complete(conversationId: string, attachmentId: string, input: unknown) {
   const { pool, userId } = await context(true);
   const value = validated(finalizeAttachmentSchema, input);
-  return verifyAndFinalize({ queries, storage: { read: readAttachmentObject }, pool, userId, conversationId, attachmentId, input: value });
+  return verifyAndFinalize({ queries, storage: { read: readAttachmentUpload, seal: sealAttachmentUpload }, pool, userId, conversationId, attachmentId, input: value });
 }
 
 export async function download(attachmentId: string, forceDownload = false) {

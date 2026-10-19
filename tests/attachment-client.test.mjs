@@ -63,3 +63,20 @@ test('direct upload rejection distinguishes authorization, size, busy and provid
     }
   } finally { globalThis.XMLHttpRequest = originalXHR; delete globalThis.__attachmentTestRequest; }
 });
+
+test('Neon form uploads send signed fields and file last without Supabase-only headers', async () => {
+  const originalXHR = globalThis.XMLHttpRequest;
+  let method; let payload;
+  globalThis.XMLHttpRequest = class {
+    upload = {};
+    open(value) { method=value; }
+    setRequestHeader() { assert.fail('browser must generate multipart headers'); }
+    send(value) { payload=value; this.status=204; queueMicrotask(()=>this.onload()); }
+  };
+  globalThis.__attachmentTestRequest = async url => url.endsWith('/complete') ? {id:'message'} : {attachmentId:'reserved',signedUrl:'https://signed.invalid',fields:{key:'own/key.pending',policy:'synthetic-policy'}};
+  try {
+    const file=new File(['hello'],'note.txt',{type:'text/plain'});
+    assert.deepEqual(await uploadAttachment('conversation',file,'',()=>{},new AbortController().signal),{id:'message'});
+    assert.equal(method,'POST'); assert.deepEqual([...payload.keys()],['key','policy','file']); assert.equal(payload.get('file').size,5);
+  } finally {globalThis.XMLHttpRequest=originalXHR;delete globalThis.__attachmentTestRequest;}
+});

@@ -11,4 +11,5 @@ export type AttachmentReservation = {
   path: string;
   token: string;
   signedUrl: string;
+  fields?: Record<string, string>;
 };
