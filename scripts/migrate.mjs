@@ -3,7 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { config } from 'dotenv';
-import { databaseConfig } from '../lib/server/database-config.mjs';
+import { migrationDatabaseConfig } from '../lib/server/database-config.mjs';
 import { transaction } from '../lib/server/transaction.mjs';
 
 export async function migrate(pool, directory = new URL('../db/migrations/', import.meta.url)) {
@@ -39,8 +39,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   config({ path: ['.env.local', '.env'], quiet: true });
   let pool;
   try {
-    const env = { ...process.env, DATABASE_URL: process.env.DATABASE_MIGRATION_URL || process.env.DATABASE_URL };
-    pool = new pg.Pool(databaseConfig(env));
+    pool = new pg.Pool(migrationDatabaseConfig());
     const completed = await migrate(pool);
     console.log(completed.length ? `Applied: ${completed.join(', ')}` : 'Database is up to date');
   } catch {

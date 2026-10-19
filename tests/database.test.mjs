@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { databaseConfig } from '../lib/server/database-config.mjs';
+import { databaseConfig, migrationDatabaseConfig } from '../lib/server/database-config.mjs';
 import { transaction } from '../lib/server/transaction.mjs';
 import { readMessages } from '../lib/server/conversation-queries.mjs';
 
@@ -12,7 +12,6 @@ test('database configuration validates URLs, pool bounds and TLS without leaking
     { ...valid, DATABASE_POOL_MAX: '0' }, { ...valid, DATABASE_POOL_MAX: '1.5' },
     { ...valid, DATABASE_SSL: 'disable' }, { ...valid, DATABASE_SSL: 'unknown' },
     { DATABASE_URL: `${valid.DATABASE_URL}?sslmode=no-verify` },
-    { DATABASE_URL: `${valid.DATABASE_URL}?sslmode=require` },
     { DATABASE_URL: `${valid.DATABASE_URL}?ssl=false` },
     { DATABASE_URL: 'postgresql:///chatbit' },
     { DATABASE_URL: 'postgres://localhost/chatbit', DATABASE_SSL: 'disable', NODE_ENV: 'production' },
@@ -56,4 +55,16 @@ test('message page size is bounded before executing SQL', async () => {
   for (const limit of [0, 101, 1.5, NaN]) {
     await assert.rejects(readMessages(client, 'user', 'conversation', limit), /Invalid page size/);
   }
+});
+
+test('Neon URL TLS remains verified and migrations require a direct endpoint', () => {
+  const direct = 'postgresql://test:private@ep-example.us-east-2.aws.neon.tech/neondb?sslmode=require';
+  const pooled = direct.replace('ep-example.', 'ep-example-pooler.');
+  const config = databaseConfig({ DATABASE_URL: pooled });
+  assert.equal(config.ssl.rejectUnauthorized, true);
+  assert.equal(new URL(config.connectionString).searchParams.has('sslmode'), false);
+  assert.throws(() => migrationDatabaseConfig({ DATABASE_URL: pooled }), /direct/);
+  assert.throws(() => migrationDatabaseConfig({ DATABASE_URL: direct, DATABASE_MIGRATION_URL: pooled }), /direct/);
+  assert.equal(migrationDatabaseConfig({ DATABASE_URL: pooled, DATABASE_MIGRATION_URL: direct }).max, 1);
+  assert.throws(() => databaseConfig({ DATABASE_URL: direct, DATABASE_SSL: 'disable' }), /TLS/);
 });
