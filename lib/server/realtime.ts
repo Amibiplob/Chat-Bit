@@ -1,4 +1,5 @@
 import "server-only";
+import { diagnosticStep } from "./messaging-diagnostics.mjs";
 import { cookies } from "next/headers";
 import { getCurrentUser } from "./auth";
 import { getDatabase } from "./db";
@@ -10,8 +11,8 @@ import { rateLimitSecret } from "./auth-request.mjs";
 async function context(purpose: "sync" | "activity") {
   const user = await getCurrentUser();
   if (!user) throw new MessagingError("Sign in to continue.", 401);
-  const pool = getDatabase();
-  await realtimeRateLimit(pool, user.id, purpose, rateLimitSecret());
+  const pool = await diagnosticStep("database-config", async () => getDatabase());
+  await diagnosticStep("rate-limit", () => realtimeRateLimit(pool, user.id, purpose, rateLimitSecret()));
   return { pool, userId: user.id };
 }
 

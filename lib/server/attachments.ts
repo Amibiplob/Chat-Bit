@@ -1,4 +1,5 @@
 import "server-only";
+import { diagnosticStep, failureDetails } from "./messaging-diagnostics.mjs";
 import { getCurrentUser } from "./auth";
 import { getDatabase } from "./db";
 import { requestRateLimit } from "./request-rate-limit.mjs";
@@ -13,8 +14,8 @@ import { createAttachmentDownload, createAttachmentUpload, readAttachmentObject,
 async function context(write = false) {
   const user = await getCurrentUser();
   if (!user) throw new MessagingError("Sign in to continue.", 401);
-  const pool=getDatabase();
-  await requestRateLimit(pool,user.id,write?"attachment-write":"attachment-read",write?20:60,rateLimitSecret());
+  const pool = await diagnosticStep("database-config", async () => getDatabase());
+  await diagnosticStep("rate-limit", () => requestRateLimit(pool,user.id,write?"attachment-write":"attachment-read",write?20:60,rateLimitSecret()));
   return { pool, userId: user.id };
 }
 
@@ -24,13 +25,13 @@ export async function cleanupAttachments() {
 
 export async function reserve(conversationId: string, input: unknown) {
   const { pool, userId } = await context(true);
-  await cleanupAttachments().catch(() => {});
+  await diagnosticStep("attachment-cleanup", () => cleanupAttachments()).catch((error) => failureDetails(error, "attachment.cleanup"));
   const row = await queries.reserveAttachment(pool, userId, conversationId, input);
   try {
     const signed = await createAttachmentUpload(row.key);
     return { attachmentId: row.id, path: signed.path, token: signed.token, signedUrl: signed.signedUrl };
   } catch (error) {
-    await queries.failAttachment(pool, userId, row.id, "Upload authorization failed");
+    await queries.failAttachment(pool, userId, row.id, "Upload authorization failed").catch((cleanupError: unknown) => failureDetails(cleanupError, "attachment.cleanup"));
     throw error;
   }
 }
@@ -43,7 +44,7 @@ export async function complete(conversationId: string, attachmentId: string, inp
 
 export async function download(attachmentId: string, forceDownload = false) {
   const { pool, userId } = await context();
-  const row = await queries.attachmentForDownload(pool, userId, attachmentId);
+  const row = await diagnosticStep("database", () => queries.attachmentForDownload(pool, userId, attachmentId));
   if (!forceDownload && /^(image|video|audio)\//.test(row.mimeType)) {
     return { url: `/api/attachments/${attachmentId}/content`, expiresIn: 0 };
   }
@@ -58,16 +59,16 @@ export async function remove(conversationId: string, attachmentId: string) {
     const rows = await queries.cleanupCandidates(pool);
     const match = rows.find((row: { storageKey: string }) => row.storageKey === path);
     if (match) await queries.recordCleanup(pool, [match.id], true);
-  } catch { /* delete_pending is retried opportunistically */ }
+  } catch (error) { failureDetails(error, "attachment.cleanup"); /* delete_pending is retried opportunistically */ }
 }
 
 export async function preview(attachmentId: string, range: string | null = null) {
   const { pool, userId } = await context();
-  const row = await queries.attachmentForDownload(pool, userId, attachmentId);
+  const row = await diagnosticStep("database", () => queries.attachmentForDownload(pool, userId, attachmentId));
   if (!/^(image|video|audio)\//.test(row.mimeType)) throw new MessagingError("Preview unavailable.", 404);
   const bytes = await readAttachmentObject(row.storageKey);
   validateAttachmentContent(bytes, row.byteSize, row.mimeType, row.filename.split(".").at(-1) ?? "");
   return attachmentPreviewResponse(bytes, row.mimeType, range);
 }
 
-export async function sharedFiles(input: unknown) { const {pool,userId}=await context(); return queries.sharedAttachments(pool,userId,input); }
+export async function sharedFiles(input: unknown) { const {pool,userId}=await context(); return diagnosticStep("database", () => queries.sharedAttachments(pool,userId,input)); }

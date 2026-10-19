@@ -1,4 +1,5 @@
 import "server-only";
+import { diagnosticStep } from "./messaging-diagnostics.mjs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { attachmentStorage } from "./attachment-storage-core.mjs";
@@ -15,13 +16,15 @@ function configuration() {
   return { url, key, bucket };
 }
 
-function storage() {
-  const { url, key, bucket } = configuration();
-  client ??= createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
-  return attachmentStorage(client, bucket);
+async function storage() {
+  return diagnosticStep("storage-config", async () => {
+    const { url, key, bucket } = configuration();
+    client ??= createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    return attachmentStorage(client, bucket);
+  });
 }
 
-export async function createAttachmentUpload(path: string) { return storage().upload(path); }
-export async function readAttachmentObject(path: string) { return storage().read(path); }
-export async function createAttachmentDownload(path: string, filename: string) { return storage().download(path, filename); }
-export async function removeAttachmentObjects(paths: string[]) { return storage().remove(paths); }
+export async function createAttachmentUpload(path: string) { return diagnosticStep("storage-upload", async () => (await storage()).upload(path)); }
+export async function readAttachmentObject(path: string) { return diagnosticStep("storage-read", async () => (await storage()).read(path)); }
+export async function createAttachmentDownload(path: string, filename: string) { return diagnosticStep("storage-download", async () => (await storage()).download(path, filename)); }
+export async function removeAttachmentObjects(paths: string[]) { return diagnosticStep("storage-remove", async () => (await storage()).remove(paths)); }

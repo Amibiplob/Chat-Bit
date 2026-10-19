@@ -1,4 +1,5 @@
 import "server-only";
+import { diagnosticStep } from "./messaging-diagnostics.mjs";
 import { getDatabase } from "./db";
 import { getCurrentUser } from "./auth";
 import * as queries from "./messaging-queries.mjs";
@@ -9,18 +10,18 @@ import { rateLimitSecret } from "./auth-request.mjs";
 async function context(write = false) {
   const user = await getCurrentUser();
   if (!user) throw new MessagingError("Sign in to continue.", 401);
-  const pool=getDatabase();
-  await requestRateLimit(pool,user.id,write?"messaging-write":"messaging-read",write?90:180,rateLimitSecret());
+  const pool = await diagnosticStep("database-config", async () => getDatabase());
+  await diagnosticStep("rate-limit", () => requestRateLimit(pool,user.id,write?"messaging-write":"messaging-read",write?90:180,rateLimitSecret()));
   return { pool, userId: user.id };
 }
 
 export async function getConversationList() {
   const { pool, userId } = await context();
-  return queries.listConversations(pool, userId);
+  return diagnosticStep("database", () => queries.listConversations(pool, userId));
 }
 export async function getConversation(id: string) {
   const { pool, userId } = await context();
-  return (await queries.listConversations(pool, userId, id))[0] ?? null;
+  return (await diagnosticStep("database", () => queries.listConversations(pool, userId, id)))[0] ?? null;
 }
 export async function startConversation(input: unknown) {
   const { pool, userId } = await context(true);
@@ -28,7 +29,7 @@ export async function startConversation(input: unknown) {
 }
 export async function findUsers(search: unknown) {
   const { pool, userId } = await context();
-  return queries.searchUsers(pool, userId, search);
+  return diagnosticStep("database", () => queries.searchUsers(pool, userId, search));
 }
 export async function getMessages(id: string, options: unknown = {}) {
   const { pool, userId } = await context();
@@ -36,7 +37,7 @@ export async function getMessages(id: string, options: unknown = {}) {
 }
 export async function send(id: string, input: unknown) {
   const { pool, userId } = await context(true);
-  return queries.sendMessage(pool, userId, id, input);
+  return diagnosticStep("database", () => queries.sendMessage(pool, userId, id, input));
 }
 export async function edit(id: string, messageId: string, input: unknown) {
   const { pool, userId } = await context(true);

@@ -64,13 +64,13 @@ test('verified completion persists once and available retry skips storage', asyn
   options.storage.read = async () => { throw new Error('must not read'); };
   assert.equal(await verifyAndFinalize(options), 'message');
 });
-test('failed upload, invalid bytes and failed metadata persistence reserve cleanup', async () => {
+test('invalid bytes reserve cleanup while transient storage/database failures remain retryable', async () => {
   for (const kind of ['storage', 'bytes', 'database']) {
     const options = workflow();
     if (kind === 'storage') options.storage.read = async () => { throw new Error('provider down'); };
     if (kind === 'bytes') options.storage.read = async () => new Uint8Array(8);
     if (kind === 'database') options.queries.finalizeAttachment = async () => { throw new Error('database down'); };
-    await assert.rejects(verifyAndFinalize(options)); assert.deepEqual(options.events, ['failed']);
+    await assert.rejects(verifyAndFinalize(options)); assert.deepEqual(options.events, kind === 'bytes' ? ['failed'] : []);
   }
 });
 test('unauthorized completion cannot read storage or finalize', async () => {
@@ -112,4 +112,17 @@ test('gallery pagination validates cursors and rejects actor injection before SQ
  const {sharedFilesSchema}=await import('../lib/server/attachment-validation.mjs');
  assert.deepEqual(sharedFilesSchema.parse({}),{kind:'all',cursor:null});
  for(const input of [{userId:'spoofed'},{kind:'unsafe'},{cursor:{id:'bad',createdAt:'bad'}}])assert.equal(sharedFilesSchema.safeParse(input).success,false);
+});
+
+test('transient completion failures retry the existing reservation without marking it failed', async () => {
+  for (const stage of ['storage', 'database']) {
+    const options = workflow();
+    let attempts = 0;
+    if (stage === 'storage') options.storage.read = async () => { if (++attempts === 1) throw Object.assign(new Error('offline'), { code: 'ETIMEDOUT' }); return png; };
+    else options.queries.finalizeAttachment = async () => { if (++attempts === 1) throw Object.assign(new Error('offline'), { code: '08006' }); options.events.push('finalized'); return 'same-message'; };
+    await assert.rejects(verifyAndFinalize(options));
+    assert.deepEqual(options.events, []);
+    await verifyAndFinalize(options);
+    assert.deepEqual(options.events, ['finalized']);
+  }
 });

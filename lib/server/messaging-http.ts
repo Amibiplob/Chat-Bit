@@ -1,7 +1,7 @@
 import "server-only";
 import { timedOperation } from "./request-timing.mjs";
 import { MessagingError } from "./messaging-validation.mjs";
-import { AuthError } from "./auth-validation.mjs";
+import { diagnosticRequest, failureDetails, requestOperation } from "./messaging-diagnostics.mjs";
 import { assertSameOrigin } from "./auth-request.mjs";
 
 export async function jsonBody(request: Request): Promise<unknown> {
@@ -27,13 +27,14 @@ export async function jsonBody(request: Request): Promise<unknown> {
 }
 
 export async function messagingResponse(request: Request, operation: () => Promise<unknown>) {
-  try {
-    if (request.method !== "GET") assertSameOrigin(request.headers);
-    const result = await timedOperation(operation);
-    return Response.json(result.value, { headers: { "Cache-Control": "no-store", "Server-Timing": result.serverTiming } });
-  } catch (error) {
-    const status = error instanceof MessagingError ? error.status : error instanceof AuthError ? 403 : 503;
-    const message = error instanceof MessagingError || error instanceof AuthError ? error.message : "Messaging is temporarily unavailable. Please try again.";
-    return Response.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
-  }
+  return diagnosticRequest(async () => {
+    try {
+      if (request.method !== "GET") assertSameOrigin(request.headers);
+      const result = await timedOperation(operation);
+      return Response.json(result.value, { headers: { "Cache-Control": "no-store", "Server-Timing": result.serverTiming } });
+    } catch (error) {
+      const { status, message, requestId } = failureDetails(error, requestOperation(request.method, request.url));
+      return Response.json({ error: message, requestId }, { status, headers: { "Cache-Control": "no-store", "X-Request-ID": requestId } });
+    }
+  });
 }
