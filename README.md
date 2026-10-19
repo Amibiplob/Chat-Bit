@@ -226,7 +226,7 @@ Before deploying:
 2. Run migrations against a reviewed target; do not migrate during `next build`.
 3. Configure Vercel with the pinned pnpm version, install with the frozen lockfile,
    build with `pnpm build`, and set server-only environment variables.
-4. Budget synchronization/database usage and configure private Supabase Storage and its cleanup scheduler; configure TURN
+4. Budget synchronization/database usage and configure the selected private storage provider and its cleanup scheduler; configure TURN
    for cross-network calling.
 5. Set `AUTH_RATE_LIMIT_SECRET`, run authentication and cross-account tests, and
    verify deployed automatic delivery, security headers and upload limits before opening the service.
@@ -234,7 +234,7 @@ Before deploying:
 
 No deployment was performed by this milestone. Free infrastructure may sleep,
 limit connections or storage, and provide no availability guarantee. Document
-actual selected-provider limits. Supabase Storage is required for attachments; PostgreSQL and custom auth remain
+actual selected-provider limits. Private Supabase or Neon Object Storage is required for attachments; PostgreSQL and custom auth remain
 independent. No deployment or live Supabase verification was performed.
 
 Author: Md Biplob Hosain — [GitHub](https://github.com/Amibiplob).
@@ -267,3 +267,11 @@ limits and authenticated bounded session/lease cleanup. Review new migration
 services. A GitHub workflow supplies an isolated PostgreSQL service for tests.
 No push, deployment, live storage/TURN verification or scheduler provisioning was
 performed. Infrastructure blockers remain explicit in the checklist.
+
+
+## Neon migration preparation
+
+Start with [the cutover guide](docs/neon-migration.md) and
+[environment variable reference](docs/environment.md). Existing Supabase deployments
+remain the default. Switching variables does not copy database rows or objects.
+No production cutover, live Neon acceptance or push is implied by these changes.

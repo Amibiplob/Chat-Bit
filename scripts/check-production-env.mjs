@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { config } from 'dotenv';
-import { databaseConfig } from '../lib/server/database-config.mjs';
+import { databaseConfig, migrationDatabaseConfig } from '../lib/server/database-config.mjs';
+import { attachmentStorageConfiguration } from '../lib/server/attachment-storage-config.mjs';
 import { callIceConfiguration } from '../lib/server/calling-ice.mjs';
 import { rateLimitSecret } from '../lib/server/auth-request.mjs';
 
@@ -9,11 +10,9 @@ export function productionConfigurationErrors(env) {
   const errors=[];
   const check=(name,operation)=>{try{operation();}catch{errors.push(name);}};
   check('DATABASE_URL / DATABASE_SSL / DATABASE_POOL_MAX',()=>databaseConfig({...env,NODE_ENV:'production'}));
-  if(env.DATABASE_MIGRATION_URL)check('DATABASE_MIGRATION_URL TLS configuration',()=>databaseConfig({...env,DATABASE_URL:env.DATABASE_MIGRATION_URL,NODE_ENV:'production'}));
+  check('DATABASE_MIGRATION_URL TLS/direct endpoint configuration',()=>migrationDatabaseConfig({...env,NODE_ENV:'production'}));
   check('AUTH_RATE_LIMIT_SECRET',()=>rateLimitSecret({...env,NODE_ENV:'production'}));
-  check('SUPABASE_URL',()=>{const url=new URL(env.SUPABASE_URL);if(url.protocol!=='https:' || !url.hostname || url.username || url.password)throw new Error();});
-  if(!env.SUPABASE_SECRET_KEY?.trim())errors.push('SUPABASE_SECRET_KEY');
-  if(!/^[a-zA-Z0-9_-]+$/.test(env.SUPABASE_STORAGE_BUCKET??'chatbit-attachments'))errors.push('SUPABASE_STORAGE_BUCKET');
+  check('ATTACHMENT_STORAGE_PROVIDER / selected storage credentials',()=>attachmentStorageConfiguration(env));
   check('CALL_STUN_URLS / CALL_TURN_URLS / CALL_TURN_SHARED_SECRET',()=>{
     const ice=callIceConfiguration(env,'configuration-check','configuration-check');
     if(!ice.iceServers.some(server=>'credential' in server))throw new Error();

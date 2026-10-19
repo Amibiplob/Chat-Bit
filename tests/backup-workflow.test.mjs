@@ -124,3 +124,11 @@ test('authenticated backup encryption round trip rejects tampering/wrong keys an
     await assert.rejects(stat(badOutput), { code: 'ENOENT' });
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+test('Neon backup selection requires direct credentials and verified system CA without Supabase fallback', () => {
+  const env={BACKUP_DATABASE_PROVIDER:'neon',BACKUP_DATABASE_HOST:'ep-test.us-east-2.aws.neon.tech',BACKUP_DATABASE_USER:'neondb_owner',BACKUP_DATABASE_PASSWORD:'synthetic-private',BACKUP_DATABASE_NAME:'neondb',CHATBIT_BACKUP_PASSPHRASE:'x'.repeat(32)};
+  const config=sourceConfiguration(env);
+  assert.equal(config.database,'neondb');assert.equal(config.ssl.rejectUnauthorized,true);assert.equal(config.ssl.ca,undefined);
+  assert.match(config.options,/default_transaction_read_only=on/);
+  for(const patch of [{BACKUP_DATABASE_HOST:'ep-test-pooler.us-east-2.aws.neon.tech'},{BACKUP_DATABASE_HOST:'localhost'},{BACKUP_DATABASE_USER:''},{BACKUP_DATABASE_PASSWORD:''},{BACKUP_DATABASE_NAME:''},{BACKUP_DATABASE_PROVIDER:'typo'}]) assert.throws(()=>sourceConfiguration({...env,...patch}));
+});

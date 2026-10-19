@@ -17,6 +17,18 @@ const quote = value => `"${value.replaceAll('"', '""')}"`;
 
 // Reject transaction-pooler URLs, accidental local targets and arbitrary external hosts.
 export function sourceConfiguration(env) {
+  const provider = env.BACKUP_DATABASE_PROVIDER || 'supabase';
+  check(['supabase','neon'].includes(provider));
+  if (provider === 'neon') {
+    const host = env.BACKUP_DATABASE_HOST ?? '';
+    check(/^[a-z0-9-]+\.[a-z0-9.-]+\.neon\.tech$/.test(host) && !host.includes('-pooler.'));
+    check(Boolean(env.BACKUP_DATABASE_USER) && Boolean(env.BACKUP_DATABASE_PASSWORD) && Boolean(env.BACKUP_DATABASE_NAME));
+    check((env.CHATBIT_BACKUP_PASSPHRASE ?? '').length >= 32);
+    return { host, user: env.BACKUP_DATABASE_USER, password: env.BACKUP_DATABASE_PASSWORD,
+      database: env.BACKUP_DATABASE_NAME, port: 5432, ssl: { rejectUnauthorized: true },
+      options: '-c default_transaction_read_only=on -c lock_timeout=10000',
+      connectionTimeoutMillis: 15000, application_name: 'chatbit_manual_backup' };
+  }
   const host = env.SUPABASE_BACKUP_HOST ?? '';
   const user = env.SUPABASE_BACKUP_USER ?? '';
   check(/^(?:db\.[a-z0-9]+\.supabase\.co|[a-z0-9.-]+\.pooler\.supabase\.com)$/.test(host));
@@ -35,7 +47,7 @@ export function sourceConfiguration(env) {
 // Child output is deliberately not forwarded: database errors can contain private data.
 async function run(command, args, env = {}) {
   const safeEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) =>
-    !key.startsWith('SUPABASE_BACKUP_') && key !== 'CHATBIT_BACKUP_PASSPHRASE'));
+    !key.startsWith('SUPABASE_BACKUP_') && !key.startsWith('BACKUP_DATABASE_') && key !== 'CHATBIT_BACKUP_PASSPHRASE'));
   await new Promise((resolve, reject) => {
     const child = spawn(command, args, { env: { ...safeEnv, ...env }, stdio: 'ignore', shell: false });
     child.on('error', () => reject(new Error('Backup tool could not start')));
@@ -127,12 +139,13 @@ async function exportSource(config) {
         'Role attributes/memberships are reference-only in the generic rehearsal; no hosted service verification.'],
     };
     const sourceEnv = {
-      PGHOST: config.host, PGPORT: '5432', PGUSER: config.user, PGPASSWORD: config.password, PGDATABASE: 'postgres',
-      PGSSLMODE: 'verify-full', PGSSLROOTCERT: '/backup/ca.pem', PGOPTIONS: config.options,
+      PGHOST: config.host, PGPORT: '5432', PGUSER: config.user, PGPASSWORD: config.password, PGDATABASE: config.database,
+      PGSSLMODE: 'verify-full', PGSSLROOTCERT: config.ssl.ca ? '/backup/ca.pem' : 'system', PGOPTIONS: config.options,
     };
     const common = ['--format=custom', '--quote-all-identifiers', `--snapshot=${snapshot}`];
     stage = 'public schema/data/privilege export';
     await dump(sourceEnv, 'pg_dump', [...common, '--schema=public', '--file=/backup/plain/public.dump']);
+    if (config.host.endsWith('.supabase.co') || config.host.endsWith('.supabase.com')) {
     stage = 'Supabase Auth/Storage data export';
     await dump(sourceEnv, 'pg_dump', [...common, '--data-only', '--schema=auth', '--schema=storage',
       '--exclude-table=auth.schema_migrations', '--exclude-table=storage.migrations',
@@ -141,6 +154,7 @@ async function exportSource(config) {
     stage = 'managed schema reference export';
     await dump(sourceEnv, 'pg_dump', [...common, '--schema-only', '--schema=auth', '--schema=storage', '--schema=realtime',
       '--file=/backup/plain/managed-schema-reference.dump']);
+    }
     stage = 'role and membership reference export';
     // pg_dumpall cannot import a snapshot. Quiet-source confirmation is required by the workflow.
     await dump(sourceEnv, 'pg_dumpall', ['--roles-only', '--no-role-passwords', '--quote-all-identifiers',
@@ -182,7 +196,7 @@ async function main() {
   const config = sourceConfiguration(process.env);
   await mkdir(plain, { recursive: true, mode: 0o700 });
   await mkdir(out, { recursive: true, mode: 0o700 });
-  await writeFile(join(root, 'ca.pem'), process.env.SUPABASE_BACKUP_CA, { mode: 0o600 });
+  if (config.ssl.ca) await writeFile(join(root, 'ca.pem'), config.ssl.ca, { mode: 0o600 });
   stage = 'read-only source preflight';
   await exportSource(config);
   console.log('Read-only exports completed. Encrypting before artifact storage.');
@@ -213,13 +227,13 @@ async function main() {
     check(await fileHash(join(recovered, file)) === hash);
   }
   stage = 'archive readability';
-  for (const file of ['public.dump', 'auth-storage-data.dump', 'managed-schema-reference.dump']) {
+  for (const file of (await readdir(recovered)).filter(name => name.endsWith('.dump'))) {
     await run('docker', ['exec', container, 'pg_restore', '--list', `/backup/recovered/${file}`]);
   }
   stage = 'isolated public restore and metadata/row-count comparison';
   await rehearseRestore(recovered);
   console.log('PASS: encrypted round trip, checksums, and isolated public restore with owner/ACL/RLS/index/function and row-count comparisons.');
-  console.log('LIMITED: Auth/Storage archive readability only; managed services, role attributes/memberships and Storage file bytes are not restore-tested.');
+  console.log('LIMITED: any managed-schema archives are readability-only; hosted services, role attributes/memberships and object storage bytes are not restore-tested.');
 }
 
 // Importing configuration helpers in tests never opens a database connection.

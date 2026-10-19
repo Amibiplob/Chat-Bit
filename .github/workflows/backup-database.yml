@@ -63,6 +63,11 @@ jobs:
       - name: Read-only export, encryption, checksum verification and isolated restore
         run: node scripts/backup-database.mjs
         env:
+          BACKUP_DATABASE_PROVIDER: ${{ vars.BACKUP_DATABASE_PROVIDER }}
+          BACKUP_DATABASE_HOST: ${{ secrets.BACKUP_DATABASE_HOST }}
+          BACKUP_DATABASE_USER: ${{ secrets.BACKUP_DATABASE_USER }}
+          BACKUP_DATABASE_PASSWORD: ${{ secrets.BACKUP_DATABASE_PASSWORD }}
+          BACKUP_DATABASE_NAME: ${{ secrets.BACKUP_DATABASE_NAME }}
           SUPABASE_BACKUP_HOST: ${{ secrets.SUPABASE_BACKUP_HOST }}
           SUPABASE_BACKUP_USER: ${{ secrets.SUPABASE_BACKUP_USER }}
           SUPABASE_BACKUP_PASSWORD: ${{ secrets.SUPABASE_BACKUP_PASSWORD }}
