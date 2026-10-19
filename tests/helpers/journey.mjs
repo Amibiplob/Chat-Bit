@@ -7,6 +7,17 @@ export async function browserJourney(origin) {
   const diagnostic=phase=>{if(process.env.DEBUG_CHATBIT_BROWSER==='1')console.log(`Two-user journey: ${phase}`);};
   const suffix=randomUUID().slice(0,8),password='isolated browser journey password';
   await withBrowser(async alice=>withBrowser(async bob=>{
+    // Numeric-only test telemetry; no messages, identifiers, cookies or URLs.
+    const samples=[];
+    for(const browser of [alice,bob]) await browser.command('Page.addScriptToEvaluateOnNewDocument',{source:`(()=>{
+      const original=window.fetch;window.__chatbitNumericRequests=[];
+      window.fetch=async(...args)=>{const start=performance.now();const response=await original(...args);
+        const input=args[0],path=new URL(typeof input==='string'?input:input.url,location.href).pathname;
+        const kind=path==='/api/realtime/sync'?'sync':path.endsWith('/messages')&&args[1]?.method==='POST'?'send':null;
+        if(kind){const timing=response.headers.get('server-timing')||'';const metric=name=>{const match=timing.match(new RegExp(name+';dur=([0-9.]+)'));return match?Number(match[1]):null;};
+          window.__chatbitNumericRequests.push({kind,requestMs:Math.round(performance.now()-start),appMs:metric('app'),poolMs:metric('pool'),databaseMs:metric('db')});
+          if(window.__chatbitNumericRequests.length>100)window.__chatbitNumericRequests.shift();}
+        return response;};})();`});
     for(const page of ['/','/login','/signup']) {
       await alice.command('Page.navigate',{url:origin+page});
       await alice.waitFor(`location.pathname===${JSON.stringify(page)} && document.readyState==='complete' && document.querySelector('h1')`);
@@ -43,10 +54,13 @@ export async function browserJourney(origin) {
     const path=await alice.evaluate('location.pathname');
     diagnostic('contact search created conversation');
     const text=`Journey message ${suffix}`,edited=`Journey edited ${suffix}`,reply=`Journey reply ${suffix}`;
-    await alice.fill('textarea',text);await alice.evaluate(`document.querySelector('[aria-label="Send message"]').click()`);
-    await bob.waitFor(`document.body.innerText.includes(${JSON.stringify(text)})`);
     await bob.command('Page.navigate',{url:origin+path});
-    await bob.waitFor(`document.querySelector('textarea') && document.body.innerText.includes(${JSON.stringify(text)})`);
+    await bob.waitFor(`document.querySelector('textarea') && document.querySelector('[aria-label="Messages"]')`);
+    await alice.fill('textarea',text);
+    let started=performance.now();
+    await alice.evaluate(`document.querySelector('[aria-label="Send message"]').click()`);
+    await bob.waitFor(`document.querySelector('[aria-label="Messages"]').innerText.includes(${JSON.stringify(text)})`);
+    samples.push(Math.round(performance.now()-started));
     await alice.waitFor(`document.querySelector('[aria-label="Read"]')`);
     diagnostic('message received and read');
     const group=phrase=>`Array.from(document.querySelectorAll('[role="group"][aria-label^="Message from"]')).find(g=>g.innerText.includes(${JSON.stringify(phrase)}))`;
@@ -54,8 +68,13 @@ export async function browserJourney(origin) {
     await alice.fill('textarea',edited);await alice.evaluate(`document.querySelector('[aria-label="Save message"]').click()`);
     await bob.waitFor(`document.body.innerText.includes(${JSON.stringify(edited)})`);
     await bob.evaluate(`(()=>{const g=${group(edited)};g.focus();g.querySelector('[aria-label="Reply"]').click();})()`);
-    await bob.fill('textarea',reply);await bob.evaluate(`document.querySelector('[aria-label="Send message"]').click()`);
-    await alice.waitFor(`document.body.innerText.includes(${JSON.stringify(reply)})`);
+    await bob.fill('textarea',reply);started=performance.now();
+    await bob.evaluate(`document.querySelector('[aria-label="Send message"]').click()`);
+    await alice.waitFor(`document.querySelector('[aria-label="Messages"]').innerText.includes(${JSON.stringify(reply)})`);
+    samples.push(Math.round(performance.now()-started));
+    const requests=[...await alice.evaluate('window.__chatbitNumericRequests'),...await bob.evaluate('window.__chatbitNumericRequests')];
+    const max=(items,key)=>items.length?Math.max(...items.map(item=>item[key]??0)):null;
+    console.log('Isolated loopback delivery measurements (warm development server, 200 ms UI observation):',JSON.stringify({deliveryMs:samples,syncRequestMaxMs:max(requests.filter(item=>item.kind==='sync'),'requestMs'),sendRequestMaxMs:max(requests.filter(item=>item.kind==='send'),'requestMs'),instrumentedPoolMaxMs:max(requests,'poolMs'),instrumentedDatabaseMaxMs:max(requests,'databaseMs')}));
     await alice.command('Page.reload');
     await alice.waitFor(`document.querySelector('textarea') && Object.keys(document.querySelector('textarea')).some(k=>k.startsWith('__reactFiber$')) && !document.querySelector('textarea').disabled && document.body.innerText.includes(${JSON.stringify(reply)})`);
     assert.ok(await alice.evaluate(`document.querySelector('blockquote')?.innerText.includes(${JSON.stringify(edited)})`));

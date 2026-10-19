@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { databaseConfig, migrationDatabaseConfig } from '../lib/server/database-config.mjs';
 import { transaction } from '../lib/server/transaction.mjs';
-import { readMessages } from '../lib/server/conversation-queries.mjs';
+import { getMessagePage } from '../lib/server/messaging-queries.mjs';
 
 test('database configuration validates URLs, pool bounds and TLS without leaking secrets', () => {
   const valid = { DATABASE_URL: 'postgresql://user:private-password@ep-test.ap-southeast-1.aws.neon.tech/chatbit' };
@@ -51,9 +51,9 @@ test('failed operations rollback and preserve the original error', async () => {
 });
 
 test('message page size is bounded before executing SQL', async () => {
-  const client = { query: () => { throw new Error('SQL should not run'); } };
+  const pool = { connect: () => { throw new Error('SQL should not run'); } };
   for (const limit of [0, 101, 1.5, NaN]) {
-    await assert.rejects(readMessages(client, 'user', 'conversation', limit), /Invalid page size/);
+    await assert.rejects(getMessagePage(pool, '12345678-1234-4234-9234-123456789012', '12345678-1234-4234-9234-123456789013', {limit}), {status:400});
   }
 });
 

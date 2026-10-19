@@ -8,7 +8,8 @@ import { test } from 'node:test';
 import pg from 'pg';
 import { databaseConfig } from '../lib/server/database-config.mjs';
 import { transaction } from '../lib/server/transaction.mjs';
-import { readMessages, findPrivateAttachment } from '../lib/server/conversation-queries.mjs';
+import { getMessagePage } from '../lib/server/messaging-queries.mjs';
+import { attachmentForDownload } from '../lib/server/attachment-queries.mjs';
 import { migrate } from '../scripts/migrate.mjs';
 
 test('PostgreSQL migrations, constraints, transactions and private data access', {
@@ -70,12 +71,10 @@ test('PostgreSQL migrations, constraints, transactions and private data access',
     await pool.query('INSERT INTO message_attachments (id,conversation_id,message_id,uploader_id,storage_key,filename,mime_type,byte_size) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
       [attachment, conversation, message, a, 'private/random-key', 'test.pdf', 'application/pdf', 100]);
     await t.test('members can read messages and files; unrelated users cannot', async () => {
-      await transaction(pool, async (client) => {
-        assert.equal((await readMessages(client, b, conversation))[0].id, message);
-        assert.deepEqual(await readMessages(client, c, conversation), []);
-        assert.equal((await findPrivateAttachment(client, b, attachment)).filename, 'test.pdf');
-        assert.equal(await findPrivateAttachment(client, c, attachment), null);
-      });
+      assert.equal((await getMessagePage(pool,b,conversation)).messages[0].id,message);
+      await assert.rejects(getMessagePage(pool,c,conversation),{status:404});
+      assert.equal((await attachmentForDownload(pool,b,attachment)).filename,'test.pdf');
+      await assert.rejects(attachmentForDownload(pool,c,attachment),{status:404});
       assert.equal((await pool.query('SELECT count(*) FROM users')).rows[0].count, '3');
     });
     await t.test('database rejects outsiders, duplicate sends and cross-conversation references', async () => {
@@ -103,10 +102,9 @@ test('PostgreSQL migrations, constraints, transactions and private data access',
     });
     await t.test('soft-deleted message body and attachment are inaccessible', async () => {
       await pool.query('UPDATE messages SET deleted_at=now() WHERE id=$1', [message]);
-      await transaction(pool, async (client) => {
-        assert.equal((await readMessages(client, b, conversation))[0].body, null);
-        assert.equal(await findPrivateAttachment(client, b, attachment), null);
-      });
+      const deleted=(await getMessagePage(pool,b,conversation)).messages[0];
+      assert.equal(deleted.content,'');assert.equal(deleted.deleted,true);assert.deepEqual(deleted.attachments,[]);
+      await assert.rejects(attachmentForDownload(pool,b,attachment),{status:404});
     });
   } finally {
     await pool?.end();

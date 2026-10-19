@@ -67,7 +67,8 @@ test('isolated PostgreSQL client grants: atomic hardening, API denial, owner tri
             const result = await client.query(sql, params);
             if (sql === security) {
               assert.equal((await client.query('SELECT count(*) FROM chatbit_schema_migrations')).rows[0].count, '7');
-              assert.equal((await client.query(`SELECT rolsuper FROM pg_roles WHERE rolname=current_user`)).rows[0].rolsuper, false);
+              const owner=(await client.query('SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user')).rows[0];
+              assert.deepEqual(owner,{rolsuper:false,rolbypassrls:false});
               assert.equal((await admin.query('SELECT to_regclass($1) AS relation', [`${schema}.users`])).rows[0].relation, null);
               checkedBeforeCommit = true;
             }

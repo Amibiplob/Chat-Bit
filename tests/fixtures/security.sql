@@ -3,7 +3,7 @@ CREATE ROLE anon NOLOGIN;
 CREATE ROLE authenticated NOLOGIN;
 CREATE ROLE service_role NOLOGIN BYPASSRLS;
 CREATE ROLE chatbit_public_probe NOLOGIN;
-CREATE ROLE chatbit_security_owner NOLOGIN BYPASSRLS;
+CREATE ROLE chatbit_security_owner NOLOGIN;
 CREATE SCHEMA unrelated_auth;
 CREATE SCHEMA unrelated_files;
 CREATE SCHEMA unrelated_events;
