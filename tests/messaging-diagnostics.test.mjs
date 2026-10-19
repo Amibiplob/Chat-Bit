@@ -69,3 +69,35 @@ test('internal failures and account quota have distinct safe diagnostic categori
   assert.equal(quota.status, 413);
   assert.equal(logs[1][1].category, 'quota');
 });
+
+test('Storage SDK symbolic codes survive HTTP status mapping without private details', async () => {
+  for (const [providerCode, expected] of [['NoSuchBucket','STORAGE_BUCKET_NOT_FOUND'], ['AccessDenied','STORAGE_ACCESS_DENIED'], ['InvalidJWT','STORAGE_INVALID_JWT'], ['InvalidMimeType','STORAGE_MIME_TYPE'], ['DatabaseTimeout','STORAGE_504'], ['private-path-token','STORAGE_400']]) {
+    const storage = attachmentStorage({storage:{from:()=>({}),getBucket:async()=>({error:{status:400,statusCode:'400',code:providerCode,message:'private-path-token'}})}},'private-project');
+    let failure;
+    try { await storage.upload('private-object'); } catch (error) { failure = error; }
+    const events=[];
+    const result=failureDetails(failure,'attachment.write',(...args)=>events.push(args));
+    assert.equal(events[0][1].code,expected);
+    assert.equal(events[0][1].stage,'storage-bucket');
+    assert.equal(result.status,providerCode==='DatabaseTimeout'?504:503);
+    assert.equal(JSON.stringify(events).includes('private'),false);
+  }
+});
+
+test('bucket policy diagnostics distinguish missing metadata, public access and invalid limits while denying signing', async () => {
+  for (const [data,code] of [[null,'STORAGE_BUCKET_METADATA'],[{public:true,file_size_limit:10485760},'STORAGE_BUCKET_PUBLIC'],[{public:false,file_size_limit:null},'STORAGE_BUCKET_LIMIT'],[{public:false,file_size_limit:10485761},'STORAGE_BUCKET_LIMIT']]) {
+    const storage=attachmentStorage({storage:{from:()=>({createSignedUploadUrl:()=>assert.fail('must not sign')}),getBucket:async()=>({data})}},'private-project');
+    let failure;
+    try { await storage.upload('private-object'); } catch(error) { failure=error; }
+    const events=[];
+    failureDetails(failure,'attachment.write',(...args)=>events.push(args));
+    assert.equal(events[0][1].code,code);
+  }
+});
+
+test('SDK unknown errors retain only allowlisted nested network codes and bound cyclic traversal', async () => {
+  const {diagnosticCode}=await import('../lib/server/auth-diagnostics.mjs');
+  assert.equal(diagnosticCode({originalError:{cause:{code:'ETIMEDOUT',message:'private-token'}}}),'ETIMEDOUT');
+  const cyclic={code:'private-token'};cyclic.originalError=cyclic;
+  assert.equal(diagnosticCode(cyclic),'UNCLASSIFIED');
+});
