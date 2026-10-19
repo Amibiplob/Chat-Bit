@@ -131,3 +131,88 @@ Provider code meanings: https://supabase.com/docs/guides/storage/debugging/error
   unknown-code redaction and bounded nested network error extraction.
 - Provider responses are mocked; no live Supabase upload or authenticated
   production request was performed. No production data was written.
+
+## Follow-up: confirmed production Storage 401 responses
+
+Reported production events are `attachment.write / storage-bucket / STORAGE_401`
+and `attachment.cleanup / storage-remove / STORAGE_401`. These establish provider
+HTTP 401 for the bucket lookup and deletion requests. They do not establish a
+missing bucket, invalid JPG, quota failure, or PostgreSQL failure. Reservation
+fails before signing/PUT when its bucket lookup returns 401. Cleanup is a
+separate failed authenticated request and does not explain away the first error.
+
+Both operations share the same cached server client built from `SUPABASE_URL`
+and `SUPABASE_SECRET_KEY`; no alternate cleanup key or browser session is used:
+
+- Bucket lookup: SDK `getBucket(bucket)` → GET `/storage/v1/bucket/:bucket`.
+- Cleanup: SDK `from(bucket).remove(paths)` → DELETE
+  `/storage/v1/object/:bucket`, JSON body containing private prefixes.
+- Both carry the SDK's `apikey` header and `X-Client-Info`; DELETE additionally
+  uses JSON Content-Type. No ChatBit session cookie is forwarded to Supabase.
+
+The installed `@supabase/supabase-js` 2.117.3 Storage fetch fallback sends the key
+as both `apikey: <key>` and `Authorization: Bearer <key>`. Its Edge Functions fetch
+has a separate opaque-key exception that Storage does not use. A synthetic-key
+request capture reproduced this for both GET and DELETE without real network
+access. This is a confirmed header defect **for new `sb_secret_` keys**, which
+are not JWTs. It is not proof that production currently uses such a key.
+
+The server-only client now uses a transport adapter after SDK header construction:
+for `sb_secret_` keys it keeps `apikey` and removes Authorization; legacy JWT
+headers remain unchanged. The same adapter handles signing, verification reads,
+download signing and cleanup. It does not change credentials, bucket privacy,
+RLS, application authorization, overwrite protection, or browser signed PUTs.
+
+Official guidance checked during this investigation:
+
+- https://supabase.com/docs/guides/getting-started/api-keys
+- https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys
+
+### Production configuration evidence still needed
+
+A metadata-only check of the local environment found Storage URL/key present,
+an HTTPS URL without embedded credentials, and no surrounding key whitespace.
+The local key matched neither `sb_secret_` nor legacy JWT shape. This says nothing
+about Vercel's deployed environment and does not prove the local key valid.
+No key values, hashes, prefixes containing secret material or project IDs were
+printed. Vercel production key type is currently unavailable to this session.
+
+In the active Vercel **Production** deployment, verify privately and report only:
+
+1. `SUPABASE_URL` present, an HTTPS project API base URL (not a dashboard, database,
+   REST, or Storage subpath URL), with no embedded credentials. Confirm it belongs
+   to the intended project without sharing the hostname/project identifier.
+2. `SUPABASE_SECRET_KEY` present, with no added quotes, whitespace, `Bearer `
+   prefix, or JSON wrapper. Classify only as `sb_secret`, `legacy_service_role`,
+   `publishable/anon`, `missing`, or `unknown`. For legacy JWTs decode locally and
+   check only whether the role is service_role; decoding does not validate the
+   signature. Never send a JWT to an online decoder or share payload/claims.
+3. Secret is active and belongs to that same project. An opaque secret cannot
+   establish project identity by decoding it; compare privately with Dashboard
+   settings. Neither a Management API access token nor a publishable/anon key
+   satisfies this server credential contract.
+4. These are the variables attached to the active deployment, not merely saved
+   settings for a future deployment. Confirm Git SHA and actual SDK lockfile.
+   Any secret changes or deployment remain separate owner-approved actions.
+
+If production uses `sb_secret`, the reproduced malformed Bearer fallback applies;
+verify the correction after an approved deployment. If it uses a valid legacy
+service_role JWT, the existing header construction is expected: investigate the
+401's safe provider code and URL/key/project/activity checks instead. Do not
+assert that either diagnosis is confirmed by HTTP 401 alone.
+
+For the next failure collect the actual provider HTTP status plus the application
+response status/requestId, UTC time, operation, stage and allowlisted code.
+`STORAGE_INVALID_JWT` distinguishes a provider InvalidJWT code when supplied;
+`STORAGE_401` is an HTTP-only fallback and must not be interpreted as a specific
+JWT failure. Raw provider messages, headers and request bodies remain private.
+
+Regression tests use the actual installed SDK with a mocked transport and
+synthetic credentials. They assert correct new/legacy headers for bucket GET,
+signed uploads, verification downloads, download signing and DELETE, and safe
+401 diagnostics. They do not prove genuine provider acceptance.
+
+Follow-up verification: `pnpm test` with disposable loopback PostgreSQL 17:
+165 passed, 0 failed, 1 skipped (separate HTTP/browser suite). TypeScript,
+ESLint, production Webpack build and whitespace checks passed. No live Storage
+request, deployment or production mutation was performed.

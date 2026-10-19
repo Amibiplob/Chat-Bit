@@ -1,7 +1,8 @@
 import "server-only";
 import { diagnosticStep } from "./messaging-diagnostics.mjs";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { type SupabaseClient } from "@supabase/supabase-js";
 
+import { createAttachmentStorageClient } from "./attachment-storage-client.mjs";
 import { attachmentStorageConfiguration } from "./attachment-storage-config.mjs";
 import { attachmentStorage } from "./attachment-storage-core.mjs";
 
@@ -11,7 +12,7 @@ let client: SupabaseClient | undefined;
 async function storage() {
   return diagnosticStep("storage-config", async () => {
     const { url, key, bucket } = attachmentStorageConfiguration();
-    client ??= createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+    client ??= createAttachmentStorageClient({ url, key });
     return attachmentStorage(client, bucket);
   });
 }
