@@ -78,3 +78,9 @@ test('database configuration only allows Neon or isolated loopback and uses syst
     assert.throws(()=>migrationDatabaseConfig({DATABASE_URL:direct,DATABASE_MIGRATION_URL:direct,...patch}),/same Neon/);
   }
 });
+
+test('connection identity query overrides cannot redirect a validated Neon URL',()=>{
+  const url='postgresql://test:synthetic@ep-test.ap-southeast-1.aws.neon.tech/neondb';
+  for(const key of ['host','port','user','password','database','HOST'])assert.throws(()=>databaseConfig({DATABASE_URL:`${url}?${key}=unintended`}));
+  for(const missing of [url.replace('test:synthetic@',''),url.replace(':synthetic@','@')])assert.throws(()=>databaseConfig({DATABASE_URL:missing}),/credentials/);
+});

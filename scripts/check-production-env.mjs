@@ -10,6 +10,7 @@ export function productionConfigurationErrors(env) {
   const errors=[];
   const check=(name,operation)=>{try{operation();}catch{errors.push(name);}};
   check('DATABASE_URL / DATABASE_SSL / DATABASE_POOL_MAX',()=>databaseConfig({...env,NODE_ENV:'production'}));
+  check('DATABASE_URL pooled endpoint',()=>{if(!new URL(env.DATABASE_URL).hostname.includes('-pooler.'))throw new Error();});
   check('DATABASE_MIGRATION_URL TLS/direct endpoint configuration',()=>migrationDatabaseConfig({...env,NODE_ENV:'production'}));
   check('AUTH_RATE_LIMIT_SECRET',()=>rateLimitSecret({...env,NODE_ENV:'production'}));
   check('AWS_ENDPOINT_URL_S3 / AWS_REGION / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / NEON_STORAGE_BUCKET',()=>attachmentStorageConfiguration(env));

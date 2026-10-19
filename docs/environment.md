@@ -41,3 +41,20 @@ CHROME_BIN. TEST_SECURITY_DATABASE_URL must be loopback with tests/fixtures/secu
 loaded. CHATBIT_BROWSER_ORIGIN selects a loopback server for production PWA checks.
 Do not configure test variables against a live database. No backup or old-data-copy
 variables are required. `pnpm config:check` checks shapes without network access.
+
+The production checker requires the pooled runtime hostname, a matching direct
+migration URL, explicit remote URL credentials and a region matching the storage
+endpoint. URL identity query overrides are rejected to avoid redirecting an
+otherwise validated endpoint. Use the documented sample URL shape without
+channel_binding=require; Node pg negotiates channel binding when the server offers
+it but cannot enforce libpq's required mode. Standard sslmode=require/verify-full
+URLs retain strict certificate verification.
+
+Required for full release readiness: the eight core names DATABASE_URL,
+DATABASE_MIGRATION_URL, DATABASE_SSL, AWS_ENDPOINT_URL_S3, AWS_REGION,
+AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and NEON_STORAGE_BUCKET, plus
+AUTH_RATE_LIMIT_SECRET, CRON_SECRET, CALL_TURN_URLS and CALL_TURN_SHARED_SECRET.
+DATABASE_SSL and NEON_STORAGE_BUCKET have secure defaults; you may omit them if
+those defaults are intended. The three POST cleanup secrets replace CRON_SECRET
+only when using that alternative scheduling mode. Tests and optional tuning do
+not add mandatory Vercel variables.

@@ -13,8 +13,16 @@ test('production preflight requires TLS, private service configuration, TURN and
 });
 
 test('production preflight accepts Neon with a direct migration URL and rejects incomplete credentials or pooled migrations',()=>{
-  const env={DATABASE_URL:'postgresql://synthetic@ep-test-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require',DATABASE_MIGRATION_URL:'postgresql://synthetic@ep-test.us-east-2.aws.neon.tech/neondb?sslmode=require',
+  const env={DATABASE_URL:'postgresql://synthetic:synthetic-password@ep-test-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require',DATABASE_MIGRATION_URL:'postgresql://synthetic:synthetic-password@ep-test.us-east-2.aws.neon.tech/neondb?sslmode=require',
     AWS_ENDPOINT_URL_S3:'https://br-test.storage.c-2.us-east-2.aws.neon.tech',AWS_REGION:'us-east-2',AWS_ACCESS_KEY_ID:'synthetic-id',AWS_SECRET_ACCESS_KEY:'synthetic-secret',AUTH_RATE_LIMIT_SECRET:'a'.repeat(32),CALL_TURN_URLS:'["turn:relay.example:3478"]',CALL_TURN_SHARED_SECRET:'b'.repeat(32),CRON_SECRET:'c'.repeat(32)};
   assert.deepEqual(productionConfigurationErrors(env),[]);
   for(const patch of [{DATABASE_MIGRATION_URL:''},{AWS_SECRET_ACCESS_KEY:''},{DATABASE_MIGRATION_URL:env.DATABASE_URL}])assert.ok(productionConfigurationErrors({...env,...patch}).length);
+});
+
+test('the environment template can configure Neon production without undocumented variables',async()=>{
+  const {readFile}=await import('node:fs/promises');const {parse}=await import('dotenv');
+  const env={...parse(await readFile(new URL('../.env.example',import.meta.url))),AWS_ENDPOINT_URL_S3:'https://br-test.storage.c-2.ap-southeast-1.aws.neon.tech',AWS_ACCESS_KEY_ID:'synthetic-id',AWS_SECRET_ACCESS_KEY:'synthetic-secret',AUTH_RATE_LIMIT_SECRET:'a'.repeat(32),CRON_SECRET:'b'.repeat(32),CALL_TURN_URLS:'["turn:relay.example:3478"]',CALL_TURN_SHARED_SECRET:'c'.repeat(32)};
+  assert.deepEqual(productionConfigurationErrors(env),[]);
+  for(const name of ['DATABASE_URL','DATABASE_MIGRATION_URL','AWS_ENDPOINT_URL_S3','AWS_REGION','AWS_ACCESS_KEY_ID','AWS_SECRET_ACCESS_KEY','AUTH_RATE_LIMIT_SECRET','CRON_SECRET','CALL_TURN_URLS','CALL_TURN_SHARED_SECRET'])assert.ok(productionConfigurationErrors({...env,[name]:''}).length,name);
+  assert.ok(productionConfigurationErrors({...env,DATABASE_URL:env.DATABASE_MIGRATION_URL}).length);
 });
