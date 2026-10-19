@@ -83,3 +83,19 @@ No disposable PostgreSQL server or test-database configuration was available.
 Production Supabase is not an integration-test target. Local checks cannot prove
 live transfers, cross-network calls, scheduled cleanup or deployed authentication.
 No production database, backup, migration, deployment or push was performed.
+
+## Neon preparation audit — 2026-10-19
+
+Android sources, scripts and release workflows were already retired in earlier
+commits (see chatbit-3.md). Removed the remaining ignored android/generated and
+android/node_modules trees; no signing directory or credentials were present.
+Only verify.yml and backup-database.yml remain; they serve distinct validation
+and recovery purposes and are retained. Browser PWA files and icons remain.
+
+Expanded ignore protection to arbitrary SQL exports and compressed archives,
+with explicit migration and test-fixture exceptions. Tracked-file pattern scans
+found only documented/test connection placeholders and synthetic secret-key
+fixtures; no confirmed credential was found. This is a pattern audit, not proof
+that no historical secret has ever existed. The protected conversation-list edit
+and its mock-data dependency remain untouched. No additional dependency removal
+is justified by the current import/configuration audit.

@@ -122,3 +122,11 @@ Desktop.ini
 *.apks
 *.idsig
 *.hprof
+
+# Private exports in any location; retain versioned schema and test fixtures.
+*.sql
+!db/migrations/*.sql
+!tests/fixtures/*.sql
+*.tar.gz
+*.tgz
+*.zip
