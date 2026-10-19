@@ -6,5 +6,7 @@ test('storage readiness requires exact trusted origin, POST/GET/HEAD and content
   assert.equal(storageCorsMatches([rule],'https://app.example'),true);
   for(const patch of [{AllowedOrigins:['*']},{AllowedOrigins:['https://app.example','*']},{AllowedOrigins:['https://other.example']},{AllowedMethods:['GET','HEAD']},{AllowedHeaders:[]}])assert.equal(storageCorsMatches([{...rule,...patch}],'https://app.example'),false);
   assert.equal(storageCorsMatches([rule],'http://app.example'),false);
+  assert.equal(storageCorsMatches([rule,{...rule,AllowedOrigins:['*']}],'https://app.example'),false);
+  assert.equal(storageCorsMatches([rule],'invalid origin'),false);
   assert.equal(storageCorsMatches([{...rule,AllowedOrigins:['http://127.0.0.1:3000']}],'http://127.0.0.1:3000'),true);
 });

@@ -5,9 +5,9 @@ import { attachmentStorageConfiguration } from '../lib/server/attachment-storage
 import { createNeonClient, neonAttachmentStorage } from '../lib/server/neon-storage.mjs';
 
 export function storageCorsMatches(rules, origin) {
-  const url = new URL(origin);
+  let url;try{url=new URL(origin);}catch{return false;}
   if (url.origin !== origin || (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['localhost','127.0.0.1','[::1]'].includes(url.hostname)))) return false;
-  return Array.isArray(rules) && rules.some(rule =>
+  return Array.isArray(rules) && rules.every(rule=>rule.AllowedOrigins?.every(value=>typeof value==='string' && !value.includes('*'))) && rules.some(rule =>
     rule.AllowedOrigins?.includes(origin) && !rule.AllowedOrigins.some(value=>value.includes('*')) &&
     ['POST','GET','HEAD'].every(method=>rule.AllowedMethods?.includes(method)) &&
     rule.AllowedHeaders?.some(value=>['content-type','*'].includes(value.toLowerCase())));

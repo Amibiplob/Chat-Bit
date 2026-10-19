@@ -122,7 +122,7 @@ automatic two-second synchronization, typing and presence with PostgreSQL recove
 Refresh now requests a fresh authoritative snapshot and recovers loaded history
 using bounded page requests. Read-state changes update both browsers
 automatically while their tabs are visible.
-Calls remain unavailable. [Milestone 5](file-sharing.md) adds private Neon Object Storage
+[File sharing](file-sharing.md) uses private Neon Object Storage
 attachments to the thread. Broader multi-device browser testing and deployment remain open.
 Authentication needs the production secret and reviewed migrations described in
 authentication.md. Existing appearance lint and Turbopack environment limits are
