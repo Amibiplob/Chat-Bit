@@ -23,23 +23,17 @@ export async function uploadAttachment(conversationId: string, file: File, capti
       const aborted = () => request.abort();
       const detach = () => signal.removeEventListener("abort", aborted);
       signal.addEventListener("abort", aborted, { once: true });
-      request.open(reservation.fields ? "POST" : "PUT", reservation.signedUrl);
+      request.open("POST", reservation.signedUrl);
       request.timeout = 120000;
       request.ontimeout = () => { detach(); reject(new Error("The file upload timed out. Please try again.")); };
-      if (!reservation.fields) {
-        request.setRequestHeader("Content-Type", mimeType);
-        request.setRequestHeader("x-upsert", "false");
-      }
       request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100)); };
       request.onload = () => { detach(); if (request.status >= 200 && request.status < 300) resolve(); else reject(new Error(request.status === 413 ? "The file exceeds the storage upload limit." : request.status === 401 || request.status === 403 ? "File upload authorization expired or was denied. Please retry." : request.status === 429 ? "File storage is busy. Please wait and retry." : "File storage could not accept the upload. Please try again.")); };
       request.onerror = () => { detach(); reject(new Error("The upload connection failed.")); };
       request.onabort = () => { detach(); reject(new DOMException("Upload cancelled", "AbortError")); };
-      if (reservation.fields) {
-        const form = new FormData();
-        for (const [key, value] of Object.entries(reservation.fields)) form.append(key, value);
-        form.append('file', file);
-        request.send(form);
-      } else request.send(file);
+      const form = new FormData();
+      for (const [key, value] of Object.entries(reservation.fields)) form.append(key, value);
+      form.append('file', file);
+      request.send(form);
     });
     state.completionStarted = true;
     const result = await messagingRequest<{ id: string }>(`/api/conversations/${conversationId}/attachments/${reservation.attachmentId}/complete`, {

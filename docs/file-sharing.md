@@ -42,3 +42,11 @@ Unit tests use mocked SDK transport and real offline signatures; database/HTTP
 checks use isolated infrastructure. Live branch privacy metadata, CORS, exact
 policy enforcement, private upload/download and deletion still require operator
 acceptance. Production storage is never an automated-test target.
+
+After approving a read-only check of your configured live bucket, run
+`node scripts/check-storage.mjs https://your-app.vercel.app` yourself. This checks
+private ACL/policy metadata and exact-origin POST/GET/HEAD CORS without writing
+objects or changing settings, and prints no credentials. It is not an upload test.
+The configuration requires AWS_REGION to match the region in the Neon endpoint;
+for the Singapore bucket use the returned S3 region ap-southeast-1, not the
+Console's aws-ap-southeast-1 platform identifier.

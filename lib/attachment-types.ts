@@ -8,8 +8,6 @@ export type Attachment = {
 
 export type AttachmentReservation = {
   attachmentId: string;
-  path: string;
-  token: string;
   signedUrl: string;
-  fields?: Record<string, string>;
+  fields: Record<string, string>;
 };

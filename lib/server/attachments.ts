@@ -29,7 +29,7 @@ export async function reserve(conversationId: string, input: unknown) {
   const row = await queries.reserveAttachment(pool, userId, conversationId, input);
   try {
     const signed = await createAttachmentUpload(row.key, row);
-    return { attachmentId: row.id, path: signed.path, token: signed.token, signedUrl: signed.signedUrl, ...("fields" in signed ? { fields: signed.fields } : {}) };
+    return { attachmentId: row.id, signedUrl: signed.signedUrl, fields: signed.fields };
   } catch (error) {
     await queries.failAttachment(pool, userId, row.id, "Upload authorization failed").catch((cleanupError: unknown) => failureDetails(cleanupError, "attachment.cleanup"));
     throw error;

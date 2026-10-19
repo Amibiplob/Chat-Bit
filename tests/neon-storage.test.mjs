@@ -27,7 +27,7 @@ function fixture(patch = {}) {
 
 test('Neon storage requires credentials and an HTTPS branch endpoint', () => {
   assert.equal(attachmentStorageConfiguration(env).bucket, 'chatbit-attachments');
-  for (const patch of [{ AWS_ENDPOINT_URL_S3: 'http://localhost' }, { AWS_ENDPOINT_URL_S3: env.AWS_ENDPOINT_URL_S3 + '/other' }, { AWS_SECRET_ACCESS_KEY: '' }, { AWS_REGION: '' }, { NEON_STORAGE_BUCKET: '../other' }]) {
+  for (const patch of [{ AWS_ENDPOINT_URL_S3: 'http://localhost' }, { AWS_ENDPOINT_URL_S3: env.AWS_ENDPOINT_URL_S3 + '/other' }, { AWS_SECRET_ACCESS_KEY: '' }, { AWS_REGION: '' }, {AWS_REGION:'aws-ap-southeast-1'}, {AWS_REGION:'ap-southeast-1'}, { NEON_STORAGE_BUCKET: '../other' }]) {
     assert.throws(() => attachmentStorageConfiguration({ ...env, ...patch }), error => !error.message.includes('synthetic'));
   }
 });

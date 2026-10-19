@@ -21,7 +21,7 @@ test('lost completion response retries same reservation and client ID without de
     calls.push([url, options]);
     if (url.endsWith('/complete')) { if (++completions === 1) throw new TypeError('Response lost after commit'); return { id: 'same-message' }; }
     assert.equal(options.method, 'POST');
-    return { attachmentId: 'reserved', signedUrl: 'https://storage.invalid/private' };
+    return { attachmentId: 'reserved', signedUrl: 'https://storage.invalid/private', fields: {key:'own/key.pending',policy:'synthetic-policy'} };
   };
   try {
     const file = new File(['hello'], 'note.txt', { type: 'text/plain' });
@@ -44,7 +44,7 @@ test('upload timeout cancels pending reservation and never completes a message',
     setRequestHeader() {}
     send() { queueMicrotask(() => this.ontimeout()); }
   };
-  globalThis.__attachmentTestRequest = async (url, options) => { methods.push(options.method); assert.equal(url.endsWith('/complete'), false); return { attachmentId: 'reserved', signedUrl: 'https://storage.invalid/private' }; };
+  globalThis.__attachmentTestRequest = async (url, options) => { methods.push(options.method); assert.equal(url.endsWith('/complete'), false); return { attachmentId: 'reserved', signedUrl: 'https://storage.invalid/private', fields: {key:'own/key.pending',policy:'synthetic-policy'} }; };
   try {
     await assert.rejects(uploadAttachment('conversation', new File(['hello'], 'note.txt', { type: 'text/plain' }), '', () => {}, new AbortController().signal), /timed out/);
     assert.deepEqual(methods, ['POST', 'DELETE']);
@@ -57,7 +57,7 @@ test('direct upload rejection distinguishes authorization, size, busy and provid
     for (const [status, message] of [[403,/authorization/],[413,/upload limit/],[429,/busy/],[503,/could not accept/]]) {
       const methods = [];
       globalThis.XMLHttpRequest = class { upload = {}; open() {} setRequestHeader() {} send() { this.status = status; queueMicrotask(() => this.onload()); } };
-      globalThis.__attachmentTestRequest = async (url, options) => { methods.push(options.method); assert.equal(url.endsWith('/complete'), false); return { attachmentId: 'reserved', signedUrl: 'https://storage.invalid/private' }; };
+      globalThis.__attachmentTestRequest = async (url, options) => { methods.push(options.method); assert.equal(url.endsWith('/complete'), false); return { attachmentId: 'reserved', signedUrl: 'https://storage.invalid/private', fields: {key:'own/key.pending',policy:'synthetic-policy'} }; };
       await assert.rejects(uploadAttachment('conversation', new File(['hello'], 'note.txt', { type: 'text/plain' }), '', () => {}, new AbortController().signal), message);
       assert.deepEqual(methods, ['POST','DELETE']);
     }

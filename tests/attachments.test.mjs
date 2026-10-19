@@ -28,7 +28,7 @@ const row = { storageKey: 'private/key.png', filename: 'photo.png', mimeType: 'i
 function workflow(overrides = {}) {
   const events = [];
   const queries = { pendingAttachment: async () => row, finalizeAttachment: async () => { events.push('finalized'); return 'message'; }, failAttachment: async () => { events.push('failed'); }, ...overrides };
-  return { queries, events, storage: { read: async () => png }, pool: {}, userId: 'actor', conversationId: 'conversation', attachmentId: 'attachment', input: {} };
+  return { queries, events, storage: { read: async () => png, seal: async path => path }, pool: {}, userId: 'actor', conversationId: 'conversation', attachmentId: 'attachment', input: {} };
 }
 test('verified completion persists once and available retry skips storage', async () => {
   const options = workflow(); assert.equal(await verifyAndFinalize(options), 'message'); assert.deepEqual(options.events, ['finalized']);
