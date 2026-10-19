@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { productionConfigurationErrors } from '../scripts/check-production-env.mjs';
 
 test('production preflight requires TLS, private service configuration, TURN and scheduler authorization without making network calls',()=>{
-  const env={DATABASE_URL:'postgresql://test:private@db.example/chatbit',DATABASE_SSL:'verify',AUTH_RATE_LIMIT_SECRET:'a'.repeat(32),
+  const env={DATABASE_URL:'postgresql://test:private@ep-test-pooler.ap-southeast-1.aws.neon.tech/chatbit',DATABASE_MIGRATION_URL:'postgresql://test:private@ep-test.ap-southeast-1.aws.neon.tech/chatbit',DATABASE_SSL:'verify',AUTH_RATE_LIMIT_SECRET:'a'.repeat(32),
     AWS_ENDPOINT_URL_S3:'https://br-test.storage.c-2.ap-southeast-1.aws.neon.tech',AWS_REGION:'ap-southeast-1',AWS_ACCESS_KEY_ID:'synthetic-id',AWS_SECRET_ACCESS_KEY:'synthetic-secret',CALL_TURN_URLS:'["turn:relay.example:3478"]',CALL_TURN_SHARED_SECRET:'b'.repeat(32),CRON_SECRET:'c'.repeat(32)};
   assert.deepEqual(productionConfigurationErrors(env),[]);
   for(const patch of [{DATABASE_SSL:'disable'},{AWS_ENDPOINT_URL_S3:'http://project.example'},{AUTH_RATE_LIMIT_SECRET:''},{CALL_TURN_URLS:'[]'},{CRON_SECRET:''},{CALL_RELAY_ONLY:'invalid'}]) {

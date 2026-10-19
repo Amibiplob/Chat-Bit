@@ -5,7 +5,7 @@ import { transaction } from '../lib/server/transaction.mjs';
 import { readMessages } from '../lib/server/conversation-queries.mjs';
 
 test('database configuration validates URLs, pool bounds and TLS without leaking secrets', () => {
-  const valid = { DATABASE_URL: 'postgresql://user:private-password@db.example/chatbit' };
+  const valid = { DATABASE_URL: 'postgresql://user:private-password@ep-test.ap-southeast-1.aws.neon.tech/chatbit' };
   assert.equal(databaseConfig(valid).ssl.rejectUnauthorized, true);
   for (const env of [
     {}, { DATABASE_URL: 'private-password' }, { DATABASE_URL: 'https://example.com' },
@@ -67,4 +67,14 @@ test('Neon URL TLS remains verified and migrations require a direct endpoint', (
   assert.throws(() => migrationDatabaseConfig({ DATABASE_URL: direct, DATABASE_MIGRATION_URL: pooled }), /direct/);
   assert.equal(migrationDatabaseConfig({ DATABASE_URL: pooled, DATABASE_MIGRATION_URL: direct }).max, 1);
   assert.throws(() => databaseConfig({ DATABASE_URL: direct, DATABASE_SSL: 'disable' }), /TLS/);
+});
+
+test('database configuration only allows Neon or isolated loopback and uses system trust',()=>{
+  const direct='postgresql://test:private@ep-test.ap-southeast-1.aws.neon.tech/neondb';
+  assert.deepEqual(databaseConfig({DATABASE_URL:direct,DATABASE_SSL_CA:'ignored obsolete custom CA'}).ssl,{rejectUnauthorized:true});
+  assert.equal(databaseConfig({DATABASE_URL:direct}).enableChannelBinding,true);
+  for(const url of ['postgresql://test:private@old-provider.example/neondb',direct+'?channel_binding=require'])assert.throws(()=>databaseConfig({DATABASE_URL:url}));
+  for(const patch of [{DATABASE_MIGRATION_URL:direct.replace('ep-test.','ep-other.')},{DATABASE_MIGRATION_URL:direct.replace('/neondb','/other')},{DATABASE_MIGRATION_URL:direct.replace('test:','other:')}]) {
+    assert.throws(()=>migrationDatabaseConfig({DATABASE_URL:direct,DATABASE_MIGRATION_URL:direct,...patch}),/same Neon/);
+  }
 });

@@ -26,6 +26,9 @@ test('Neon preparation: readiness, sealed completion and staging cleanup in isol
       await pool.query('GRANT EXECUTE ON FUNCTION validate_direct_member() TO PUBLIC');
       await assert.rejects(databaseReadiness(pool),/privileges/);
       await pool.query('REVOKE EXECUTE ON FUNCTION validate_direct_member() FROM PUBLIC');
+      await pool.query('ALTER FUNCTION validate_direct_member() RENAME TO renamed_trigger');
+      await assert.rejects(databaseReadiness(pool),/privileges/);
+      await pool.query('ALTER FUNCTION renamed_trigger() RENAME TO validate_direct_member');
     });
     const [a,b]=[randomUUID(),randomUUID()].sort();
     for(const [i,id] of [a,b].entries())await pool.query('INSERT INTO users(id,email,display_name,password_hash) VALUES($1,$2,$3,$4)',[id,`neon${i}@example.com`,`Neon ${i}`,'$argon2id$synthetic']);

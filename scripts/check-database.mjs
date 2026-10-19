@@ -28,11 +28,10 @@ export async function databaseReadiness(pool) {
       FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
       WHERE n.nspname=current_schema() AND c.relname=ANY($1::text[]) AND c.relkind='r'`, [tables]);
     if (result.rows.length !== tables.length || result.rows.some(row => !row.relrowsecurity || row.relforcerowsecurity || !row.owner_access || row.public_access)) throw new Error('Table security or runtime ownership mismatch');
-    const functions = await client.query(`SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-      WHERE n.nspname=current_schema() AND p.proname=ANY($1::text[]) AND p.pronargs=0
-      AND EXISTS(SELECT 1 FROM aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE')`,
+    const functions = await client.query(`SELECT p.proname, EXISTS(SELECT 1 FROM aclexplode(COALESCE(p.proacl,acldefault('f',p.proowner))) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE') AS public_execute FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+      WHERE n.nspname=current_schema() AND p.proname=ANY($1::text[]) AND p.pronargs=0`,
       [['validate_direct_member','bump_conversation_revision','manage_call_slots','bump_profile_revision']]);
-    if (functions.rows.length) throw new Error('Trigger function privileges require hardening');
+    if (functions.rows.length !== 4 || functions.rows.some(row => row.public_execute)) throw new Error('Trigger function privileges require hardening');
     await client.query('SELECT 1 FROM users LIMIT 1');
     await client.query('COMMIT');
     return { migrations: files.length, tables: tables.length };

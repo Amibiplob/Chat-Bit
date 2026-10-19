@@ -34,3 +34,11 @@ role auth/session/attachment operations, trigger behavior, unrelated schema
 preservation and rollback. CI first checks fresh migration without those roles,
 then loads tests/fixtures/security.sql and runs the stronger privilege suite.
 Never load test fixtures into a live database.
+
+The configuration rejects remote non-Neon hosts. Local loopback databases are
+allowed only outside production for isolated verification. Migration and runtime
+URLs must select the same branch, database, role and port; the migration URL must
+be direct. Public CA trust is used without a custom CA variable. pg negotiates
+SCRAM channel binding when offered; remove libpq's channel_binding URL parameter
+(the driver cannot enforce that parameter's require semantics). sslmode=require
+and sslmode=verify-full are normalized to strict Node TLS, not insecure pg defaults.
