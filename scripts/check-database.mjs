@@ -5,6 +5,8 @@ import pg from 'pg';
 import { config } from 'dotenv';
 import { databaseConfig, migrationDatabaseConfig } from '../lib/server/database-config.mjs';
 
+export const CHATBIT_TABLES = ['users','sessions','conversations','conversation_members','messages','message_attachments','message_read_states','calls','auth_rate_limits','realtime_revisions','realtime_activity','call_slots','call_signals','profile_avatars','chatbit_schema_migrations'];
+
 // Explicit operator invocation only; both endpoints are inspected read-only.
 export async function databaseReadiness(pool) {
   const client = await pool.connect();
@@ -19,7 +21,7 @@ export async function databaseReadiness(pool) {
     }
     // Owner access is required because the existing security model enables RLS
     // without policies; a new non-owner runtime role would see no application rows.
-    const tables = ['users','sessions','conversations','conversation_members','messages','message_attachments','message_read_states','calls','auth_rate_limits','realtime_revisions','realtime_activity','call_slots','call_signals','profile_avatars','chatbit_schema_migrations'];
+    const tables = CHATBIT_TABLES;
     const result = await client.query(`SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity,
       pg_has_role(current_user,c.relowner,'USAGE') AS owner_access,
       EXISTS (SELECT 1 FROM aclexplode(COALESCE(c.relacl,acldefault('r',c.relowner))) a WHERE a.grantee=0) AS public_access

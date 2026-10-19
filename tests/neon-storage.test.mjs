@@ -95,3 +95,24 @@ test('cleanup paginates, preserves available final object and detects partial de
   await reconcileAttachments({}, {cleanupCandidates:async()=>[{id:'available',storageKey:key,uploadState:'available'}],recordCleanup:async(_,ids,ok)=>events.push([ids,ok])}, {prune:async paths=>assert.deepEqual(paths,[key]),remove:async()=>assert.fail('must preserve final')});
   assert.deepEqual(events,[[['available'],true]]);
 });
+
+test('real AWS SDK signs exact POST policy and private GET offline using the configured Neon endpoint', async () => {
+  const { createNeonClient } = await import('../lib/server/neon-storage.mjs');
+  const config = attachmentStorageConfiguration(env);
+  const client = createNeonClient(config);
+  client.send = async command => command.constructor.name === 'GetBucketAclCommand'
+    ? {Owner:{ID:'owner'},Grants:[{Grantee:{Type:'CanonicalUser',ID:'owner'},Permission:'FULL_CONTROL'}]} : {};
+  try {
+    const storage = neonAttachmentStorage(config,client);
+    const upload=await storage.upload('own/key',{byteSize:5,mimeType:'text/plain'});
+    const policy=JSON.parse(Buffer.from(upload.fields.Policy,'base64').toString('utf8'));
+    assert.ok(policy.conditions.some(condition=>JSON.stringify(condition)===JSON.stringify(['content-length-range',5,5])));
+    assert.ok(policy.conditions.some(condition=>condition.key==='own/key.pending'));
+    assert.equal(new URL(upload.signedUrl).hostname,new URL(env.AWS_ENDPOINT_URL_S3).hostname);
+    assert.equal(new URL(upload.signedUrl).pathname,'/chatbit-attachments');
+    const download=new URL(await storage.download('own/key','note.txt'));
+    assert.equal(download.searchParams.get('X-Amz-Expires'),'60');
+    assert.equal(download.searchParams.get('X-Amz-Algorithm'),'AWS4-HMAC-SHA256');
+    assert.equal(download.pathname,'/chatbit-attachments/own/key');
+  } finally {client.destroy();}
+});

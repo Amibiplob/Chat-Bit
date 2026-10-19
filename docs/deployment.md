@@ -1,5 +1,10 @@
 # Production deployment and operations
 
+For Neon deployments and Supabase-to-Neon cutover, use the current
+[environment reference](environment.md) and [migration runbook](neon-migration.md).
+They define provider selection, private object copying and exact row-preservation
+checks. Supabase-specific setup below applies while the legacy provider is selected.
+
 ChatBit is a portfolio application with local integration evidence, not a claim
 of deployed service readiness. Complete the blocked items in
 [the readiness checklist](production-readiness.md) before inviting real users.

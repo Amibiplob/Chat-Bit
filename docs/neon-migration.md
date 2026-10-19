@@ -42,11 +42,17 @@ grants. It does not prove existing data was transferred.
    storage, realtime or global roles into Neon. App authentication lives in users
    and sessions, not Supabase Auth. The dump is private plaintext; encrypt it with
    the existing backup tools and remove plaintext after successful verification.
-4. Restore into an **empty** target using
+4. Inspect the archive TOC with `pg_restore --list backups/chatbit.dump`. Confirm
+   that it includes CREATE SCHEMA public. On the **empty target only**, run
+   `psql 'service=chatbit_target' -X --set=ON_ERROR_STOP=1 --command='DROP SCHEMA public'`.
+   Do not add CASCADE: this must refuse if any existing objects depend on public.
+   If public is absent already, skip that command. Stop and investigate any
+   unexpected objects/restore errors; do not ignore them or clean a populated DB.
+   Restore into this empty target using
    `pg_restore --dbname=service=chatbit_target --no-owner --no-acl --single-transaction --exit-on-error backups/chatbit.dump`.
    Do not run db:migrate to create tables before restoring a full schema archive.
-   Do not use --clean against a populated target. If public already exists, review
-   the TOC and use an isolated empty database rather than ignoring restore errors.
+   Do not use --clean against a populated target. The restore recreates public
+   from the archive. Use a dedicated target database, never a shared application DB.
 5. Because --no-acl intentionally omits Supabase role grants and revokes, reapply
    the existing, unchanged security file before allowing any app access:
    `psql 'service=chatbit_target' -X --single-transaction --set=ON_ERROR_STOP=1 --file=db/migrations/008_security_hardening.sql`.
@@ -56,8 +62,12 @@ grants. It does not prove existing data was transferred.
    `node scripts/check-database.mjs`, then `pnpm db:migrate` only with explicit
    authorization for that target (normally it reports up to date). The runner
    must not run automatically during Vercel builds or app startup.
-7. Compare every ChatBit table's exact row count and a deterministic content
-   digest ordered by primary key between the frozen source and target, including
+7. Set MIGRATION_SOURCE_DATABASE_URL and MIGRATION_TARGET_DATABASE_URL to the
+   frozen direct endpoints and run `node scripts/compare-databases.mjs`. It reads
+   both databases inside read-only snapshots, computes primary-key ordered SHA-256
+   fingerprints and counts for all 15 ChatBit tables, and emits pass/fail only.
+   It uses source DATABASE_SSL_CA when supplied and public CA trust for Neon.
+   It fails if any required table or primary key is missing. The comparison covers
    password hashes, sessions, message timestamps, read states, attachment states,
    bytea avatars and migration checksums. Keep results private, report only
    pass/fail and counts. Rehearse restore and authentication/authorization on an
@@ -142,3 +152,73 @@ alongside new Neon variables in an ignored private operator environment.
 Use a separate isolated bucket/branch for upload/delete acceptance tests. Production
 chatbit-attachments is never an automated-test target. Keep original Supabase files
 for rollback. Do not activate Neon against uncopied attachments.
+
+
+## Exact final switch checklist
+
+1. Push the verified commits yourself. Rehearse restore, object copy, private POST
+   upload/GET download, replay/size limits and two-account access on an isolated
+   Neon branch first. Confirm your selected free plan needs no card and has enough
+   database/storage/compute capacity; do not buy or upgrade automatically.
+2. Freeze Supabase app writes and all cleanup jobs, drain uploads, and verify an
+   encrypted source backup. Restore public schema **and rows** to empty Neon using
+   the procedure above. Reapply 008 hardening after the no-ACL restore.
+3. Run check-database.mjs against the Neon runtime/direct endpoints, then
+   compare-databases.mjs against the frozen source and target. Require all table
+   counts and fingerprints to match. Do not accept an empty migrated schema.
+4. Copy existing available attachment objects with the explicit --copy command,
+   then rerun --verify. Require every source object to match target bytes. Keep
+   Supabase originals. Database restore does not move file bytes.
+5. Verify chatbit-attachments is private on the intended production branch. Set
+   exact-origin CORS and issue a storage:write scoped credential for that branch.
+   Configure local/Vercel DATABASE_URL (pooled), DATABASE_MIGRATION_URL (direct),
+   DATABASE_SSL=verify, ATTACHMENT_STORAGE_PROVIDER=neon, AWS_ENDPOINT_URL_S3,
+   AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and optional
+   NEON_STORAGE_BUCKET=chatbit-attachments. Remove the Supabase-only TLS CA for
+   Neon. Retain AUTH_RATE_LIMIT_SECRET, calling and cleanup configuration.
+6. Run pnpm config:check in the private target environment. Redeploy with writes
+   still controlled. Manually verify existing login, conversations, read states,
+   avatars and old objects, plus private new image/video/document uploads,
+   downloads, cross-account denial, cleanup, polling, PWA and cross-network calls.
+   Live Neon acceptance and existing-data preservation are required before
+   declaring migration complete. Then resume writes and authenticated cleanup.
+7. Set GitHub backup provider/Neon secrets separately, run and verify the manual
+   encrypted backup/restore workflow. Preserve source backups and rollback plan;
+   after new Neon writes, rollback requires reconciliation rather than a URL swap.
+
+## Verification evidence — 2026-10-20
+
+- Full suite with disposable PostgreSQL 17.11, security fixtures, real Next.js HTTP
+  routes and Chrome: 198 passed, zero failures, zero skips. This includes two-user
+  authentication/messaging/settings and synthetic-device WebRTC on loopback.
+- Follow-up migration/storage regressions: 14 passed, including actual AWS SDK
+  offline SigV4 POST/GET generation. Git ignore follow-up passed separately.
+- A second clean PostgreSQL 17 cluster without Supabase roles passed all five
+  readiness/completion/comparison checks. CI now exercises that mode before its
+  Supabase compatibility fixture; the revised CI has not been run remotely.
+- Actual pg_dump/pg_restore of synthetic public data, no-owner/no-ACL restore,
+  reapplication of unchanged 008 hardening, and read-only comparison passed for
+  all 15 tables. Fixtures included users, a session, conversations, messages,
+  attachment metadata and bytea avatar content. Runtime/direct readiness passed
+  on the restored target. Initial public-schema conflict was reproduced and the
+  runbook corrected before the successful rehearsal.
+- pnpm exec tsc --noEmit, pnpm lint, pnpm build (Webpack), pnpm audit --prod and
+  git diff --check passed. Audit reported no known production vulnerabilities.
+- Production Chrome smoke passed 35 public route/viewport checks, hydration/error
+  checks, signup validation, themes, simulated installation, cache isolation and
+  offline navigation. Runtime database/storage credentials were explicitly blank.
+  This does not prove native installation on a real device.
+- No original migration file changed. No production database/storage target,
+  infrastructure, deployment or push was touched. The unrelated conversation-list
+  change remains outside all project commits. Tracked token/private-key pattern
+  candidates were synthetic storage-client test fixtures; no confirmed secret was
+  found, and only .env.example is tracked.
+
+Local PostgreSQL checks used loopback without TLS; strict production TLS was
+configuration-tested, not validated against live Neon. Storage transport, privacy,
+POST size/MIME enforcement, object migration and cleanup were mocked; signatures
+were generated by the actual SDK offline. No live Neon credentials were requested
+or used. Real Neon private uploads/downloads, bucket metadata/policy behavior, CORS,
+expiry/size enforcement, data preservation, TURN across networks and the updated
+live encrypted backup/restore workflow still require explicit operator acceptance.
+A private production bucket's existence alone is not that acceptance.

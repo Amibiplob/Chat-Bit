@@ -99,3 +99,10 @@ fixtures; no confirmed credential was found. This is a pattern audit, not proof
 that no historical secret has ever existed. The protected conversation-list edit
 and its mock-data dependency remain untouched. No additional dependency removal
 is justified by the current import/configuration audit.
+
+The final integration audit also removed the unreferenced
+lib/server/conversations.ts wrapper and its now-unused withTransaction export
+from db.ts. Active messaging/attachment services already use their own scoped
+queries and transaction helper. conversation-queries.mjs remains covered by
+private-data security tests. The earlier deliberately-preserved list above is a
+historical snapshot, not a claim that the removed wrapper is still present.

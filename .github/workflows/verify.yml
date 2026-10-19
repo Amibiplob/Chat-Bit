@@ -34,6 +34,11 @@ jobs:
           test -x "$CHROME_BIN"
           "$CHROME_BIN" --version
           node --input-type=module -e 'import { withBrowser } from "./tests/helpers/browser.mjs"; await withBrowser(async ({ evaluate }) => { if (await evaluate("1 + 1") !== 2) throw new Error("Chrome JavaScript smoke test failed"); });'
+      - name: Verify plain PostgreSQL readiness before Supabase compatibility roles exist
+        run: node --test tests/neon-readiness.integration.test.mjs
+        env:
+          TEST_DATABASE_URL: postgresql://chatbit:isolated-ci-only@127.0.0.1:5432/chatbit_test
+          TEST_DATABASE_SSL: disable
       - name: Prepare disposable Supabase-compatible security roles
         run: |
           test "$(psql -h 127.0.0.1 -U chatbit -d chatbit_test -Atc 'SHOW server_version_num' | cut -c1-2)" = 17

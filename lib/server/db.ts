@@ -1,7 +1,6 @@
 import "server-only";
 import { Pool } from "pg";
 import { databaseConfig } from "./database-config.mjs";
-import { transaction } from "./transaction.mjs";
 
 const globalDatabase = globalThis as typeof globalThis & { chatbitPool?: Pool };
 
@@ -14,8 +13,4 @@ export function getDatabase(): Pool {
     globalDatabase.chatbitPool = pool;
   }
   return globalDatabase.chatbitPool;
-}
-
-export function withTransaction<T>(operation: Parameters<typeof transaction<T>>[1]) {
-  return transaction(getDatabase(), operation);
 }

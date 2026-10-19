@@ -43,7 +43,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       throw new Error('Use --verify or --copy --confirm-frozen-target');
     }
     if (!process.env.MIGRATION_SOURCE_DATABASE_URL) throw new Error('Source URL required');
-    pool = new pg.Pool(databaseConfig({ ...process.env, DATABASE_URL: process.env.MIGRATION_SOURCE_DATABASE_URL, max: 1 }));
+    pool = new pg.Pool(databaseConfig({ ...process.env, DATABASE_URL: process.env.MIGRATION_SOURCE_DATABASE_URL, DATABASE_POOL_MAX: '1' }));
     db = await pool.connect();
     await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const pending = await db.query("SELECT 1 FROM message_attachments WHERE upload_state='pending' LIMIT 1");

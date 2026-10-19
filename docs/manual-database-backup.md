@@ -1,4 +1,17 @@
-# Manual encrypted Supabase backup
+# Manual encrypted database backup
+
+For Neon, set the repository variable BACKUP_DATABASE_PROVIDER=neon and the
+BACKUP_DATABASE_HOST, BACKUP_DATABASE_USER, BACKUP_DATABASE_PASSWORD,
+BACKUP_DATABASE_NAME and CHATBIT_BACKUP_PASSPHRASE secrets described in
+[the environment reference](environment.md#backup-only). Use a direct Neon
+endpoint and PostgreSQL 17. Neon mode exports public plus role references and
+skips the Supabase-managed schema archives; the encrypted artifact and isolated
+public restore checks remain. Object storage bytes require a separate backup.
+
+The Supabase setup below remains the default when the provider variable is
+absent. Do not leave that default after moving production to Neon: otherwise
+this deliberately compatible workflow would still back up the old source.
+
 
 This workflow reads the source database only. It never loads `.env`, runs ChatBit
 migrations, deploys, or restores into Supabase. PostgreSQL and Docker run on the
