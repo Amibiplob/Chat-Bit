@@ -33,9 +33,8 @@ require redesigning verification, quota/capacity and abuse controls. Do not rais
 it for this redesign. Multiple attachment reservations can be processed serially
 as separate messages; no atomic multi-file message is supported.
 
-No Android SDK, Java, Gradle, adb or Bubblewrap executable was found locally.
-Android source/configuration and CI can be prepared, but no APK or real-device
-success can be claimed without those tools, a stable HTTPS origin and signing.
+Android packaging from this earlier milestone has been retired. Browser-based
+installation is documented in [the PWA guide](pwa.md); no Android build is needed.
 
 ## Milestone 2
 

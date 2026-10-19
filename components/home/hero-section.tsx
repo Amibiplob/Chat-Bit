@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, AudioLines, FileText, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { InstallOption } from '@/components/pwa/install-provider';
 
 export function HeroSection() {
   return <section className="cb-hero relative overflow-hidden border-b">
@@ -9,6 +10,7 @@ export function HeroSection() {
         <h1 className="mt-6 max-w-3xl text-[2.6rem] font-semibold leading-[1.08] tracking-[-0.055em] sm:text-6xl lg:text-7xl">A little closer.<br/><span className="text-primary">Every conversation.</span></h1>
         <p className="mt-6 max-w-lg text-base leading-8 text-muted-foreground sm:text-lg">A hello on the move. A photo worth sharing. A call that makes your day. Make room for your people with ChatBit, on your phone or your desktop.</p>
         <div className="mt-9 flex flex-wrap gap-3"><Link className="cb-button" href="/signup">Start a conversation <ArrowRight className="size-4"/></Link><Link className="cb-button-secondary" href="/login">Welcome back</Link></div>
+        <div className="mt-5"><InstallOption/></div>
         <div className="mt-9 flex flex-wrap gap-5 text-xs font-medium text-muted-foreground"><span className="flex items-center gap-2"><ShieldCheck className="size-4 text-primary"/> Private file access</span><span>Made for web & mobile</span><Link href="/help" className="underline underline-offset-4">Explore what’s supported</Link></div>
       </div>
       <div className="cb-panel relative mx-auto w-full max-w-md p-5 sm:p-7" aria-label="ChatBit features">

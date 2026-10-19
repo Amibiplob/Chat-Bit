@@ -54,11 +54,11 @@ export async function withBrowser(operation, extraArgs = []) {
       pending.delete(response.id); clearTimeout(call.timeout);
       if (response.error) call.reject(new Error(`Browser protocol failed: ${response.error.message}`)); else call.resolve(response.result);
     });
-    function command(method, params = {}) {
+    function command(method, params = {}, sessionId) {
       return new Promise((resolve, reject) => {
         const id = ++sequence;
         const timeout = setTimeout(() => { pending.delete(id); reject(new Error('Browser command timed out')); }, 30000);
-        pending.set(id, { resolve, reject, timeout }); socket.send(JSON.stringify({ id, method, params }));
+        pending.set(id, { resolve, reject, timeout }); socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
       });
     }
     async function evaluate(expression) {

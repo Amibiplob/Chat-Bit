@@ -52,9 +52,10 @@ test('attachment quotas, authorization, deletion and realtime in isolated Postgr
       assert.equal(gallery.items[0].storageKey,undefined);
     });
     await t.test('gallery keyset pagination retains files with identical microsecond timestamps',async()=>{
-      const created=[];
+      const created=[],fileIds=[];
       for(let index=0;index<41;index++){
         const next=await attachments.reserveAttachment(pool,a,conversation,file);
+        fileIds.push(next.id);
         created.push(await attachments.finalizeAttachment(pool,a,conversation,next.id,{clientId:randomUUID(),caption:''}));
         await pool.query("UPDATE message_attachments SET created_at='2026-01-01T00:00:00.123456Z' WHERE id=$1",[next.id]);
       }
@@ -64,6 +65,10 @@ test('attachment quotas, authorization, deletion and realtime in isolated Postgr
       assert.equal(new Set([...first.items,...second.items].map(item=>item.id)).size,42);
       assert.match(first.nextCursor.createdAt,/123456Z$/);
       for(const id of created)await messages.deleteMessage(pool,a,conversation,id);
+      // These metadata-only fixtures have no Storage objects. Complete their
+      // aged tombstone cleanup before the next subtest measures quota capacity.
+      await attachments.recordCleanup(pool,fileIds,true);
+      assert.equal((await pool.query("SELECT count(*) FROM message_attachments WHERE id=ANY($1::uuid[]) AND upload_state!='deleted'",[fileIds])).rows[0].count,'0');
     });
     await t.test('concurrent reservations cannot bypass 100 MB quota, even with undersized declarations', async () => {
       const outcomes = await Promise.allSettled(Array.from({ length: 12 }, () => attachments.reserveAttachment(pool, a, conversation, { ...file, byteSize: 1 })));

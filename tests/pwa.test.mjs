@@ -13,13 +13,13 @@ test('offline worker fetches private routes without caching them and only falls 
     Request: class { constructor(path, options) { this.path = path; this.options = options; } },
     Response,
     URL,
-    caches: { open: async () => ({ add: async request => cached.push(request) }), match: async path => { assert.equal(path, '/offline'); return fallback; } },
+    caches: { open: async () => ({ add: async request => cached.push(request) }), match: async path => { assert.equal(path, '/offline.html'); return fallback; } },
     fetch: async () => { if (offline) throw new Error('offline'); return new Response('network'); },
   };
   vm.runInNewContext(await readFile(new URL('../public/sw.js', import.meta.url), 'utf8'), context);
   await new Promise((resolve, reject) => listeners.install({ waitUntil: promise => promise.then(resolve, reject) }));
   assert.equal(cached.length, 1);
-  assert.equal(cached[0].path, '/offline');
+  assert.equal(cached[0].path, '/offline.html');
   assert.equal(cached[0].options.credentials, 'omit');
   let response;
   const event = { request: { method: 'GET', mode: 'navigate', url: 'https://chatbit.test/chat' }, respondWith: value => { response = value; } };
