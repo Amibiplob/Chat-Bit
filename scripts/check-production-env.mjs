@@ -12,7 +12,7 @@ export function productionConfigurationErrors(env) {
   check('DATABASE_URL / DATABASE_SSL / DATABASE_POOL_MAX',()=>databaseConfig({...env,NODE_ENV:'production'}));
   check('DATABASE_MIGRATION_URL TLS/direct endpoint configuration',()=>migrationDatabaseConfig({...env,NODE_ENV:'production'}));
   check('AUTH_RATE_LIMIT_SECRET',()=>rateLimitSecret({...env,NODE_ENV:'production'}));
-  check('ATTACHMENT_STORAGE_PROVIDER / selected storage credentials',()=>attachmentStorageConfiguration(env));
+  check('AWS_ENDPOINT_URL_S3 / AWS_REGION / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / NEON_STORAGE_BUCKET',()=>attachmentStorageConfiguration(env));
   check('CALL_STUN_URLS / CALL_TURN_URLS / CALL_TURN_SHARED_SECRET',()=>{
     const ice=callIceConfiguration(env,'configuration-check','configuration-check');
     if(!ice.iceServers.some(server=>'credential' in server))throw new Error();

@@ -15,8 +15,8 @@ import * as attachments from '../lib/server/attachment-queries.mjs';
 const testURL = process.env.TEST_SECURITY_DATABASE_URL;
 const roles = ['anon', 'authenticated', 'service_role', 'chatbit_public_probe'];
 
-test('isolated Supabase-compatible grants: atomic hardening, API denial, owner triggers and rollback', {
-  skip: !testURL && 'Requires disposable loopback TEST_SECURITY_DATABASE_URL and tests/fixtures/supabase-security.sql',
+test('isolated PostgreSQL client grants: atomic hardening, API denial, owner triggers and rollback', {
+  skip: !testURL && 'Requires disposable loopback TEST_SECURITY_DATABASE_URL and tests/fixtures/security.sql',
 }, async (t) => {
   // This suite changes fixture ACLs; never accept a hosted database or load .env.
   assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(testURL).hostname), 'Security tests require a disposable local database');
@@ -31,25 +31,25 @@ test('isolated Supabase-compatible grants: atomic hardening, API denial, owner t
   const security = sources[files.indexOf('008_security_hardening.sql')];
   const tableNames = [...sources.join('\n').matchAll(/CREATE TABLE\s+(\w+)/g)].map(match => match[1]).concat('chatbit_schema_migrations');
   const signatures = [...sources.join('\n').matchAll(/CREATE FUNCTION\s+(\w+\([^)]*\))/g)].map(match => match[1]);
-  async function managedSnapshot() {
+  async function unrelatedSnapshot() {
     return (await admin.query(`SELECT n.nspname,c.relname,c.relacl::text,c.relrowsecurity,
-      (SELECT count(*) FROM auth.security_sentinel) AS auth_rows,
-      (SELECT count(*) FROM storage.security_sentinel) AS storage_rows,
-      (SELECT count(*) FROM realtime.security_sentinel) AS realtime_rows
+      (SELECT count(*) FROM unrelated_auth.security_sentinel) AS auth_rows,
+      (SELECT count(*) FROM unrelated_files.security_sentinel) AS storage_rows,
+      (SELECT count(*) FROM unrelated_events.security_sentinel) AS realtime_rows
       FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-      WHERE n.nspname IN ('auth','storage','realtime') AND c.relname='security_sentinel' ORDER BY 1`)).rows;
+      WHERE n.nspname IN ('unrelated_auth','unrelated_files','unrelated_events') AND c.relname='security_sentinel' ORDER BY 1`)).rows;
   }
   try {
     assert.equal(Math.floor(Number((await admin.query('SHOW server_version_num')).rows[0].server_version_num) / 10000), 17,
       'Security verification requires PostgreSQL 17');
     const fixtureRoles = (await admin.query('SELECT rolname FROM pg_roles WHERE rolname=ANY($1::text[])', [[...roles, 'chatbit_security_owner']])).rows;
     assert.equal(fixtureRoles.length, 5, 'Load the isolated security fixture first');
-    const before = await managedSnapshot();
+    const before = await unrelatedSnapshot();
     assert.equal(before.length, 3);
     await admin.query(`CREATE SCHEMA ${schema} AUTHORIZATION chatbit_security_owner`);
     created = true;
     await admin.query(`GRANT USAGE ON SCHEMA ${schema} TO anon,authenticated,service_role,chatbit_public_probe`);
-    // Deliberately reproduce broad Supabase grants plus PUBLIC table access.
+    // Deliberately reproduce broad client grants plus PUBLIC table access.
     await admin.query(`ALTER DEFAULT PRIVILEGES FOR ROLE chatbit_security_owner IN SCHEMA ${schema}
       GRANT ALL ON TABLES TO PUBLIC,anon,authenticated,service_role`);
     await admin.query(`ALTER DEFAULT PRIVILEGES FOR ROLE chatbit_security_owner IN SCHEMA ${schema}
@@ -151,7 +151,7 @@ test('isolated Supabase-compatible grants: atomic hardening, API denial, owner t
     });
 
     await t.test('managed schemas and default ACLs remain unchanged', async () => {
-      assert.deepEqual(await managedSnapshot(), before);
+      assert.deepEqual(await unrelatedSnapshot(), before);
       assert.deepEqual((await admin.query(`SELECT defaclobjtype,defaclacl::text FROM pg_default_acl WHERE defaclnamespace=$1::regnamespace ORDER BY 1`, [schema])).rows, defaultSnapshot.rows);
     });
 

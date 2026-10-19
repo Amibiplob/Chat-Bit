@@ -64,7 +64,7 @@ test('direct upload rejection distinguishes authorization, size, busy and provid
   } finally { globalThis.XMLHttpRequest = originalXHR; delete globalThis.__attachmentTestRequest; }
 });
 
-test('Neon form uploads send signed fields and file last without Supabase-only headers', async () => {
+test('Neon form uploads send signed fields and file last without provider-specific headers', async () => {
   const originalXHR = globalThis.XMLHttpRequest;
   let method; let payload;
   globalThis.XMLHttpRequest = class {

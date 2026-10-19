@@ -26,7 +26,7 @@ signatures. The explicit sharp dependency decodes at most 16 megapixels, rotates
 using orientation, resizes to at most 256 × 256, discards animation and re-encodes
 PNG without EXIF/GPS metadata. Corrupt images and oversized output fail closed.
 SVG and arbitrary remote image URLs are rejected. One small database bytea per
-account avoids orphaned Supabase objects and another bucket/scheduler lifecycle.
+account avoids orphaned Neon Object Storage objects and another bucket/scheduler lifecycle.
 Removing/replacing an avatar is transactional; no old image object is retained.
 This trades modest PostgreSQL storage/traffic for a bounded portfolio-scale design.
 It is separate from the existing private attachment bucket.
@@ -132,7 +132,7 @@ explicitly confirm, atomically disable login and revoke sessions/call ownership,
 then queue idempotent cleanup with durable tombstones and retries. It must define
 anonymization versus deletion for messages, replies, memberships and shared call
 history, revoke attachment visibility, wait out already-issued signed URLs, remove
-Supabase objects with retryable verification, remove the avatar, and only then
+Neon Object Storage objects with retryable verification, remove the avatar, and only then
 finalize personal-record erasure without violating foreign keys. Backups/logs,
 legal retention and partners' saved copies need a documented policy. Until that
 workflow exists, the UI clearly says account deletion is unavailable.
@@ -158,7 +158,7 @@ metadata removal, theme resolution and notification permission/visibility rules.
 The HTTP/Chrome suite covers protected settings, cross-origin/actor rejection,
 real profile save feedback, theme persistence/system changes, responsive navigation
 at 320/390/768/1280 pixels and basic keyboard/label checks. These checks are not a
-full assistive-technology audit. Existing Supabase tests use a fake provider;
+full assistive-technology audit. Existing Neon Object Storage tests use a fake provider;
 live storage, physical media devices, remote networks and TURN relay connectivity
 still require deployment tests.
 
@@ -185,5 +185,5 @@ PostgreSQL and browser verification and remaining deployment blockers.
   outside the sandbox completed compilation, type checking, page generation and
   build traces successfully. No Google Fonts fetch is required by either build.
 - The application database was neither migrated nor used for tests. No live
-  Supabase, physical-device calling, cross-network WebRTC, full keyboard/contrast
+  Neon Object Storage, physical-device calling, cross-network WebRTC, full keyboard/contrast
   audit, or complete WCAG audit was performed.

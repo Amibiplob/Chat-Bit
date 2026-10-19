@@ -5,7 +5,7 @@ import { neonAttachmentStorage, sealedObjectKey } from '../lib/server/neon-stora
 import { attachmentStorageConfiguration } from '../lib/server/attachment-storage-config.mjs';
 import { verifyAndFinalize, reconcileAttachments } from '../lib/server/attachment-workflow.mjs';
 
-const env = { ATTACHMENT_STORAGE_PROVIDER: 'neon', AWS_ENDPOINT_URL_S3: 'https://br-test.storage.c-2.us-east-2.aws.neon.tech', AWS_REGION: 'us-east-2', AWS_ACCESS_KEY_ID: 'synthetic-id', AWS_SECRET_ACCESS_KEY: 'synthetic-secret' };
+const env = { AWS_ENDPOINT_URL_S3: 'https://br-test.storage.c-2.us-east-2.aws.neon.tech', AWS_REGION: 'us-east-2', AWS_ACCESS_KEY_ID: 'synthetic-id', AWS_SECRET_ACCESS_KEY: 'synthetic-secret' };
 const bytes = Buffer.from('hello');
 function fixture(patch = {}) {
   const calls = [];
@@ -25,10 +25,10 @@ function fixture(patch = {}) {
   return { calls, storage: neonAttachmentStorage(attachmentStorageConfiguration(env), client, sign, post) };
 }
 
-test('Neon selection is explicit, validates credentials/HTTPS endpoint and never falls back', () => {
+test('Neon storage requires credentials and an HTTPS branch endpoint', () => {
   assert.equal(attachmentStorageConfiguration(env).bucket, 'chatbit-attachments');
-  for (const patch of [{ ATTACHMENT_STORAGE_PROVIDER: 'typo' }, { AWS_ENDPOINT_URL_S3: 'http://localhost' }, { AWS_ENDPOINT_URL_S3: env.AWS_ENDPOINT_URL_S3 + '/other' }, { AWS_SECRET_ACCESS_KEY: '' }, { AWS_REGION: '' }, { NEON_STORAGE_BUCKET: '../other' }]) {
-    assert.throws(() => attachmentStorageConfiguration({ ...env, SUPABASE_URL: 'https://old.invalid', SUPABASE_SECRET_KEY: 'synthetic-old-key', ...patch }), error => !error.message.includes('synthetic'));
+  for (const patch of [{ AWS_ENDPOINT_URL_S3: 'http://localhost' }, { AWS_ENDPOINT_URL_S3: env.AWS_ENDPOINT_URL_S3 + '/other' }, { AWS_SECRET_ACCESS_KEY: '' }, { AWS_REGION: '' }, { NEON_STORAGE_BUCKET: '../other' }]) {
+    assert.throws(() => attachmentStorageConfiguration({ ...env, ...patch }), error => !error.message.includes('synthetic'));
   }
 });
 

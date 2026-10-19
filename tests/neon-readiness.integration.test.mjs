@@ -5,11 +5,10 @@ import pg from 'pg';
 import { databaseConfig } from '../lib/server/database-config.mjs';
 import { migrate } from '../scripts/migrate.mjs';
 import { databaseReadiness, CHATBIT_TABLES } from '../scripts/check-database.mjs';
-import { databaseFingerprint } from '../scripts/compare-databases.mjs';
 import * as files from '../lib/server/attachment-queries.mjs';
 import { createConversation } from '../lib/server/messaging-queries.mjs';
 
-test('Neon preparation: readiness, content comparison, sealed completion and staging cleanup in isolated PostgreSQL', {
+test('Neon preparation: readiness, sealed completion and staging cleanup in isolated PostgreSQL', {
   skip: !process.env.TEST_DATABASE_URL && 'Set TEST_DATABASE_URL to a disposable PostgreSQL instance',
 }, async t => {
   const settings=databaseConfig({DATABASE_URL:process.env.TEST_DATABASE_URL,DATABASE_SSL:process.env.TEST_DATABASE_SSL??'verify'});
@@ -52,17 +51,6 @@ test('Neon preparation: readiness, content comparison, sealed completion and sta
       assert.equal(row.upload_state,'delete_pending');assert.ok(row.cleanup_after);
       await assert.rejects(files.attachmentForDownload(pool,b,reservation.id),{status:404});
     });
-    await t.test('row fingerprints include sessions, avatars and content; schema/history stay unchanged',async()=>{
-      const before=await databaseFingerprint(pool);
-      assert.deepEqual(await databaseFingerprint(pool),before);
-      await pool.query('UPDATE users SET bio=$1 WHERE id=$2',['private fixture text',a]);
-      const after=await databaseFingerprint(pool);
-      assert.notEqual(after.users.sha256,before.users.sha256);assert.equal(after.users.count,before.users.count);
-      assert.deepEqual(after.chatbit_schema_migrations,before.chatbit_schema_migrations);
-      assert.equal(Object.keys(after).length,CHATBIT_TABLES.length);
-      await pool.query("INSERT INTO profile_avatars(user_id,mime_type,content) VALUES($1,'image/webp',$2)",[a,Buffer.alloc(24,42)]);
-      const avatar=await databaseFingerprint(pool);
-      assert.notEqual(avatar.profile_avatars.sha256,after.profile_avatars.sha256);
-    });
+
   } finally {await pool?.end();if(created)await admin.query(`DROP SCHEMA ${schema} CASCADE`);await admin.end();}
 });

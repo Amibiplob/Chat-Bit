@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { diagnosticRequest, diagnosticStep, failureDetails, requestOperation } from '../lib/server/messaging-diagnostics.mjs';
 import { MessagingError } from '../lib/server/messaging-validation.mjs';
-import { attachmentStorage } from '../lib/server/attachment-storage-core.mjs';
+import { neonAttachmentStorage } from '../lib/server/neon-storage.mjs';
+const deniedStorage = (error) => neonAttachmentStorage({bucket:'private-project'}, {send:async()=>{throw error;}});
 
 test('messaging logs contain only fixed labels, allowlisted codes and generated correlation IDs', async () => {
   await diagnosticRequest(async () => {
@@ -49,7 +50,7 @@ test('validation, authentication, size and quota statuses stay meaningful', () =
 
 test('storage bucket authorization errors retain safe status without provider details', async () => {
   await diagnosticRequest(async () => {
-    const storage = attachmentStorage({ storage: { from: () => ({}), getBucket: async () => ({ error: { status: 403, message: 'private credentials' } }) } }, 'private-project');
+    const storage = deniedStorage(Object.assign(new Error('private credentials'),{$metadata:{httpStatusCode:403}}));
     let failure;
     try { await storage.upload('private-path'); } catch (error) { failure = error; }
     const logs = [];
@@ -70,28 +71,20 @@ test('internal failures and account quota have distinct safe diagnostic categori
   assert.equal(logs[1][1].category, 'quota');
 });
 
-test('Storage SDK symbolic codes survive HTTP status mapping without private details', async () => {
-  for (const [providerCode, expected] of [['NoSuchBucket','STORAGE_BUCKET_NOT_FOUND'], ['AccessDenied','STORAGE_ACCESS_DENIED'], ['InvalidJWT','STORAGE_INVALID_JWT'], ['InvalidMimeType','STORAGE_MIME_TYPE'], ['DatabaseTimeout','STORAGE_504'], ['private-path-token','STORAGE_400']]) {
-    const storage = attachmentStorage({storage:{from:()=>({}),getBucket:async()=>({error:{status:400,statusCode:'400',code:providerCode,message:'private-path-token'}})}},'private-project');
-    let failure;
-    try { await storage.upload('private-object'); } catch (error) { failure = error; }
-    const events=[];
-    const result=failureDetails(failure,'attachment.write',(...args)=>events.push(args));
-    assert.equal(events[0][1].code,expected);
-    assert.equal(events[0][1].stage,'storage-bucket');
-    assert.equal(result.status,providerCode==='DatabaseTimeout'?504:503);
-    assert.equal(JSON.stringify(events).includes('private'),false);
+test('Neon SDK HTTP and timeout codes retain safe diagnostics without provider values', async () => {
+  for(const [error,code] of [[Object.assign(new Error('private-token'),{$metadata:{httpStatusCode:403}}),'STORAGE_403'],[Object.assign(new Error('private-token'),{$metadata:{httpStatusCode:504}}),'STORAGE_504'],[Object.assign(new Error('private-token'),{code:'ETIMEDOUT'}),'ETIMEDOUT'],[new Error('private-token'),'STORAGE_PROVIDER']]) {
+    let failure;try{await deniedStorage(error).upload('private-object',{byteSize:5,mimeType:'text/plain'});}catch(value){failure=value;}
+    const events=[];const result=failureDetails(failure,'attachment.write',(...args)=>events.push(args));
+    assert.equal(events[0][1].code,code);assert.equal(events[0][1].stage,'storage-bucket');
+    assert.equal(result.status,['STORAGE_504','ETIMEDOUT'].includes(code)?504:503);assert.ok(!JSON.stringify(events).includes('private'));
   }
 });
 
-test('bucket policy diagnostics distinguish missing metadata, public access and invalid limits while denying signing', async () => {
-  for (const [data,code] of [[null,'STORAGE_BUCKET_METADATA'],[{public:true,file_size_limit:10485760},'STORAGE_BUCKET_PUBLIC'],[{public:false,file_size_limit:null},'STORAGE_BUCKET_LIMIT'],[{public:false,file_size_limit:10485761},'STORAGE_BUCKET_LIMIT']]) {
-    const storage=attachmentStorage({storage:{from:()=>({createSignedUploadUrl:()=>assert.fail('must not sign')}),getBucket:async()=>({data})}},'private-project');
-    let failure;
-    try { await storage.upload('private-object'); } catch(error) { failure=error; }
-    const events=[];
-    failureDetails(failure,'attachment.write',(...args)=>events.push(args));
-    assert.equal(events[0][1].code,code);
+test('unknown or public bucket metadata denies signing and retains a safe diagnostic',async()=>{
+  for(const acl of [{},{Owner:{ID:'owner'},Grants:[{Grantee:{Type:'Group',URI:'public'},Permission:'READ'}]}]) {
+    const storage=neonAttachmentStorage({bucket:'private-project'},{send:async()=>acl},async()=>assert.fail('must not sign'),async()=>assert.fail('must not sign'));
+    let failure;try{await storage.upload('private-object',{byteSize:5,mimeType:'text/plain'});}catch(error){failure=error;}
+    const events=[];failureDetails(failure,'attachment.write',(...args)=>events.push(args));assert.equal(events[0][1].code,'STORAGE_BUCKET_PUBLIC');
   }
 });
 

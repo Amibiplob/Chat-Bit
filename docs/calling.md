@@ -2,7 +2,7 @@
 
 Milestone 6 adds one-to-one native WebRTC audio/video calls to conversation
 headers and the Calls page. PostgreSQL, custom ChatBit sessions and authenticated
-HTTP polling remain the application backend. Supabase remains file storage only.
+HTTP polling remain the application backend. Neon Object Storage remains file storage only.
 No group calling, screen sharing, recording, media storage or new provider SDK
 is included. No application database or environment file was changed by this work.
 

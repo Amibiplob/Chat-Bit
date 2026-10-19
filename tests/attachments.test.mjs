@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { allowedAttachments, MAX_ATTACHMENT_BYTES, validateAttachmentMetadata as metadata, validateAttachmentContent as content } from '../lib/server/attachment-validation.mjs';
-import { attachmentStorage } from '../lib/server/attachment-storage-core.mjs';
 import { verifyAndFinalize, reconcileAttachments } from '../lib/server/attachment-workflow.mjs';
 
 const file = { filename: 'photo.png', mimeType: 'image/png', byteSize: 8 };
@@ -24,33 +23,6 @@ test('validates actual bytes, truncated/mismatched files and unsafe plain text',
   }
   const bytes = new TextEncoder().encode('Hello world'); content(bytes, bytes.length, 'text/plain', 'txt');
   assert.throws(() => content(Uint8Array.from([80,75,3,4]), 4, allowedAttachments.get('docx'), 'docx'));
-});
-function provider({ publicBucket = false, cap = MAX_ATTACHMENT_BYTES, fail = false } = {}) {
-  const calls = [];
-  const files = {
-    createSignedUploadUrl: async (...args) => { calls.push(['upload', ...args]); return { data: { signedUrl: 'https://storage.invalid/upload' }, error: fail }; },
-    createSignedUrl: async (...args) => { calls.push(['download', ...args]); return { data: { signedUrl: 'https://storage.invalid/download' }, error: fail }; },
-    download: async () => ({ data: new Blob([png]), error: fail }),
-    remove: async (paths) => { calls.push(['remove', paths]); return { error: fail }; },
-  };
-  const client = { storage: { from: () => files, getBucket: async () => ({ data: { public: publicBucket, file_size_limit: cap } }) } };
-  return { storage: attachmentStorage(client, 'chatbit-attachments'), calls };
-}
-test('mock Supabase verifies private bucket, scopes non-overwriting uploads, and signs 60-second forced downloads', async () => {
-  const { storage, calls } = provider();
-  await storage.upload('random/path.png'); await storage.download('random/path.png', 'photo.png');
-  assert.deepEqual(calls[0], ['upload', 'random/path.png', { upsert: false }]);
-  assert.deepEqual(calls[1], ['download', 'random/path.png', 60, { download: 'photo.png' }]);
-  assert.deepEqual(await storage.read('random/path.png'), png);
-  for (const config of [{ publicBucket: true }, { cap: 0 }, { cap: -1 }, { cap: 0.5 }, { cap: NaN }, { cap: MAX_ATTACHMENT_BYTES + 1 }]) {
-    const denied=provider(config);
-    for(const operation of [()=>denied.storage.upload('x'),()=>denied.storage.read('x'),()=>denied.storage.download('x','x')]) await assert.rejects(operation());
-    assert.deepEqual(denied.calls,[]);
-  }
-});
-test('mock Supabase failures fail closed', async () => {
-  const { storage } = provider({ fail: true });
-  for (const operation of [() => storage.upload('x'), () => storage.read('x'), () => storage.download('x', 'x'), () => storage.remove(['x'])]) await assert.rejects(operation());
 });
 const row = { storageKey: 'private/key.png', filename: 'photo.png', mimeType: 'image/png', byteSize: 8, uploadState: 'pending' };
 function workflow(overrides = {}) {
