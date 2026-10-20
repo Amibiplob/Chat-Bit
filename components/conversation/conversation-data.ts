@@ -11,23 +11,6 @@ export interface Conversation {
   pinned: boolean;
 }
 
-export interface Message {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  senderName: string;
-  content: string;
-  createdAt: string;
-  status: "sent" | "delivered" | "read";
-  edited?: boolean;
-}
-
-export const currentUser = {
-  id: "me",
-  name: "Md Biplob Hosain",
-  initials: "MB",
-};
-
 export const conversations: Conversation[] = [
   {
     id: "1",
@@ -95,62 +78,5 @@ export const conversations: Conversation[] = [
     time: "Monday",
     unread: 0,
     pinned: false,
-  },
-];
-
-export const messages: Message[] = [
-  {
-    id: "message-1",
-    conversationId: "1",
-    senderId: "sarah",
-    senderName: "Sarah Johnson",
-    content: "Hey! Are we still meeting today?",
-    createdAt: "10:30 AM",
-    status: "read",
-  },
-  {
-    id: "message-2",
-    conversationId: "1",
-    senderId: "me",
-    senderName: "Md Biplob Hosain",
-    content: "Yes! Absolutely. What time works best for you?",
-    createdAt: "10:32 AM",
-    status: "read",
-  },
-  {
-    id: "message-3",
-    conversationId: "1",
-    senderId: "sarah",
-    senderName: "Sarah Johnson",
-    content: "How about 3 PM?",
-    createdAt: "10:33 AM",
-    status: "read",
-  },
-  {
-    id: "message-4",
-    conversationId: "1",
-    senderId: "me",
-    senderName: "Md Biplob Hosain",
-    content: "3 PM works perfectly for me.",
-    createdAt: "10:34 AM",
-    status: "read",
-  },
-  {
-    id: "message-5",
-    conversationId: "1",
-    senderId: "sarah",
-    senderName: "Sarah Johnson",
-    content: "Great! I'll send you the meeting details before then.",
-    createdAt: "10:35 AM",
-    status: "read",
-  },
-  {
-    id: "message-6",
-    conversationId: "1",
-    senderId: "me",
-    senderName: "Md Biplob Hosain",
-    content: "Sounds good. See you then! 👋",
-    createdAt: "10:36 AM",
-    status: "read",
   },
 ];
