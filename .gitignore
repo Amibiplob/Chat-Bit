@@ -26,6 +26,12 @@
 # misc
 .DS_Store
 *.pem
+*.crt
+*.cer
+*.der
+*.csr
+*.p7b
+*.p7c
 
 # local credentials and certificates (never remove the local copies)
 /certs/
@@ -46,6 +52,7 @@ id_ed25519
 .pgpass
 .pg_service.conf
 *.key
+*.p8
 *.p12
 *.pfx
 *.jks
@@ -70,6 +77,16 @@ backup.sql
 *.sql.xz
 *.sql.zst
 *.dump.gz
+*.dump.xz
+*.dump.zst
+*.dump.bz2
+*.sql.bz2
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
 /backup/
 *-backup.tar*
 backup.tar*
@@ -80,6 +97,8 @@ backup.zip
 /.cache/
 /.pnpm-store/
 /.turbo/
+.eslintcache
+.stylelintcache
 
 # debug
 npm-debug.log*

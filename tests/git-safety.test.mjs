@@ -7,6 +7,15 @@ test('git ignore protects private/generated artifacts without hiding configurati
   const sourcePaths = ['.env.example', 'db/migrations/001_initial.sql', 'db/migrations/008_security_hardening.sql', '.github/workflows/verify.yml', 'components.json', 'package.json', 'pnpm-lock.yaml', 'tests/fixtures/example.sql', 'tests/fixtures/example.json', 'tests/fixtures/example.yaml'];
   const ignored = execFileSync('git', ['check-ignore', '--no-index', '--stdin'], { input: [...privatePaths, ...sourcePaths].join('\n'), encoding: 'utf8' }).trim().split('\n');
   assert.deepEqual(ignored, privatePaths);
+  const additionalPrivatePaths = [
+    'tls.crt', 'tls.cer', 'tls.der', 'tls.csr', 'chain.p7b', 'chain.p7c', 'private.p8',
+    'export.dump.xz', 'export.dump.zst', 'export.dump.bz2', 'export.sql.bz2',
+    'local.sqlite', 'local.sqlite3', 'local.sqlite-wal', 'local.sqlite-shm',
+    'local.sqlite3-wal', 'local.sqlite3-shm', '.eslintcache', '.stylelintcache',
+  ];
+  assert.deepEqual(execFileSync('git', ['check-ignore', '--no-index', '--stdin'], {
+    input: additionalPrivatePaths.join('\n'), encoding: 'utf8',
+  }).trim().split('\n'), additionalPrivatePaths);
   assert.equal(execFileSync('git', ['check-ignore', '--no-index', '--stdin'], { input: '.ssh/config\nid_ed25519\nexport.sql.xz\nexport.sql.zst\n', encoding: 'utf8' }), '.ssh/config\nid_ed25519\nexport.sql.xz\nexport.sql.zst\n');
   const android = ['android/generated/app/build.gradle', 'android/node_modules/tool/index.js', 'android/signing/release.jks', 'android/local.properties', 'release-assets/ChatBit-v1.0.0.apk', 'app-release.aab', 'android/.gradle/cache'];
   assert.deepEqual(execFileSync('git', ['check-ignore', '--no-index', '--stdin'], { input: android.join('\n'), encoding: 'utf8' }).trim().split('\n'), android);
