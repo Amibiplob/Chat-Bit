@@ -1,3 +1,35 @@
-import Link from 'next/link';
-import { ArrowUpRight, Smartphone, Monitor } from 'lucide-react';
-export function ProductShowcase() {return <section id="about" className="border-b px-5 py-20 sm:px-8"><div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2"><div><p className="cb-kicker">One familiar space</p><h2 className="mt-5 text-4xl font-semibold tracking-tight">From a quick hello<br/>to the whole story.</h2><p className="mt-5 max-w-lg leading-7 text-muted-foreground">A focused messenger built around real conversations. Your chats stay with your account, whether you open ChatBit on a laptop or your phone.</p><Link href="/about" className="mt-6 inline-flex min-h-11 items-center gap-2 font-medium text-primary">Meet ChatBit <ArrowUpRight className="size-4"/></Link></div><div className="grid gap-4 sm:grid-cols-2">{[{icon:Monitor,title:'Room to focus',text:'A conversation rail, an uncluttered thread and everything within reach.'},{icon:Smartphone,title:'Ready to move',text:'Touch-friendly controls and full-height chats on smaller screens.'}].map(({icon:Icon,title,text})=><article key={title} className="cb-panel p-7"><Icon className="mb-8 size-8 text-primary"/><h3 className="text-xl font-semibold">{title}</h3><p className="mt-3 text-sm leading-7 text-muted-foreground">{text}</p></article>)}</div></div></section>;}
+import Link from "next/link";
+import { ArrowUpRight, Smartphone, Monitor } from "lucide-react";
+
+export function ProductShowcase() {
+  return (
+    <section id="about" className="border-b px-5 py-20 sm:px-8">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+        <div>
+          <p className="cb-kicker">One familiar space</p>
+          <h2 className="mt-5 text-4xl font-semibold tracking-tight">
+            From a quick hello<br />to the whole story.
+          </h2>
+          <p className="mt-5 max-w-lg leading-7 text-muted-foreground">
+            A focused messenger built around real conversations. Your chats stay with your account, whether you open ChatBit on a laptop or your phone.
+          </p>
+          <Link href="/about" className="mt-6 inline-flex min-h-11 items-center gap-2 font-medium text-primary">
+            Meet ChatBit <ArrowUpRight className="size-4" />
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[
+            { icon: Monitor, title: "Room to focus", text: "A conversation rail, an uncluttered thread and everything within reach." },
+            { icon: Smartphone, title: "Ready to move", text: "Touch-friendly controls and full-height chats on smaller screens." },
+          ].map(({ icon: Icon, title, text }) => (
+            <article key={title} className="cb-panel p-7">
+              <Icon className="mb-8 size-8 text-primary" />
+              <h3 className="text-xl font-semibold">{title}</h3>
+              <p className="mt-3 text-sm leading-7 text-muted-foreground">{text}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

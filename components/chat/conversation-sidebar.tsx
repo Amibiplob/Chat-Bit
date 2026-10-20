@@ -1,14 +1,13 @@
 "use client";
 
-import { Search } from "lucide-react";
+import Link from "next/link";
+import { FolderOpen, Search } from "lucide-react";
 import { useState } from "react";
 import { PersistentConversationList } from "./persistent-conversation-list";
 import { NewConversation } from "./new-conversation";
 import type { Conversation } from "@/lib/messaging-types";
 import { LogoutButton } from "@/components/auth/logout-button";
 import type { ConnectionStatus } from "@/lib/realtime-types";
-import Link from 'next/link';
-import { FolderOpen } from 'lucide-react';
 
 export function ConversationSidebar({ conversations, status }: { conversations: Conversation[]; status: ConnectionStatus }) {
   const [search, setSearch] = useState("");
@@ -16,7 +15,6 @@ export function ConversationSidebar({ conversations, status }: { conversations: 
   const filtered = conversations.filter((conversation) => (!unreadOnly || conversation.unread > 0) && `${conversation.name} ${conversation.lastMessage ?? ""}`.toLowerCase().includes(search.toLowerCase()));
   return (
     <aside className="flex h-full min-h-0 w-full shrink-0 flex-col border-r bg-card md:w-90">
-      {/* Header */}
       <div className="flex min-h-20 shrink-0 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Chats<span className="ml-2 text-primary">.</span></h1>
@@ -27,7 +25,6 @@ export function ConversationSidebar({ conversations, status }: { conversations: 
         <NewConversation />
       </div>
 
-      {/* Search */}
       <div className="border-b px-4 py-3">
         <div className="flex h-10 items-center rounded-lg bg-muted/60 px-3">
           <Search className="mr-2 size-4 shrink-0 text-muted-foreground" />
@@ -40,11 +37,9 @@ export function ConversationSidebar({ conversations, status }: { conversations: 
             placeholder="Search conversations..."
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
-
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex shrink-0 items-center gap-2 border-b px-4 py-3">
         <button
           type="button"
@@ -64,7 +59,6 @@ export function ConversationSidebar({ conversations, status }: { conversations: 
           Unread
         </button>
         <Link href="/shared" className="ml-auto flex min-h-11 items-center gap-1 rounded-full px-3 text-xs font-medium text-primary"><FolderOpen className="size-4"/>Files</Link>
-
       </div>
 
       <PersistentConversationList conversations={filtered} />

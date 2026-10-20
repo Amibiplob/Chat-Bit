@@ -9,7 +9,6 @@ import { NotificationSettings } from "./notification-settings";
 import { PrivacySettings } from "./privacy-settings";
 import { SecuritySettings } from "./security-settings";
 
-
 export type SettingsSection =
   | "profile"
   | "account"
@@ -19,8 +18,7 @@ export type SettingsSection =
   | "security";
 
 export function SettingsLayout() {
-  const [activeSection, setActiveSection] =
-    useState<SettingsSection>("profile");
+  const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
 
   function renderSection() {
     switch (activeSection) {
