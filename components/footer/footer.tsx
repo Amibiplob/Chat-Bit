@@ -51,7 +51,7 @@ export function Footer() {
           </p>
 
           <p className="text-sm text-muted-foreground">
-            Built by{" "}
+            Built by 
             <Link
               href="https://github.com/Amibiplob"
               target="_blank"
