@@ -35,7 +35,8 @@ test('configuration, connectivity, permissions and schema failures remain distin
     ...['ECONNREFUSED', 'ENOTFOUND', '28P01', '42501', '42P01', '57014'].map(code => [code, () => ({ query: async () => { throw Object.assign(new Error(secret), { code, detail: secret }); } })]),
   ];
   for (const [code, database] of failures) {
-    await assert.rejects(verifySession(database, 'x'.repeat(43)), error => {
+    const logs = [];
+    await assert.rejects(verifySession(database, 'x'.repeat(43), (...args) => logs.push(args)), error => {
       assert.equal(error.message, 'Session verification is temporarily unavailable');
       assert.deepEqual(error.cause, { code });
       assert.ok(!inspect(error).includes(secret));
@@ -46,5 +47,7 @@ test('configuration, connectivity, permissions and schema failures remain distin
       assert.equal(events[0][1].stage, 'authentication');
       return true;
     });
+    assert.deepEqual(logs, [['chatbit.auth.unavailable', { operation: 'session', stage: 'authentication', code }]]);
+    assert.ok(!JSON.stringify(logs).includes(secret));
   }
 });

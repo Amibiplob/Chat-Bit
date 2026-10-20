@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { withBrowser } from './helpers/browser.mjs';
 
-// Run against a local server with intentionally invalid DATABASE_URL. No
-// database connection is possible, including for the synthetic session cookie.
+// TEST_RUNTIME_DATABASE_FAILURE=1 selects an intentionally broken test server.
+// Otherwise a synthetic token must resolve to a missing session in a working DB.
 test('public rendering, first-paint themes and client recovery have no script or hydration warnings', {
   skip: !process.env.TEST_RUNTIME_ORIGIN && 'Set TEST_RUNTIME_ORIGIN for runtime Chrome regressions',
   timeout: 180000,
@@ -49,10 +49,17 @@ test('public rendering, first-paint themes and client recovery have no script or
     }
     await command('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
     await waitFor(`!document.documentElement.classList.contains('dark')`);
-    // A syntactically valid cookie forces the real server authentication path.
-    // The intentionally invalid DB config must remain an error, never a login.
+    // A syntactically valid cookie forces the real server authentication path:
+    // unknown sessions are signed out; database outages must remain errors.
     const cookieName = process.env.TEST_RUNTIME_PRODUCTION === '1' ? '__Host-chatbit_session' : 'chatbit_session';
     await command('Network.setCookie', { name: cookieName, value: 'x'.repeat(43), url: origin.href, secure: process.env.TEST_RUNTIME_PRODUCTION === '1', httpOnly: true });
+    if (process.env.TEST_RUNTIME_DATABASE_FAILURE !== '1') {
+      assert.equal(await evaluate(`fetch('/').then(response=>response.status)`), 200, 'Missing sessions remain signed out');
+      await navigate('/');
+      await waitFor(`document.querySelector('header') && document.querySelector('a[href="/login"]')`);
+      assert.deepEqual(await evaluate('window.__runtimeIssues'), []);
+      return;
+    }
     assert.equal(await evaluate(`fetch('/').then(response=>response.status)`), 500, 'Database failures remain server errors');
     await evaluate(`localStorage.setItem('chatbit-theme','dark')`);
     await navigate('/');

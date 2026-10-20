@@ -6,6 +6,7 @@ import { databaseConfig } from '../lib/server/database-config.mjs';
 import { migrate } from '../scripts/migrate.mjs';
 import { registerAccount, loginAccount } from '../lib/server/auth-service.mjs';
 import { resolveSession, revokeSession, sessionHash } from '../lib/server/session-core.mjs';
+import { verifySession } from '../lib/server/session-verification.mjs';
 import { enforceAuthRateLimit } from '../lib/server/auth-rate-limit.mjs';
 
 test('authentication against isolated PostgreSQL', {
@@ -30,6 +31,7 @@ test('authentication against isolated PostgreSQL', {
       assert.deepEqual(Object.keys(user).sort(), ['displayName', 'email', 'id']);
       assert.equal(user.displayName, 'Test User');
       assert.equal(user.email, 'test@example.com');
+      assert.deepEqual(await verifySession(() => pool, registered.token), user);
       const row = (await pool.query('SELECT * FROM sessions WHERE token_hash = $1', [sessionHash(registered.token)])).rows[0];
       assert.notEqual(row.token_hash, registered.token);
       assert.equal(row.expires_at - row.created_at, 604800000);
@@ -50,6 +52,7 @@ test('authentication against isolated PostgreSQL', {
       const login = await loginAccount(pool, credentials, { ...context(), previousToken: registered.token });
       assert.notEqual(login.token, registered.token);
       assert.equal(await resolveSession(pool, registered.token), null);
+      assert.equal(await verifySession(() => pool, registered.token), null);
       assert.equal((await resolveSession(pool, login.token)).email, 'test@example.com');
       registered = login;
       for (const input of [{ ...credentials, password: 'wrong password' }, { ...credentials, email: 'unknown@example.com' }]) {
@@ -60,6 +63,7 @@ test('authentication against isolated PostgreSQL', {
       assert.equal(await resolveSession(pool, 'a'.repeat(43)), null);
       await pool.query("UPDATE sessions SET created_at=now()-interval '8 days', expires_at=now()-interval '1 day' WHERE token_hash=$1", [sessionHash(registered.token)]);
       assert.equal(await resolveSession(pool, registered.token), null);
+      assert.equal(await verifySession(() => pool, registered.token), null);
     });
     await t.test('logout revokes the session and repeated logout is harmless', async () => {
       const session = await loginAccount(pool, credentials, context());
