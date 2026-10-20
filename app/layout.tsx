@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ThemeProvider } from "@/components/settings/theme-provider";
-import { themeBootstrap } from "@/lib/theme.mjs";
 import "./globals.css";
 import { RegisterWorker } from "@/components/pwa/register-worker";
 import { InstallProvider } from '@/components/pwa/install-provider';
@@ -40,13 +39,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
-    >
-      <head><script dangerouslySetInnerHTML={{__html:themeBootstrap}}/></head>
-      <body className="min-h-svh min-w-0"><ThemeProvider><InstallProvider><RegisterWorker/>{children}</InstallProvider></ThemeProvider></body>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}>
+      <head>
+        {/* React can execute/hoist external async scripts during recovery too.
+            Render blocking applies the saved theme before the first paint. */}
+        <script src="/theme-bootstrap.js" async blocking="render" />
+      </head>
+      <body className="min-h-svh min-w-0">
+        <ThemeProvider>
+          <InstallProvider>
+            <RegisterWorker />
+            {children}
+          </InstallProvider>
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

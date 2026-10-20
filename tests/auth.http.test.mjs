@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { writeFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -58,19 +57,10 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
     const port = listener.address().port;
     await new Promise((resolve) => listener.close(resolve));
     const origin = `http://127.0.0.1:${port}`;
-    const root = fileURLToPath(new URL('../', import.meta.url));
-    const tsconfig = JSON.parse(await readFile(new URL('../tsconfig.json', import.meta.url), 'utf8'));
-    await mkdir(new URL('../.next/auth-http-test/', import.meta.url), { recursive: true });
-    await writeFile(new URL('../.next/auth-http-test/tsconfig.json', import.meta.url), JSON.stringify({
-      ...tsconfig,
-      compilerOptions: { ...tsconfig.compilerOptions, baseUrl: root },
-      include: tsconfig.include.map((pattern) => `${root}/${pattern}`),
-      exclude: [`${root}/node_modules`],
-    }));
     const databaseUrl = new URL(process.env.TEST_DATABASE_URL);
     databaseUrl.searchParams.set('options', `-c search_path=${schema}`);
     let startupLog = '';
-    child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], {
+    child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', process.env.TEST_NEXT_TURBOPACK === '1' ? '--turbopack' : '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], {
       cwd: new URL('../', import.meta.url), detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, NODE_ENV: 'development', DATABASE_URL: databaseUrl.toString(), DATABASE_SSL: process.env.TEST_DATABASE_SSL ?? 'verify', AUTH_RATE_LIMIT_SECRET: randomUUID().replaceAll('-', ''), VERCEL: '0', NEXT_TELEMETRY_DISABLED: '1', CHATBIT_AUTH_HTTP_TEST: '1', CALL_STUN_URLS: '[]', CALL_TURN_URLS: '[]', CALL_TURN_SHARED_SECRET: '', CALL_RELAY_ONLY: '0', CRON_SECRET:'', MAINTENANCE_CLEANUP_SECRET:'', ATTACHMENT_CLEANUP_SECRET:'', CALL_CLEANUP_SECRET:'', AWS_ENDPOINT_URL_S3:'', AWS_ACCESS_KEY_ID:'', AWS_SECRET_ACCESS_KEY:'' },
     });
