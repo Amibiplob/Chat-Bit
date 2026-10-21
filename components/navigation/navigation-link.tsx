@@ -1,5 +1,6 @@
 "use client";
 
+import { useConversationCache } from "@/components/conversation/conversation-cache-provider";
 import Link, { useLinkStatus } from "next/link";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,16 @@ function PendingHint() {
 }
 
 // Native Link semantics preserve modified clicks, history and direct URLs.
-export function NavigationLink({ children, className, ...props }: ComponentProps<typeof Link>) {
-  return <Link {...props} className={cn("relative", className)}>{children}<PendingHint /></Link>;
+export function NavigationLink({ children, className, onNavigate, ...props }: ComponentProps<typeof Link>) {
+  const cache = useConversationCache();
+  return <Link {...props} onNavigate={event => {
+    let cancelled = false;
+    onNavigate?.({preventDefault: () => { cancelled = true; event.preventDefault(); }});
+    if (cancelled) return;
+    const id = typeof props.href === "string" ? /^\/chat\/([a-f0-9-]{36})$/i.exec(props.href)?.[1] : null;
+    if (id && cache?.get(id)) {
+      event.preventDefault(); cache.enable();
+      window.history.pushState(null, "", props.href as string);
+    }
+  }} className={cn("relative", className)}>{children}<PendingHint /></Link>;
 }

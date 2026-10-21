@@ -7,6 +7,7 @@ import type { ConnectionStatus, Presence } from "@/lib/realtime-types";
 import { messagingRequest } from "@/lib/messaging-client";
 import { notify } from "@/lib/notifications.mjs";
 import { useSettings } from "@/components/settings/settings-provider";
+import { useConversationCache } from "@/components/conversation/conversation-cache-provider";
 import { createSyncLoop } from "@/lib/realtime-client.mjs";
 
 type Thread = { id: string; oldest: () => MessageCursor | null; receive: (page: MessagePage) => void };
@@ -24,6 +25,7 @@ export function useRealtime() {
 
 export function RealtimeProvider({ initialConversations, children }: { initialConversations: Conversation[]; children: React.ReactNode }) {
   const {profile}=useSettings();
+  const cache=useConversationCache();
   const settings=useRef(profile);
   useEffect(()=>{settings.current=profile;},[profile]);
   const notified=useRef(new Map(initialConversations.map(c=>[c.id,c.unread])));
@@ -62,6 +64,7 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
       isVisible: () => navigator.onLine && (document.visibilityState === "visible" || (settings.current.notifyMessages && typeof Notification!=="undefined" && Notification.permission==="granted")),
       onSnapshot: (snapshot, input) => {
         if (input.conversationId !== selection.current) return;
+        if(input.conversationId)cache?.touch(input.conversationId);
         if (snapshot.conversations) {
           for(const row of snapshot.conversations) {
             if(row.unread>(notified.current.get(row.id)??0)) notify('message',row.id,settings.current.notifyMessages);
@@ -73,7 +76,8 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
         if (snapshot.page && thread.current?.id === input.conversationId) thread.current.receive(snapshot.page);
       },
       onStatus: setStatus,
-      onUnauthorized: () => router.replace("/login"),
+      onUnauthorized: () => { cache?.clear(); router.replace("/login"); },
+      onUnavailable: () => { if(selection.current)cache?.remove(selection.current); router.refresh(); },
     });
     loop.current = sync; sync.start();
     const wake = () => { if (document.visibilityState === "visible") void sync.refresh().catch(() => {}); };
@@ -90,7 +94,7 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
       window.removeEventListener("pageshow", wake);
       window.removeEventListener("offline", offline);
     };
-  }, [router]);
+  }, [router, cache]);
 
   // One lease per mounted tab. Sequence numbers fence delayed navigation/leave
   // requests so an older heartbeat cannot resurrect stale typing or presence.

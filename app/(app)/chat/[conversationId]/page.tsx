@@ -1,5 +1,5 @@
 import { performanceRequest } from "@/lib/server/connection-performance.mjs";
-import { ConversationLayout } from "@/components/conversation/conversation-layout";
+import { ConversationRoute } from "@/components/conversation/conversation-cache-provider";
 import { requireUser } from "@/lib/server/auth";
 import { getConversation, getMessages } from "@/lib/server/messaging";
 import { idSchema } from "@/lib/server/messaging-validation.mjs";
@@ -22,6 +22,6 @@ export default async function ConversationPage({
     const conversation = await getConversation(conversationId);
     if (!conversation) notFound();
     const page = await getMessages(conversationId);
-    return <ConversationLayout key={conversationId} conversation={conversation} initialPage={page} currentUserId={user.id} />;
+    return <ConversationRoute key={conversationId} conversation={conversation} initialPage={page} currentUserId={user.id} />;
   });
 }

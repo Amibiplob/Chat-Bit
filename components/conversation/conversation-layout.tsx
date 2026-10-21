@@ -7,6 +7,7 @@ import { messagingRequest } from "@/lib/messaging-client";
 import { ConversationHeader } from "./conversation-header";
 import { MessageArea } from "./message-area";
 import { MessageComposer } from "./message-composer";
+import { useConversationCache } from "./conversation-cache-provider";
 import { useConversationView } from "./conversation-view-provider";
 import { useRealtime } from "@/components/chat/realtime-provider";
 import { uploadAttachment } from "@/lib/attachment-client";
@@ -15,6 +16,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
   conversation: Conversation; initialPage: MessagePage; currentUserId: string;
 }) {
   useEffect(() => { recordMessagingReady(); }, []);
+  const cache = useConversationCache();
   const {store: viewStore, sending: sendingInBackground} = useConversationView(conversation.id);
   const saveScroll = useCallback((position: {top: number; pinned: boolean}) => viewStore.setScroll(conversation.id, position), [conversation.id, viewStore]);
   const { register, refresh: synchronize, presence, status, typing, conversations } = useRealtime();
@@ -35,6 +37,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
   }, [savedKey]);
   function toggleSaved(id: string) { try { const next = saved.includes(id) ? saved.filter(value => value !== id) : [...saved, id].slice(-500); localStorage.setItem(savedKey, JSON.stringify(next)); setSaved(next); setSaveError(""); } catch { setSaveError("Could not save this marker. Browser storage may be unavailable."); } }
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
+  useEffect(() => { cache?.put({conversation, initialPage: {messages, nextCursor}, currentUserId}); }, [cache, conversation, currentUserId, messages, nextCursor]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [pending, setPending] = useState(false);
