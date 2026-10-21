@@ -1,4 +1,5 @@
 import "server-only";
+import { performanceRequest } from "./connection-performance.mjs";
 import { timedOperation } from "./request-timing.mjs";
 import { MessagingError } from "./messaging-validation.mjs";
 import { diagnosticRequest, failureDetails, requestOperation } from "./messaging-diagnostics.mjs";
@@ -27,7 +28,7 @@ export async function jsonBody(request: Request): Promise<unknown> {
 }
 
 export async function messagingResponse(request: Request, operation: () => Promise<unknown>) {
-  return diagnosticRequest(async () => {
+  return performanceRequest(() => diagnosticRequest(async () => {
     try {
       if (request.method !== "GET") assertSameOrigin(request.headers);
       const result = await timedOperation(operation);
@@ -36,5 +37,5 @@ export async function messagingResponse(request: Request, operation: () => Promi
       const { status, message, requestId } = failureDetails(error, requestOperation(request.method, request.url));
       return Response.json({ error: message, requestId }, { status, headers: { "Cache-Control": "no-store", "X-Request-ID": requestId } });
     }
-  });
+  }));
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { performanceStep } from "./connection-performance.mjs";
 import { diagnosticStep } from "./messaging-diagnostics.mjs";
 import { getDatabase } from "./db";
 import { getCurrentUser } from "./auth";
@@ -17,11 +18,11 @@ async function context(write = false) {
 
 export async function getConversationList() {
   const { pool, userId } = await context();
-  return diagnosticStep("database", () => queries.listConversations(pool, userId));
+  return performanceStep("conversation-list", () => diagnosticStep("database", () => queries.listConversations(pool, userId)));
 }
 export async function getConversation(id: string) {
   const { pool, userId } = await context();
-  return (await diagnosticStep("database", () => queries.listConversations(pool, userId, id)))[0] ?? null;
+  return (await performanceStep("conversation-init", () => diagnosticStep("database", () => queries.listConversations(pool, userId, id))))[0] ?? null;
 }
 export async function startConversation(input: unknown) {
   const { pool, userId } = await context(true);
@@ -33,7 +34,7 @@ export async function findUsers(search: unknown) {
 }
 export async function getMessages(id: string, options: unknown = {}) {
   const { pool, userId } = await context();
-  return queries.getMessagePage(pool, userId, id, options);
+  return performanceStep("messages", () => queries.getMessagePage(pool, userId, id, options));
 }
 export async function send(id: string, input: unknown) {
   const { pool, userId } = await context(true);
