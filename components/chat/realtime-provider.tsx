@@ -8,6 +8,7 @@ import { messagingRequest } from "@/lib/messaging-client";
 import { notify } from "@/lib/notifications.mjs";
 import { useSettings } from "@/components/settings/settings-provider";
 import { useConversationCache } from "@/components/conversation/conversation-cache-provider";
+import { createMessagingPollingPolicy } from "@/lib/messaging-polling-policy.mjs";
 import { createSyncLoop } from "@/lib/realtime-client.mjs";
 
 type Thread = { id: string; oldest: () => MessageCursor | null; receive: (page: MessagePage) => void };
@@ -38,6 +39,8 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [presence, setPresence] = useState<{ conversationId: string | null; value: Presence | null }>({ conversationId: null, value: null });
   const thread = useRef<Thread | null>(null);
+  const lastArrival=useRef({conversationId:null as string|null,id:""});
+  const [polling] = useState(()=>createMessagingPollingPolicy());
   const loop = useRef<ReturnType<typeof createSyncLoop> | null>(null);
   const activity = useRef<(active: boolean) => void>(() => {});
 
@@ -52,9 +55,9 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
   useLayoutEffect(() => {
     if (selection.current === conversationId) return;
     selection.current = conversationId;
-    loop.current?.select();
+    polling.activate(); loop.current?.select();
     activity.current(false);
-  }, [conversationId]);
+  }, [conversationId, polling]);
 
   useEffect(() => {
     const sync = createSyncLoop({
@@ -62,6 +65,7 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
       loadPage: (id, cursor, signal) => messagingRequest(`/api/conversations/${id}/messages?limit=100&cursor=${encodeURIComponent(JSON.stringify(cursor))}`, { signal }),
       getState: () => ({ conversationId: selection.current, oldest: thread.current?.id === selection.current ? thread.current.oldest() : null }),
       isVisible: () => navigator.onLine && (document.visibilityState === "visible" || (settings.current.notifyMessages && typeof Notification!=="undefined" && Notification.permission==="granted")),
+      getInterval: () => polling.interval(selection.current, document.visibilityState === "visible"),
       onSnapshot: (snapshot, input) => {
         if (input.conversationId !== selection.current) return;
         if(input.conversationId)cache?.touch(input.conversationId);
@@ -73,28 +77,40 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
           setConversations(snapshot.conversations);
         }
         setPresence({ conversationId: input.conversationId, value: snapshot.presence });
-        if (snapshot.page && thread.current?.id === input.conversationId) thread.current.receive(snapshot.page);
+        if (snapshot.page) {
+          const id=snapshot.page.messages.at(-1)?.id??"";
+          if(id && (lastArrival.current.conversationId!==input.conversationId || lastArrival.current.id!==id))polling.activate();
+          lastArrival.current={conversationId:input.conversationId,id};
+          if(thread.current?.id===input.conversationId)thread.current.receive(snapshot.page);
+        }
       },
       onStatus: setStatus,
       onUnauthorized: () => { cache?.clear(); router.replace("/login"); },
       onUnavailable: () => { if(selection.current)cache?.remove(selection.current); router.refresh(); },
     });
     loop.current = sync; sync.start();
-    const wake = () => { if (document.visibilityState === "visible") void sync.refresh().catch(() => {}); };
+    const wake = () => { if (document.visibilityState === "visible") { polling.activate(); void sync.refresh().catch(() => {}); } };
+    const interact = () => polling.activate();
     const offline = () => setStatus("offline");
     document.addEventListener("visibilitychange", wake);
     window.addEventListener("online", wake);
     window.addEventListener("focus", wake);
     window.addEventListener("pageshow", wake);
     window.addEventListener("offline", offline);
+    window.addEventListener("chatbit:message-saved", wake);
+    document.addEventListener("pointerdown", interact, {passive:true});
+    document.addEventListener("keydown", interact);
     return () => {
       sync.stop(); if (loop.current === sync) loop.current = null;
       document.removeEventListener("visibilitychange", wake);
       window.removeEventListener("online", wake); window.removeEventListener("focus", wake);
       window.removeEventListener("pageshow", wake);
       window.removeEventListener("offline", offline);
+      window.removeEventListener("chatbit:message-saved", wake);
+      document.removeEventListener("pointerdown", interact);
+      document.removeEventListener("keydown", interact);
     };
-  }, [router, cache]);
+  }, [router, cache, polling]);
 
   // One lease per mounted tab. Sequence numbers fence delayed navigation/leave
   // requests so an older heartbeat cannot resurrect stale typing or presence.
