@@ -1,6 +1,7 @@
 "use client";
 
 import { useConversationCache } from "@/components/conversation/conversation-cache-provider";
+import { beginPageNavigation } from "@/lib/connection-performance.mjs";
 import Link, { useLinkStatus } from "next/link";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,7 @@ export function NavigationLink({ children, className, onNavigate, ...props }: Co
     if (cancelled) return;
     const id = typeof props.href === "string" ? /^\/chat\/([a-f0-9-]{36})$/i.exec(props.href)?.[1] : null;
     if (id && cache?.get(id)) {
-      event.preventDefault(); cache.enable();
+      event.preventDefault(); beginPageNavigation(); cache.enable();
       window.history.pushState(null, "", props.href as string);
     }
   }} className={cn("relative", className)}>{children}<PendingHint /></Link>;

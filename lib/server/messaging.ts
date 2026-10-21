@@ -24,6 +24,16 @@ export async function getConversation(id: string) {
   const { pool, userId } = await context();
   return (await performanceStep("conversation-init", () => diagnosticStep("database", () => queries.listConversations(pool, userId, id))))[0] ?? null;
 }
+// One session/rate-limit context for the initial conversation view. Both reads
+// still independently enforce membership; no private server cache is added.
+export async function getConversationBootstrap(id: string) {
+  const { pool, userId } = await context();
+  const [rows, page] = await Promise.all([
+    performanceStep("conversation-init", () => queries.listConversations(pool, userId, id)),
+    performanceStep("messages", () => queries.getMessagePage(pool, userId, id)),
+  ]);
+  return {conversation: rows[0] ?? null, page};
+}
 export async function startConversation(input: unknown) {
   const { pool, userId } = await context(true);
   return queries.createConversation(pool, userId, input);

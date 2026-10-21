@@ -1,8 +1,8 @@
 import { performanceRequest } from "@/lib/server/connection-performance.mjs";
 import { ConversationRoute } from "@/components/conversation/conversation-cache-provider";
 import { requireUser } from "@/lib/server/auth";
-import { getConversation, getMessages } from "@/lib/server/messaging";
-import { idSchema } from "@/lib/server/messaging-validation.mjs";
+import { getConversationBootstrap } from "@/lib/server/messaging";
+import { idSchema, MessagingError } from "@/lib/server/messaging-validation.mjs";
 import { notFound } from "next/navigation";
 
 interface ConversationPageProps {
@@ -19,9 +19,13 @@ export default async function ConversationPage({
     const { conversationId } = await params;
 
     if (!idSchema.safeParse(conversationId).success) notFound();
-    const conversation = await getConversation(conversationId);
-    if (!conversation) notFound();
-    const page = await getMessages(conversationId);
-    return <ConversationRoute key={conversationId} conversation={conversation} initialPage={page} currentUserId={user.id} />;
+    try {
+      const {conversation,page} = await getConversationBootstrap(conversationId);
+      if (!conversation) notFound();
+      return <ConversationRoute key={conversationId} conversation={conversation} initialPage={page} currentUserId={user.id} />;
+    } catch(error) {
+      if(error instanceof MessagingError && error.status === 404)notFound();
+      throw error;
+    }
   });
 }

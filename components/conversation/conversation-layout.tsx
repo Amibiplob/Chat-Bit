@@ -46,7 +46,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
   const busy = useRef(false);
   const acknowledged = useRef(new Set<string>());
   const base = `/api/conversations/${conversation.id}`;
-  const readIds = messages.filter((message) => message.senderId !== currentUserId && !message.deleted).map((message) => message.id).join(",");
+  const readIds = messages.filter((message) => message.senderId !== currentUserId && message.status !== "read" && !message.deleted).map((message) => message.id).join(",");
   const oldest = useRef(initialPage.messages[0] ? { id: initialPage.messages[0].id, createdAt: initialPage.messages[0].createdAt } : null);
   const receive = useCallback((page: MessagePage) => {
     oldest.current = page.messages[0] ? { id: page.messages[0].id, createdAt: page.messages[0].createdAt } : null;

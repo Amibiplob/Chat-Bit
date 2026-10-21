@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { createConversationCache } from '@/lib/conversation-cache.mjs';
-import { createPerformanceTrace } from '@/lib/connection-performance.mjs';
+import { recordCachedContent } from '@/lib/connection-performance.mjs';
 import type { Conversation, MessagePage } from '@/lib/messaging-types';
 import { ConversationLayout } from './conversation-layout';
 import { RouteLoading } from '@/components/navigation/route-loading';
@@ -36,7 +36,9 @@ export function ConversationViewport({children}:{children:React.ReactNode}){
   const id=/^\/chat\/([a-f0-9-]{36})$/i.exec(pathname)?.[1];
   const client=Boolean(id&&cache.enabled());const entry=id?cache.get(id):null;
   useEffect(()=>{if(client&&!entry)router.refresh();},[client,entry,router,pathname]);
-  useLayoutEffect(()=>{if(client&&entry)createPerformanceTrace('page').mark('cached-content');},[client,entry]);
+  const cachedReady=Boolean(entry);
+  useLayoutEffect(()=>{if(client&&cachedReady)recordCachedContent();},[client,cachedReady,id]);
   if(!client)return children;
+  if(id&&cache.unavailable(id))return <p role="alert" className="p-5">Conversation unavailable. Return to Chats to choose another conversation.</p>;
   return <><div hidden>{children}</div>{entry?<ConversationLayout key={id} {...entry}/>:<RouteLoading label="conversation"/>}</>;
 }

@@ -89,7 +89,8 @@ test('authenticated navigation, conversation identity, drafts and persistent she
         await fill('textarea[aria-label="Message"]','Navigation send fixture');
         await evaluate(`window.__previousFetch=window.fetch;window.fetch=async(...args)=>{const response=await window.__previousFetch(...args);if(args[1]?.method==='POST'&&String(args[0]).endsWith('/messages')){window.__sendHeld=true;await new Promise(resolve=>{window.__releaseSend=resolve;});}return response;};document.querySelector('button[aria-label="Send message"]').click()`);
         await waitFor('window.__sendHeld');await switchTo(1);await switchTo(0);
-        assert.equal(await evaluate('document.querySelector("textarea").disabled'),true,'Pending send remains locked after remount');
+        assert.equal(await evaluate('document.querySelector("textarea").disabled'),false,'Text composer stays usable after a pending-send remount');
+        assert.ok(await evaluate(`document.querySelector('[aria-label="Messages"]').textContent.includes('Navigation send fixture')`),'Pending or already reconciled outgoing message survives remount');
         await evaluate('window.__releaseSend();window.fetch=window.__previousFetch');
         await waitFor(`document.querySelector('textarea').value===''&&!document.querySelector('textarea').disabled`);
         const count=await pool.query('SELECT count(*)::int AS count FROM messages WHERE conversation_id=$1 AND body=$2',[chats[0],'Navigation send fixture']);assert.equal(count.rows[0].count,1);

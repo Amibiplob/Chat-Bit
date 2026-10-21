@@ -9,6 +9,8 @@ test('conversation cache is instance-scoped, identity checked, expires and evict
   now=61;assert.equal(a.get('b'),null);a.touch('c');assert.ok(a.get('c'));
   assert.throws(()=>a.put({...fixture('c'),initialPage:{messages:[{conversationId:'wrong'}]}}));
   a.clear();assert.equal(a.get('c'),null);
+  a.put(fixture('c'));a.remove('c');assert.equal(a.unavailable('c'),true);assert.equal(a.get('c'),null);
+  a.put(fixture('c'));assert.equal(a.unavailable('c'),false);
 });
 test('cache bounds retained history and keeps a valid pagination boundary',()=>{
   const a=createConversationCache();const entry=fixture('a');entry.initialPage.messages=Array.from({length:150},(_,i)=>({id:String(i),createdAt:String(i),conversationId:'a'}));
