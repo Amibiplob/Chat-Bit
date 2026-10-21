@@ -329,7 +329,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
             async createOffer(){return {type:'offer',sdp:'v=0\\r\\n'};}
             async createAnswer(){return {type:'answer',sdp:'v=0\\r\\n'};}
             async setLocalDescription(value){this.localDescription={...value,toJSON:()=>value};}
-            async setRemoteDescription(value){this.remoteDescription=value;this.connectionState='connected';this.onconnectionstatechange?.();}
+            async setRemoteDescription(value){this.remoteDescription=value;this.ontrack?.({track:window.__captured.at(-1).getAudioTracks()[0].clone()});this.connectionState='connected';this.onconnectionstatechange?.();}
             async addIceCandidate(){}
           };
         })()`;

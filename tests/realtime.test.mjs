@@ -115,3 +115,17 @@ test('one sync loop survives conversation selection and fences an old in-flight 
   requests[1].resolve({...snapshot('2'),page:{messages:[],nextCursor:null}});await until(()=>received.length===1);
   assert.deepEqual(received,[next]);assert.equal(statuses.filter(s=>s==='connecting').length,1);
 });
+
+test('selection aborts a stalled old conversation request without a reconnect flicker or overlapping sync',async(t)=>{
+  let selected=conversationId,active=0,maxActive=0;const requests=[],statuses=[];
+  const loop=createSyncLoop(options({getState:()=>({conversationId:selected,oldest:null}),onStatus:s=>statuses.push(s),request:(input,signal)=>{
+    active++;maxActive=Math.max(maxActive,active);
+    return new Promise((resolve,reject)=>{requests.push({input,signal,resolve});signal.addEventListener('abort',()=>reject(new Error('cancelled selection')),{once:true});}).finally(()=>active--);
+  }}));
+  t.after(()=>loop.stop());loop.start();await until(()=>requests.length===1);
+  selected=randomUUID();loop.select();await until(()=>requests.length===2);
+  assert.equal(requests[0].signal.aborted,true);assert.equal(requests[1].input.conversationId,selected);assert.equal(maxActive,1);
+  assert.ok(!statuses.includes('reconnecting'));
+  requests[1].resolve({...snapshot('2'),page:{messages:[],nextCursor:null}});
+  await until(()=>statuses.includes('connected'));
+});

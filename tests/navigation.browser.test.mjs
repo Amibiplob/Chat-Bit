@@ -40,12 +40,15 @@ test('authenticated navigation, conversation identity, drafts and persistent she
     });
     let ready=false;for(let i=0;i<120;i++){try{if((await fetch(origin+'/login',{signal:AbortSignal.timeout(2000)})).ok){ready=true;break;}}catch{}await delay(500);}
     assert.ok(ready,'Isolated Next.js server starts');
+    const networkLatencyMs=Number(process.env.TEST_NAVIGATION_LATENCY_MS ?? 0);
+    assert.ok(Number.isFinite(networkLatencyMs)&&networkLatencyMs>=0&&networkLatencyMs<=1000);
     await withBrowser(async({command,evaluate,waitFor,fill})=>{
+      if(networkLatencyMs)await command('Network.emulateNetworkConditions',{offline:false,latency:networkLatencyMs,downloadThroughput:512000,uploadThroughput:128000});
       await command('Network.setCookie',{name:'chatbit_session',value:session.token,url:origin,httpOnly:true,sameSite:'Lax'});
       await command('Page.navigate',{url:origin+'/chat/'+chats[0]});
       await waitFor(`document.querySelector('textarea[aria-label="Message"]') && Object.keys(document.querySelector('textarea')).some(k=>k.startsWith('__reactFiber$'))`);
       await evaluate(`window.__shell=document.querySelector('.cb-app-shell');window.__list=document.querySelector('[aria-label="Conversations"]');window.__documentMarker=1;
-        window.__requests=[];const nativeFetch=window.fetch;window.fetch=async(...args)=>{const raw=args[0] instanceof Request?args[0].url:String(args[0]);const u=new URL(raw,location.href);const kind=u.searchParams.has('_rsc')?'rsc':u.pathname==='/api/realtime/sync'?'sync':u.pathname.startsWith('/api/')?'api':'other';window.__requests.push({kind});return nativeFetch(...args);};`);
+        window.__requests=[];window.__syncActive=0;window.__maxSyncActive=0;const nativeFetch=window.fetch;window.fetch=async(...args)=>{const raw=args[0] instanceof Request?args[0].url:String(args[0]);const u=new URL(raw,location.href);const kind=u.searchParams.has('_rsc')?'rsc':u.pathname==='/api/realtime/sync'?'sync':u.pathname.startsWith('/api/')?'api':'other';window.__requests.push({kind});if(kind==='sync'){window.__syncActive++;window.__maxSyncActive=Math.max(window.__maxSyncActive,window.__syncActive);}try{return await nativeFetch(...args);}finally{if(kind==='sync')window.__syncActive--;}};`);
       const switchTo=async(index)=>{
         const target='/chat/'+chats[index];
         await evaluate(`window.__requests=[];window.__navStart=performance.now();window.__feedback=null;
@@ -68,8 +71,38 @@ test('authenticated navigation, conversation identity, drafts and persistent she
         await command('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<768});
         assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),'Navigation fits viewport');
       }
-      console.log('Isolated navigation measurements:',JSON.stringify({first,return:second,draftRestored,sidebarPreserved}));
-      if(process.env.TEST_NAVIGATION_BASELINE!=='1'){assert.equal(draftRestored,true);assert.equal(sidebarPreserved,true);}
+      console.log('Isolated navigation measurements:',JSON.stringify({networkLatencyMs,first,return:second,draftRestored,sidebarPreserved}));
+      if(process.env.TEST_NAVIGATION_BASELINE!=='1'){
+        assert.equal(draftRestored,true);assert.equal(sidebarPreserved,true);
+        assert.ok(await evaluate('window.__maxSyncActive<=1'),'Conversation transitions keep synchronization requests serialized');
+        // Test history and scroll separately, after the comparable measurements.
+        await command('Emulation.setDeviceMetricsOverride',{width:1280,height:844,deviceScaleFactor:1,mobile:false});
+        for(let i=0;i<55;i++)await sendMessage(pool,ids[0],chats[0],{content:`Scroll fixture ${i}`,clientId:randomUUID()});
+        await command('Page.navigate',{url:origin+'/chat/'+chats[0]});
+        await waitFor(`document.querySelector('textarea') && Object.keys(document.querySelector('textarea')).some(k=>k.startsWith('__reactFiber$'))`);
+        await evaluate(`document.querySelector('[aria-label="Messages"]').scrollTop=0`);await delay(200);
+        await switchTo(1);await switchTo(0);
+        assert.ok(await evaluate(`document.querySelector('[aria-label="Messages"]').scrollTop<30`),'Returning to a reading position preserves scroll');
+        await evaluate('history.back()');await waitFor(`location.pathname===${JSON.stringify('/chat/'+chats[1])} && document.querySelector('header h1')?.textContent.trim()==='Partner Two'`);
+        await evaluate('history.forward()');await waitFor(`location.pathname===${JSON.stringify('/chat/'+chats[0])} && document.querySelector('header h1')?.textContent.trim()==='Partner One'`);
+        // Hold only the synthetic send acknowledgement while navigating away/back.
+        await fill('textarea[aria-label="Message"]','Navigation send fixture');
+        await evaluate(`window.__previousFetch=window.fetch;window.fetch=async(...args)=>{const response=await window.__previousFetch(...args);if(args[1]?.method==='POST'&&String(args[0]).endsWith('/messages')){window.__sendHeld=true;await new Promise(resolve=>{window.__releaseSend=resolve;});}return response;};document.querySelector('button[aria-label="Send message"]').click()`);
+        await waitFor('window.__sendHeld');await switchTo(1);await switchTo(0);
+        assert.equal(await evaluate('document.querySelector("textarea").disabled'),true,'Pending send remains locked after remount');
+        await evaluate('window.__releaseSend();window.fetch=window.__previousFetch');
+        await waitFor(`document.querySelector('textarea').value===''&&!document.querySelector('textarea').disabled`);
+        const count=await pool.query('SELECT count(*)::int AS count FROM messages WHERE conversation_id=$1 AND body=$2',[chats[0],'Navigation send fixture']);assert.equal(count.rows[0].count,1);
+        await command('Emulation.setDeviceMetricsOverride',{width:320,height:480,deviceScaleFactor:1,mobile:true});
+        await evaluate('document.querySelector("textarea").focus()');
+        assert.ok(await evaluate('document.querySelector("textarea").getBoundingClientRect().bottom<=innerHeight'),'Composer fits a shortened mobile viewport');
+        await evaluate(`document.querySelector('a[aria-label="Back to conversations"]').click()`);await waitFor(`location.pathname==='/chat'`);
+        await evaluate(`document.querySelector('[aria-label="Mobile navigation"] a[href="/contacts"]').click()`);await waitFor(`location.pathname==='/contacts'`);
+        assert.equal(await evaluate(`document.querySelector('[aria-label="Mobile navigation"] a[aria-current="page"]').textContent.trim()`),'Contacts');
+        await pool.query('DELETE FROM sessions WHERE user_id=$1',[ids[0]]);
+        await evaluate(`window.dispatchEvent(new Event('online'))`);await waitFor(`location.pathname==='/login'`);
+        assert.equal(await evaluate('Boolean(document.querySelector("textarea"))'),false,'Expired session leaves the private shell');
+      }
     });
   } finally {
     if(child?.pid && child.exitCode===null){const done=once(child,'exit');process.kill(-child.pid,'SIGTERM');await Promise.race([done,delay(3000)]);if(child.exitCode===null&&child.signalCode===null)process.kill(-child.pid,'SIGKILL');}
