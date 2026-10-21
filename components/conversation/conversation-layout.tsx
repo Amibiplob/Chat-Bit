@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Conversation, Message, MessagePage } from "@/lib/messaging-types";
-import { recordMessagingReady } from "@/lib/connection-performance.mjs";
+import { createPerformanceTrace, recordMessagingReady } from "@/lib/connection-performance.mjs";
 import { messagingRequest } from "@/lib/messaging-client";
 import { ConversationHeader } from "./conversation-header";
 import { MessageArea } from "./message-area";
@@ -20,6 +20,10 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
   const { register, refresh: synchronize, presence, status, typing, conversations } = useRealtime();
   const [messages, setMessages] = useState(initialPage.messages);
   const [optimistic, setOptimistic] = useState<Message | null>(null);
+  const sendTrace = useRef<ReturnType<typeof createPerformanceTrace> | null>(null);
+  const receiveTrace = useRef<ReturnType<typeof createPerformanceTrace> | null>(null);
+  useLayoutEffect(() => { if (optimistic) sendTrace.current?.mark(optimistic.delivery ? "optimistic-display" : "confirmed-render"); }, [optimistic]);
+  useLayoutEffect(() => { receiveTrace.current?.mark("receiver-render"); }, [messages]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [saved, setSaved] = useState<string[]>([]);
@@ -44,6 +48,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
   const oldest = useRef(initialPage.messages[0] ? { id: initialPage.messages[0].id, createdAt: initialPage.messages[0].createdAt } : null);
   const receive = useCallback((page: MessagePage) => {
     oldest.current = page.messages[0] ? { id: page.messages[0].id, createdAt: page.messages[0].createdAt } : null;
+    receiveTrace.current = createPerformanceTrace("messaging");
     setMessages(page.messages); setNextCursor(page.nextCursor);
     setOptimistic(current => current && !page.messages.some(row => row.id === current.id) ? current : null);
   }, []);
@@ -88,6 +93,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
     if (busy.current || !viewStore.beginSend(conversation.id)) return false;
     busy.current = true; setPending(true); setError("");
     let confirmed = false;
+    sendTrace.current = createPerformanceTrace("messaging");
     try {
       if (editingMessage) {
         await messagingRequest(`${base}/messages/${editingMessage.id}`, { method: "PATCH", body: JSON.stringify({ content }) });
@@ -97,6 +103,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
         const clientId = viewStore.retry(conversation.id, fingerprint);
         setOptimistic({ id: clientId, conversationId: conversation.id, senderId: currentUserId, senderName: "You", content, createdAt: new Date().toISOString(), status: "sent", delivery: "sending", edited: false, deleted: false, attachments: [], reply: replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, content: replyingTo.content, deleted: false } : null });
         const result = await messagingRequest<{id: string}>(`${base}/messages`, { method: "POST", body: JSON.stringify({ content, replyToId, clientId: clientId }) });
+        sendTrace.current?.mark("response-confirmed");
         setOptimistic(current => current ? { ...current, id: result.id, delivery: undefined } : null);
         viewStore.confirm(conversation.id, content);
       }

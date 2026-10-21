@@ -6,6 +6,7 @@ export async function messagingRequest<T>(url: string, options: RequestInit = {}
   const trace = createPerformanceTrace(url.startsWith("/api/calls") ? "calling" : "messaging");
   const stage = options.method === "POST" && /^\/api\/conversations\/[^/]+\/messages$/.test(url) ? "delivery" : "request";
   return trace.step(stage, async () => {
+    trace.mark("request-init");
     const response = await fetch(url, {
       ...options,
       credentials: "same-origin",
