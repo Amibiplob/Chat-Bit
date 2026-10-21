@@ -144,6 +144,17 @@ test('persistent conversations and messaging in isolated PostgreSQL', {
       await assert.rejects(messaging.getMessagePage(pool, a, conversation, { limit: 101 }), { status: 400 });
       await assert.rejects(messaging.markMessagesRead(pool, a, conversation, { messageIds: [] }), { status: 400 });
     });
+    await t.test('send receipt returns committed canonical data and retry reconciles one submission', async () => {
+      const clientId=randomUUID(),input={clientId,content:'Canonical acknowledgement fixture'};
+      const receipt=await messaging.sendMessageReceipt(pool,a,conversation,input);
+      assert.equal(receipt.clientId,clientId);assert.equal(receipt.conversationId,conversation);
+      assert.equal(receipt.content,input.content);assert.equal(receipt.status,'sent');
+      const visible=await admin.query(`SELECT count(*)::int AS n FROM ${schema}.messages WHERE id=$1`,[receipt.id]);
+      assert.equal(visible.rows[0].n,1,'Receipt resolves only after another connection can observe the commit');
+      assert.equal((await messaging.sendMessageReceipt(pool,a,conversation,input)).id,receipt.id);
+      await assert.rejects(messaging.sendMessageReceipt(pool,c,conversation,{...input,clientId:randomUUID()}),{status:404});
+      await assert.rejects(messaging.sendMessageReceipt(pool,a,conversation,{...input,content:'different'}),{status:409});
+    });
   } finally {
     await pool?.end();
     try { if (created) await admin.query(`DROP SCHEMA ${schema} CASCADE`); } finally { await admin.end(); }

@@ -16,5 +16,5 @@ export async function GET(request: Request, { params }: Context) {
   });
 }
 export async function POST(request: Request, { params }: Context) {
-  return messagingResponse(request, async () => ({ id: await send((await params).conversationId, await jsonBody(request)) }));
+  return messagingResponse(request, async () => { const message = await send((await params).conversationId, await jsonBody(request)); return {id: message.id, message}; });
 }

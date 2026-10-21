@@ -27,6 +27,7 @@ interface MessageBubbleProps {
   avatarVersion?: number;
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
+  onRetry: (message: Message) => void;
   onDelete: (messageId: string) => void;
   onDeleteAttachment: (attachmentId: string) => void;
 }
@@ -38,7 +39,7 @@ export function MessageBubble({
   avatarVersion,
   onReply,
   onEdit,
-  onDelete,
+  onRetry, onDelete,
   onDeleteAttachment,
 }: MessageBubbleProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -197,7 +198,8 @@ export function MessageBubble({
 
               {message.edited && <span className="text-[10px]">edited</span>}
 
-              {message.delivery && <span role="status" className="text-[10px]">Sending…</span>}
+              {message.delivery === "sending" && <span role="status" className="text-[10px]">Sending…</span>}
+              {message.delivery === "failed" && <><span role="status" className="text-[10px] text-destructive">Not sent</span><button aria-label="Retry message" onClick={()=>onRetry(message)} className="min-h-11 px-2 text-xs underline">Retry</button></>}
               {isOwn && !message.delivery &&
                 (message.status === "read" ? (
                   <CheckCheck aria-label="Read" className="size-3" />

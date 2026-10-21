@@ -8,7 +8,7 @@ import { ConversationHeader } from "./conversation-header";
 import { MessageArea } from "./message-area";
 import { MessageComposer } from "./message-composer";
 import { useConversationCache } from "./conversation-cache-provider";
-import { useConversationView } from "./conversation-view-provider";
+import { useConversationView, useOutgoingMessages } from "./conversation-view-provider";
 import { useRealtime } from "@/components/chat/realtime-provider";
 import { uploadAttachment } from "@/lib/attachment-client";
 
@@ -21,10 +21,9 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
   const saveScroll = useCallback((position: {top: number; pinned: boolean}) => viewStore.setScroll(conversation.id, position), [conversation.id, viewStore]);
   const { register, refresh: synchronize, presence, status, typing, conversations } = useRealtime();
   const [messages, setMessages] = useState(initialPage.messages);
-  const [optimistic, setOptimistic] = useState<Message | null>(null);
-  const sendTrace = useRef<ReturnType<typeof createPerformanceTrace> | null>(null);
+  const {outgoing, messages: outgoingMessages} = useOutgoingMessages(conversation.id);
   const receiveTrace = useRef<ReturnType<typeof createPerformanceTrace> | null>(null);
-  useLayoutEffect(() => { if (optimistic) sendTrace.current?.mark(optimistic.delivery ? "optimistic-display" : "confirmed-render"); }, [optimistic]);
+  useLayoutEffect(() => { outgoing.rendered(conversation.id); }, [outgoing, conversation.id, outgoingMessages]);
   useLayoutEffect(() => { receiveTrace.current?.mark("receiver-render"); }, [messages]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -53,8 +52,8 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
     oldest.current = page.messages[0] ? { id: page.messages[0].id, createdAt: page.messages[0].createdAt } : null;
     receiveTrace.current = createPerformanceTrace("messaging");
     setMessages(page.messages); setNextCursor(page.nextCursor);
-    setOptimistic(current => current && !page.messages.some(row => row.id === current.id) ? current : null);
-  }, []);
+    outgoing.reconcile(conversation.id, page.messages);
+  }, [outgoing, conversation.id]);
   useEffect(() => register({ id: conversation.id, oldest: () => oldest.current, receive }), [conversation.id, register, receive]);
 
   useEffect(() => {
@@ -93,28 +92,21 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
   }
 
   async function handleSend(content: string) {
-    if (busy.current || !viewStore.beginSend(conversation.id)) return false;
-    busy.current = true; setPending(true); setError("");
-    let confirmed = false;
-    sendTrace.current = createPerformanceTrace("messaging");
+    if (busy.current) return false;
+    if (!editingMessage) {
+      const failed=outgoingMessages.find(message=>message.delivery==="failed"&&message.content===content&&(message.reply?.id??null)===(replyingTo?.id??null));
+      if(failed?.clientId){outgoing.retry(conversation.id,failed.clientId);viewStore.setDraft(conversation.id,"");setReplyingTo(null);return true;}
+      const clientId=crypto.randomUUID();
+      const accepted=outgoing.enqueue({id:clientId,clientId,conversationId:conversation.id,senderId:currentUserId,senderName:"You",content,createdAt:new Date().toISOString(),status:"sent",delivery:"sending",edited:false,deleted:false,attachments:[],reply:replyingTo?{id:replyingTo.id,senderName:replyingTo.senderName,content:replyingTo.content,deleted:false}:null});
+      if(!accepted){setError("The send queue is full. Wait for pending messages or retry a failed message.");return false;}
+      viewStore.setDraft(conversation.id, "");setReplyingTo(null);return true;
+    }
+    busy.current=true;setPending(true);setError("");
     try {
-      if (editingMessage) {
-        await messagingRequest(`${base}/messages/${editingMessage.id}`, { method: "PATCH", body: JSON.stringify({ content }) });
-      } else {
-        const replyToId = replyingTo?.id ?? null;
-        const fingerprint = JSON.stringify({ content, replyToId });
-        const clientId = viewStore.retry(conversation.id, fingerprint);
-        setOptimistic({ id: clientId, conversationId: conversation.id, senderId: currentUserId, senderName: "You", content, createdAt: new Date().toISOString(), status: "sent", delivery: "sending", edited: false, deleted: false, attachments: [], reply: replyingTo ? { id: replyingTo.id, senderName: replyingTo.senderName, content: replyingTo.content, deleted: false } : null });
-        const result = await messagingRequest<{id: string}>(`${base}/messages`, { method: "POST", body: JSON.stringify({ content, replyToId, clientId: clientId }) });
-        sendTrace.current?.mark("response-confirmed");
-        setOptimistic(current => current ? { ...current, id: result.id, delivery: undefined } : null);
-        viewStore.confirm(conversation.id, content);
-      }
-      confirmed = true; setReplyingTo(null); setEditingMessage(null);
-      void reload().catch(() => setError("Message saved, but refresh failed. Use Refresh to load it."));
-    } catch (error) { setOptimistic(null); setError(error instanceof Error ? `${error.message} Your draft is kept; send again to retry.` : "Message could not be saved. Your draft is kept; send again to retry."); }
-    finally { viewStore.endSend(conversation.id); busy.current = false; setPending(false); }
-    return confirmed;
+      await messagingRequest(`${base}/messages/${editingMessage.id}`,{method:"PATCH",body:JSON.stringify({content})});
+      setEditingMessage(null);void reload().catch(()=>setError("Message saved, but refresh failed. Use Refresh to load it."));return true;
+    }catch(error){setError(error instanceof Error?error.message:"Message could not be saved.");return false;}
+    finally{busy.current=false;setPending(false);}
   }
 
   async function handleDelete(messageId: string) {
@@ -171,7 +163,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
     finally { busy.current = false; setPending(false); }
   }
 
-  const displayed = [...messages, ...(optimistic && !messages.some(row => row.id === optimistic.id) ? [optimistic] : [])].filter(row => row.content.toLowerCase().includes(search.toLowerCase()) && (filter === "all" || filter === "saved" && saved.includes(row.id) || filter === "media" && row.attachments.some(file => /^(image|video)\//.test(file.mimeType)) || filter === "files" && row.attachments.some(file => !/^(image|video)\//.test(file.mimeType))));
+  const displayed = [...messages, ...outgoingMessages.filter(local => !messages.some(row => row.id === local.id || row.clientId && row.clientId === local.clientId))].filter(row => row.content.toLowerCase().includes(search.toLowerCase()) && (filter === "all" || filter === "saved" && saved.includes(row.id) || filter === "media" && row.attachments.some(file => /^(image|video)\//.test(file.mimeType)) || filter === "files" && row.attachments.some(file => !/^(image|video)\//.test(file.mimeType))));
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-muted/20" aria-label={`Conversation with ${conversation.name}`}>
       <ConversationHeader conversation={conversations.find((row) => row.id === conversation.id) ?? conversation}
@@ -190,7 +182,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
       <MessageArea initialScroll={viewStore.read(conversation.id).scroll} onSaveScroll={saveScroll} saved={saved} onToggleSaved={toggleSaved} messages={displayed} currentUserId={currentUserId} conversationInitials={conversation.initials} avatarVersion={conversation.avatarVersion}
         onReply={(message) => { setReplyingTo(message); setEditingMessage(null); }}
         onEdit={(message) => { setEditingMessage(message); setReplyingTo(null); }}
-        onDelete={handleDelete} onDeleteAttachment={handleDeleteAttachment} onLoadOlder={loadOlder} hasMore={Boolean(nextCursor)} pending={pending} />
+        onRetry={(message) => { if(message.clientId && outgoing.retry(conversation.id,message.clientId) && viewStore.read(conversation.id).draft.trim()===message.content)viewStore.setDraft(conversation.id, ""); }} onDelete={handleDelete} onDeleteAttachment={handleDeleteAttachment} onLoadOlder={loadOlder} hasMore={Boolean(nextCursor)} pending={pending} />
       <MessageComposer conversationId={conversation.id} key={editingMessage?.id ?? "new"} onSend={handleSend} pending={pending || sendingInBackground} replyingTo={replyingTo} onTyping={typing}
         onSendAttachment={handleAttachment} editingMessage={editingMessage} onCancel={() => { setReplyingTo(null); setEditingMessage(null); }} />
     </section>

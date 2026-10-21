@@ -38,7 +38,7 @@ export async function getMessages(id: string, options: unknown = {}) {
 }
 export async function send(id: string, input: unknown) {
   const { pool, userId } = await context(true);
-  return diagnosticStep("database", () => queries.sendMessage(pool, userId, id, input));
+  return diagnosticStep("database", () => queries.sendMessageReceipt(pool, userId, id, input));
 }
 export async function edit(id: string, messageId: string, input: unknown) {
   const { pool, userId } = await context(true);

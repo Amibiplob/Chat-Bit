@@ -13,6 +13,7 @@ export type Conversation = {
 };
 
 export type Message = {
+  clientId?: string;
   id: string;
   conversationId: string;
   senderId: string;
@@ -20,7 +21,7 @@ export type Message = {
   content: string;
   createdAt: string;
   status: "sent" | "read";
-  delivery?: "sending";
+  delivery?: "sending" | "failed";
   edited: boolean;
   deleted: boolean;
   reply: { id: string; senderName: string; content: string; deleted: boolean } | null;

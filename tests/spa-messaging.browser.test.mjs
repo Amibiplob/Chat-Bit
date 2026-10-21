@@ -46,13 +46,14 @@ test('two-account latency and recoverable optimistic messaging in isolated Chrom
         await browser.waitFor(`document.querySelector('textarea') && Object.keys(document.querySelector('textarea')).some(k=>k.startsWith('__reactFiber$'))`);
         await browser.evaluate(`window.__seen={};window.__observer=new MutationObserver(()=>{for(const p of document.querySelectorAll('[aria-label="Messages"] p')){if(p.textContent.startsWith('Latency fixture ')&&!window.__seen[p.textContent])window.__seen[p.textContent]=performance.timeOrigin+performance.now();}});window.__observer.observe(document.body,{subtree:true,childList:true,characterData:true});`);
       }
-      await sender.evaluate(`window.__acks=[];window.__requests={sync:0,rsc:0,other:0};const original=window.fetch;window.fetch=async(...args)=>{const u=new URL(args[0] instanceof Request?args[0].url:String(args[0]),location.href);window.__requests[u.pathname==='/api/realtime/sync'?'sync':u.searchParams.has('_rsc')?'rsc':'other']++;const start=performance.now();const response=await original(...args);if(args[1]?.method==='POST'&&u.pathname.endsWith('/messages'))window.__acks.push({elapsed:performance.now()-start,timing:response.headers.get('Server-Timing')});return response;};`);
+      await sender.evaluate(`window.__acks=[];window.__requests={sync:0,rsc:0,other:0};const original=window.fetch;window.fetch=async(...args)=>{const u=new URL(args[0] instanceof Request?args[0].url:String(args[0]),location.href);window.__requests[u.pathname==='/api/realtime/sync'?'sync':u.searchParams.has('_rsc')?'rsc':'other']++;const start=performance.now();const response=await original(...args);if(args[1]?.method==='POST'&&u.pathname.endsWith('/messages'))window.__acks.push({elapsed:performance.now()-start,status:response.status,timing:response.headers.get('Server-Timing')});return response;};`);
       const optimistic=[],confirmation=[],recipient=[],database=[];
       for(let i=0;i<12;i++){
         const text=`Latency fixture ${i}`;
         await sender.fill('textarea[aria-label="Message"]',text);
         const start=await sender.evaluate(`(()=>{window.__start=performance.timeOrigin+performance.now();document.querySelector('button[aria-label="Send message"]').click();return window.__start;})()`);
-        await sender.waitFor(`window.__seen[${JSON.stringify(text)}] && window.__acks.length===${i+1}`);
+        try { await sender.waitFor(`window.__seen[${JSON.stringify(text)}] && window.__acks.length>=${i+1}`); }
+        catch(error){console.log('Synthetic send diagnostics:',await sender.evaluate(`({seen:Object.keys(window.__seen).length,acks:window.__acks.map(a=>a.status),pending:document.querySelectorAll('[role="status"]').length,empty:document.querySelector('textarea').value==='',hasAlert:!!document.querySelector('[role="alert"]')})`));throw error;}
         await receiver.waitFor(`window.__seen[${JSON.stringify(text)}]`);
         optimistic.push(await sender.evaluate(`window.__seen[${JSON.stringify(text)}]-window.__start`));
         const ack=await sender.evaluate(`window.__acks[${i}]`);confirmation.push(ack.elapsed);
