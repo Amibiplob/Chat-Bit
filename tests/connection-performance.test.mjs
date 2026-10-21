@@ -12,7 +12,10 @@ test('performance is opt-in, bounded to fixed labels, ephemeral IDs and numeric 
   assert.equal(events.length,2);assert.equal(events[0].durationMs,25);
   assert.deepEqual(Object.keys(events[0]),['operation','stage','durationMs','correlationId']);
   assert.match(events[0].correlationId,/^[a-f0-9-]{36}$/);assert.equal(events[0].correlationId,events[1].correlationId);
-  assert.notEqual(createPerformanceTrace('calling',{enabled:true,sink:e=>events.push(e)}).mark('connected'), 'identity');
+  createPerformanceTrace('calling',{enabled:true,sink:e=>events.push(e)}).mark('connected');
+  assert.notEqual(events[0].correlationId,events[2].correlationId);
+  createPerformanceTrace('private-identity',{enabled:true,sink:e=>events.push(e)}).mark('connected');
+  assert.equal(events.length,3);
 });
 test('measurement never masks results or failures; server instrumentation defaults off',async()=>{
   const trace=createPerformanceTrace('messaging',{enabled:true,sink:()=>{throw new Error('sink');}});

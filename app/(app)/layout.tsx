@@ -1,3 +1,4 @@
+import { performanceRequest, performanceStep } from "@/lib/server/connection-performance.mjs";
 import { SettingsProvider } from "@/components/settings/settings-provider";
 import { mySettings } from "@/lib/server/settings";
 import { ChatLayout } from "@/components/chat/chat-layout";
@@ -9,7 +10,9 @@ interface ChatLayoutProps {
 }
 
 export default async function ChatRouteLayout({ children }: ChatLayoutProps) {
-  const user = await requireUser();
-  const [conversations, settings] = await Promise.all([getConversationList(), mySettings()]);
-  return <SettingsProvider initial={settings}><ChatLayout user={user} conversations={conversations}>{children}</ChatLayout></SettingsProvider>;
+  return performanceRequest(async () => {
+    const user = await requireUser();
+    const [conversations, settings] = await Promise.all([getConversationList(), performanceStep("settings", () => mySettings())]);
+    return <SettingsProvider initial={settings}><ChatLayout user={user} conversations={conversations}>{children}</ChatLayout></SettingsProvider>;
+  });
 }

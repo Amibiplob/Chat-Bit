@@ -201,3 +201,31 @@ test('trickle ICE is sent before complete gathering and late track events cannot
   const ontrack=f.peer.ontrack;await f.controller.act('end');
   ontrack({track:{id:'late',muted:false}});assert.equal(f.controller.getState().local,null);assert.equal(f.controller.getState().call.status,'ended');
 });
+
+test('signaling timeout ends the call and releases media instead of remaining connected',async()=>{
+  let clock=0;const row=call();
+  const f=fixture({now:()=>clock,setTimer:()=>1,clearTimer:()=>{},request:async(url,options)=>{
+    if(url==='/api/calls')return row;
+    if(url==='/api/calls/sync'){clock=16001;throw new Error('offline');}
+    if(JSON.parse(options.body).action==='fail')return {...row,status:'failed'};
+    throw new Error('Unexpected request');
+  }});
+  await f.controller.start(row.conversationId,'voice');f.controller.begin();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(f.controller.getState().call.status,'failed');
+  assert.match(f.controller.getState().error,/Signaling connection was lost/);
+  assert.ok(f.events.includes('stop-audio'));f.controller.stop();
+});
+test('duplicate starts are suppressed and cancellation compensates a late call creation response',async()=>{
+  let release,creates=0,cancels=0;const row=call();
+  const f=fixture({request:async(url,options)=>{
+    if(url==='/api/calls'){creates++;return new Promise(resolve=>{release=resolve;});}
+    if(JSON.parse(options.body).action==='cancel'){cancels++;return {...row,status:'cancelled'};}
+    throw new Error('Unexpected request');
+  }});
+  const starting=f.controller.start(row.conversationId,'voice');
+  await new Promise(resolve=>setImmediate(resolve));await f.controller.start(row.conversationId,'voice');
+  await f.controller.act('cancel');release(row);await starting;
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(creates,1);assert.equal(cancels,1);assert.equal(f.controller.getState().call,null);f.controller.stop();
+});

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Conversation, Message, MessagePage } from "@/lib/messaging-types";
+import { recordMessagingReady } from "@/lib/connection-performance.mjs";
 import { messagingRequest } from "@/lib/messaging-client";
 import { ConversationHeader } from "./conversation-header";
 import { MessageArea } from "./message-area";
@@ -12,6 +13,7 @@ import { uploadAttachment } from "@/lib/attachment-client";
 export function ConversationLayout({ conversation, initialPage, currentUserId }: {
   conversation: Conversation; initialPage: MessagePage; currentUserId: string;
 }) {
+  useEffect(() => { recordMessagingReady(); }, []);
   const { register, refresh: synchronize, presence, status, typing, conversations } = useRealtime();
   const [messages, setMessages] = useState(initialPage.messages);
   const [optimistic, setOptimistic] = useState<Message | null>(null);

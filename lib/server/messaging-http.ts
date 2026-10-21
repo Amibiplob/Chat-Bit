@@ -37,5 +37,5 @@ export async function messagingResponse(request: Request, operation: () => Promi
       const { status, message, requestId } = failureDetails(error, requestOperation(request.method, request.url));
       return Response.json({ error: message, requestId }, { status, headers: { "Cache-Control": "no-store", "X-Request-ID": requestId } });
     }
-  }));
+  }), new URL(request.url).pathname.startsWith("/api/calls") ? "calling" : "messaging");
 }
