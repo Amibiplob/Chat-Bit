@@ -5,6 +5,8 @@ import type { Message } from "@/lib/messaging-types";
 import { MessageBubble } from "./message-bubble";
 
 interface MessageAreaProps {
+  initialScroll?: { top: number; pinned: boolean } | null;
+  onSaveScroll?: (position: {top: number; pinned: boolean}) => void;
   messages: Message[];
   saved: string[];
   onToggleSaved: (id: string) => void;
@@ -20,10 +22,11 @@ interface MessageAreaProps {
   pending: boolean;
 }
 
-export function MessageArea({ saved, onToggleSaved, messages, currentUserId, conversationInitials, avatarVersion, onReply, onEdit, onDelete, onDeleteAttachment, onLoadOlder, hasMore, pending }: MessageAreaProps) {
+export function MessageArea({ initialScroll, onSaveScroll, saved, onToggleSaved, messages, currentUserId, conversationInitials, avatarVersion, onReply, onEdit, onDelete, onDeleteAttachment, onLoadOlder, hasMore, pending }: MessageAreaProps) {
   const area = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
-  const pinned = useRef(true);
+  const pinned = useRef(initialScroll?.pinned ?? true);
+  const restore = useRef(initialScroll);
   const [showLatest, setShowLatest] = useState(false);
   const previous = useRef({ first: "", last: "", height: 0 });
   useEffect(() => {
@@ -42,14 +45,18 @@ export function MessageArea({ saved, onToggleSaved, messages, currentUserId, con
     if (!element) return;
     const first = messages[0]?.id ?? "";
     const last = messages.at(-1)?.id ?? "";
-    if (previous.current.last === last && previous.current.first !== first) {
+    if (restore.current) {
+      element.scrollTop = restore.current.pinned ? element.scrollHeight : restore.current.top;
+      setShowLatest(!restore.current.pinned);
+      restore.current = null;
+    } else if (previous.current.last === last && previous.current.first !== first) {
       element.scrollTop += element.scrollHeight - previous.current.height;
     } else if (previous.current.last !== last && (pinned.current || !previous.current.last)) element.scrollTop = element.scrollHeight;
     previous.current = { first, last, height: element.scrollHeight };
   }, [messages]);
 
   return (
-    <div ref={area} onScroll={event=>{const el=event.currentTarget; pinned.current=el.scrollHeight-el.scrollTop-el.clientHeight<96;setShowLatest(!pinned.current);}} className="cb-thread relative min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-6" aria-label="Messages">
+    <div ref={area} onScroll={event=>{const el=event.currentTarget; pinned.current=el.scrollHeight-el.scrollTop-el.clientHeight<96;onSaveScroll?.({top:el.scrollTop,pinned:pinned.current});setShowLatest(!pinned.current);}} className="cb-thread relative min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-6" aria-label="Messages">
       <div ref={content} className="mx-auto flex max-w-3xl flex-col gap-3">
         {hasMore && <button disabled={pending} onClick={onLoadOlder} className="mx-auto rounded-lg border bg-background px-4 py-2 text-xs disabled:opacity-50">{pending ? "Please wait…" : "Load older messages"}</button>}
         {!messages.length && <p className="py-8 text-center text-sm text-muted-foreground">No messages yet. Send the first message.</p>}

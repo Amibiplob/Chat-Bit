@@ -4,13 +4,17 @@ import { Paperclip, Send, Smile, X } from 'lucide-react';
 import type { Message } from '@/lib/messaging-types';
 import { attachmentFileError } from '@/lib/attachment-policy.mjs';
 import { MAX_MESSAGE_LENGTH } from '@/lib/form-validation.mjs';
+import { useConversationDraft } from './conversation-view-provider';
 import { LocalFilePreview } from '@/components/media/local-file-preview';
-interface Props {onSend:(content:string)=>Promise<boolean>;pending:boolean;replyingTo:Message|null;editingMessage:Message|null;onCancel:()=>void;onTyping:(active:boolean)=>void;onSendAttachment:(file:File,caption:string,onProgress:(value:number)=>void,signal:AbortSignal)=>Promise<boolean>}
+interface Props {conversationId:string;onSend:(content:string)=>Promise<boolean>;pending:boolean;replyingTo:Message|null;editingMessage:Message|null;onCancel:()=>void;onTyping:(active:boolean)=>void;onSendAttachment:(file:File,caption:string,onProgress:(value:number)=>void,signal:AbortSignal)=>Promise<boolean>}
 const emojis=['😀','😂','😍','👍','❤️','🔥','🎉','👋','😊','😎','🙏','👏'];
-export function MessageComposer({onSend,pending,replyingTo,editingMessage,onCancel,onTyping,onSendAttachment}:Props){
- const [value,setValue]=useState(editingMessage?.content??''),[files,setFiles]=useState<File[]>([]),[progress,setProgress]=useState(0),[activeFile,setActiveFile]=useState<File|null>(null),[fileError,setFileError]=useState(''),[emojiOpen,setEmojiOpen]=useState(false),[pickerOpen,setPickerOpen]=useState(false),[uploading,setUploading]=useState(false);
+export function MessageComposer({conversationId, onSend,pending,replyingTo,editingMessage,onCancel,onTyping,onSendAttachment}:Props){
+ const {store,draft}=useConversationDraft(conversationId);
+ const [localValue,setLocalValue]=useState(editingMessage?.content??''),[files,setFiles]=useState<File[]>([]),[progress,setProgress]=useState(0),[activeFile,setActiveFile]=useState<File|null>(null),[fileError,setFileError]=useState(''),[emojiOpen,setEmojiOpen]=useState(false),[pickerOpen,setPickerOpen]=useState(false),[uploading,setUploading]=useState(false);
  const upload=useRef<AbortController|null>(null),textarea=useRef<HTMLTextAreaElement>(null),input=useRef<HTMLInputElement>(null),emojiButton=useRef<HTMLButtonElement>(null),attachButton=useRef<HTMLButtonElement>(null),sending=useRef(false);
  const busy=pending||uploading;
+ const value=editingMessage?localValue:draft;
+ function setValue(next:string|((current:string)=>string)){const updated=typeof next==='function'?next(value):next;if(editingMessage)setLocalValue(updated);else store.setDraft(conversationId,updated);}
  useEffect(()=>()=>upload.current?.abort(),[]);
  useLayoutEffect(()=>{const element=textarea.current;if(element){element.style.height='auto';element.style.height=`${Math.min(element.scrollHeight,128)}px`;}},[value]);
  useEffect(()=>{if(editingMessage||replyingTo)textarea.current?.focus();},[editingMessage,replyingTo]);

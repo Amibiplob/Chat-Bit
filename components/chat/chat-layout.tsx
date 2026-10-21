@@ -1,5 +1,6 @@
 "use client";
 
+import { ConversationViewProvider } from "@/components/conversation/conversation-view-provider";
 import { AppSidebar } from "./app-sidebar";
 import { ConversationSidebar } from "./conversation-sidebar";
 import { CallingProvider } from "@/components/calls/calling-provider";
@@ -17,7 +18,7 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ children, user, conversations }: ChatLayoutProps) {
-  return <CallingProvider userId={user.id}><RealtimeProvider initialConversations={conversations}><LiveChatLayout user={user}>{children}</LiveChatLayout></RealtimeProvider></CallingProvider>;
+  return <ConversationViewProvider key={user.id}><CallingProvider userId={user.id}><RealtimeProvider initialConversations={conversations}><LiveChatLayout user={user}>{children}</LiveChatLayout></RealtimeProvider></CallingProvider></ConversationViewProvider>;
 }
 
 function LiveChatLayout({ children, user }: { children: React.ReactNode; user: AuthUser }) {
