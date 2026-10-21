@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { NavigationLink } from "@/components/navigation/navigation-link";
 import { Avatar } from "@/components/profile/avatar";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -13,7 +13,7 @@ export function PersistentConversationList({ conversations }: { conversations: C
     <div className="min-h-0 flex-1 overflow-y-auto" aria-label="Conversations">
       {!conversations.length && <p className="p-5 text-sm text-muted-foreground">No conversations found. Start a conversation with another user.</p>}
       {conversations.map((conversation) => (
-        <Link key={conversation.id} href={`/chat/${conversation.id}`} aria-current={pathname === `/chat/${conversation.id}` ? "page" : undefined}
+        <NavigationLink prefetch={false} key={conversation.id} href={`/chat/${conversation.id}`} aria-current={pathname === `/chat/${conversation.id}` ? "page" : undefined}
           className={cn("flex min-h-21 w-full gap-3 border-b border-border/60 px-5 py-4 text-left transition-colors hover:bg-accent/60", pathname === `/chat/${conversation.id}` && "bg-accent border-l-4 border-l-primary")}>
           <Avatar userId={conversation.participantId} name={conversation.name} version={conversation.avatarVersion} className="size-12"/>
           <div className="min-w-0 flex-1">
@@ -28,7 +28,7 @@ export function PersistentConversationList({ conversations }: { conversations: C
               {conversation.unread > 0 && <span aria-label={`${conversation.unread} unread messages`} className="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-semibold text-white">{conversation.unread}</span>}
             </div>
           </div>
-        </Link>
+        </NavigationLink>
       ))}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { NavigationLink } from "@/components/navigation/navigation-link";
 import { MessageCircle, Phone, Settings, Users, FolderOpen } from "lucide-react";
 import { Avatar } from "@/components/profile/avatar";
 import { useSettings } from "@/components/settings/settings-provider";
@@ -10,25 +11,24 @@ import type { AuthUser } from "@/lib/auth-types";
 
 interface AppSidebarProps {
   activeSection: string;
-  onSectionChange: (section: string) => void;
   user: AuthUser;
   hasUnread: boolean;
 }
 
 const navigation = [
-  { id: "shared", label: "Shared files", icon: FolderOpen },
+  { href: "/shared", id: "shared", label: "Shared files", icon: FolderOpen },
   {
-    id: "chats",
+    href: "/chat", id: "chats",
     label: "Chats",
     icon: MessageCircle,
   },
   {
-    id: "calls",
+    href: "/calls", id: "calls",
     label: "Calls",
     icon: Phone,
   },
   {
-    id: "contacts",
+    href: "/contacts", id: "contacts",
     label: "Contacts",
     icon: Users,
   },
@@ -36,7 +36,6 @@ const navigation = [
 
 export function AppSidebar({
   activeSection,
-  onSectionChange,
   user,
   hasUnread,
 }: AppSidebarProps) {
@@ -61,12 +60,11 @@ export function AppSidebar({
           const active = activeSection === item.id;
 
           return (
-            <button
+            <NavigationLink
               key={item.id}
-              type="button"
               aria-label={item.label}
-              aria-pressed={active}
-              onClick={() => onSectionChange(item.id)}
+              aria-current={active ? "page" : undefined}
+              href={item.href}
               title={item.label}
               className={cn(
                 "relative flex size-11 items-center justify-center rounded-xl transition-colors",
@@ -80,19 +78,19 @@ export function AppSidebar({
               {item.id === "chats" && hasUnread && (
                 <span className="absolute right-1 top-1 size-2 rounded-full bg-teal-600" />
               )}
-            </button>
+            </NavigationLink>
           );
         })}
 
         <div className="my-2 h-px w-8 bg-border" />
 
-        <Link
+        <NavigationLink
           href="/settings"
           title="Settings" aria-label="Settings"
           className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Settings className="size-5" />
-        </Link>
+        </NavigationLink>
       </nav>
 
       {/* Current user */}

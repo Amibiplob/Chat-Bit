@@ -53,7 +53,7 @@ export function NewConversation() {
     try {
       const { id } = await messagingRequest<{ id: string }>("/api/conversations", { method: "POST", body: JSON.stringify({ participantId }), signal: controller.signal });
       if (current !== generation.current) return;
-      setOpen(false); router.push(`/chat/${id}`); router.refresh();
+      setOpen(false); router.push(`/chat/${id}`);
     } catch (error) { if (current === generation.current) setError(error instanceof Error ? error.message : "Could not start the conversation."); }
     finally { if (current === generation.current) { busy.current = false; setPending(false); } }
   }

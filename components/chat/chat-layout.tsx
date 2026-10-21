@@ -5,7 +5,7 @@ import { ConversationSidebar } from "./conversation-sidebar";
 import { CallingProvider } from "@/components/calls/calling-provider";
 import type { AuthUser } from "@/lib/auth-types";
 import type { Conversation } from "@/lib/messaging-types";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { RealtimeProvider, useRealtime } from "./realtime-provider";
 import { MobileNavigation } from './mobile-navigation';
 import { useCalling } from '@/components/calls/calling-provider';
@@ -24,7 +24,6 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
   const { conversations, status } = useRealtime();
   const pathname = usePathname();
   const activeSection=pathname.startsWith("/shared")?"shared":pathname.startsWith("/contacts")?"contacts":pathname.startsWith("/settings")?"settings":"chats";
-  const router = useRouter();
   const conversationOpen = pathname.startsWith("/chat/");
   const { state: calling } = useCalling();
   const callOpen = Boolean(calling.call && ['ringing', 'connecting', 'active'].includes(calling.call.status));
@@ -33,9 +32,6 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
     <div className="cb-app-shell flex flex-col overflow-hidden bg-background md:flex-row">
       <AppSidebar
         activeSection={activeSection === "chats" && pathname === "/calls" ? "calls" : activeSection}
-        onSectionChange={(section) => {
-          router.push(section==="shared"?"/shared":section==="calls"?"/calls":section==="contacts"?"/contacts":"/chat");
-        }}
         user={user}
         hasUnread={conversations.some((conversation) => conversation.unread > 0)}
       />
