@@ -60,7 +60,7 @@ test('authenticated navigation, conversation identity, drafts and persistent she
       const draftRestored=await evaluate('document.querySelector("textarea").value==="Unsent local draft"');
       assert.equal(first.documentReloads,0);assert.equal(first.shellRemounts,0);
       await evaluate(`document.querySelector('input[aria-label="Search conversations"]').value='';document.querySelector('a[href="/settings"]').click()`);
-      await waitFor(`location.pathname==='/settings' && document.querySelector('h1')?.textContent.includes('Settings')`);
+      await waitFor(`location.pathname==='/settings' && Array.from(document.querySelectorAll('h1')).some(el=>el.textContent.includes('Settings'))`);
       await evaluate(`(()=>{const link=document.querySelector('a[href="/chat"]');if(link)link.click();else history.back();})()`);
       await waitFor(`location.pathname.startsWith('/chat') && document.querySelector('[aria-label="Conversations"]')`);
       const sidebarPreserved=await evaluate(`document.querySelector('[aria-label="Conversations"]')===window.__list`);

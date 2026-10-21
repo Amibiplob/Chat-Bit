@@ -38,23 +38,12 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
 
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
 
-      {activeSection === "chats" && pathname !== "/calls" && (
-        <>
-          <div className={`${conversationOpen ? "hidden md:flex" : "flex"} ${pathname === "/chat" ? "w-full md:w-auto" : "w-auto"} shrink-0`}>
-            <ConversationSidebar conversations={conversations} status={status} />
-          </div>
-
-          <main className={`${pathname === "/chat" ? "hidden md:flex" : "flex"} min-w-0 flex-1`}>{children}</main>
-        </>
-      )}
-
-      {activeSection === "chats" && pathname === "/calls" && children}
-
-      {activeSection === "settings" && <div className="min-w-0 flex-1 overflow-y-auto">{children}</div>}
-      {activeSection === "shared" && children}
-      {activeSection === "contacts" && <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>}
+      <div style={{ display: activeSection === "chats" && pathname !== "/calls" ? undefined : "none" }} className={`${conversationOpen ? "hidden md:flex" : "flex"} ${pathname === "/chat" ? "w-full md:w-auto" : "w-auto"} shrink-0`}>
+        <ConversationSidebar conversations={conversations} status={status} />
       </div>
-      {!conversationOpen && !callOpen && <MobileNavigation pathname={pathname} unread={conversations.some(conversation => conversation.unread > 0)}/>}
+      <main className={`${pathname === "/chat" ? "hidden md:flex" : "flex"} min-h-0 min-w-0 flex-1 flex-col overflow-y-auto`}>{children}</main>
+      </div>
+      <MobileNavigation hidden={conversationOpen || callOpen} pathname={pathname} unread={conversations.some(conversation => conversation.unread > 0)}/>
     </div>
   );
 }

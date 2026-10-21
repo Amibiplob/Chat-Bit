@@ -8,8 +8,8 @@ const destinations = [
   { href: '/contacts', label: 'Contacts', icon: Users },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
-export function MobileNavigation({ pathname, unread }: { pathname: string; unread: boolean }) {
-  return <nav aria-label="Mobile navigation" className="cb-mobile-navigation md:hidden">
+export function MobileNavigation({ pathname, unread, hidden = false }: { pathname: string; unread: boolean; hidden?: boolean }) {
+  return <nav hidden={hidden} style={{display: hidden ? "none" : undefined}} aria-label="Mobile navigation" className="cb-mobile-navigation md:hidden">
     {destinations.map(({ href, label, icon: Icon }) => {
       const active = pathname === href || pathname.startsWith(href + '/');
       return <NavigationLink key={href} href={href} aria-current={active ? 'page' : undefined} className="flex min-h-16 flex-1 flex-col items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground">

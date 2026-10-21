@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { FolderOpen, Search } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { PersistentConversationList } from "./persistent-conversation-list";
 import { NewConversation } from "./new-conversation";
 import type { Conversation } from "@/lib/messaging-types";
 import { LogoutButton } from "@/components/auth/logout-button";
 import type { ConnectionStatus } from "@/lib/realtime-types";
 
-export function ConversationSidebar({ conversations, status }: { conversations: Conversation[]; status: ConnectionStatus }) {
+export const ConversationSidebar = memo(function ConversationSidebar({ conversations, status }: { conversations: Conversation[]; status: ConnectionStatus }) {
   const [search, setSearch] = useState("");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const filtered = conversations.filter((conversation) => (!unreadOnly || conversation.unread > 0) && `${conversation.name} ${conversation.lastMessage ?? ""}`.toLowerCase().includes(search.toLowerCase()));
@@ -67,4 +67,4 @@ export function ConversationSidebar({ conversations, status }: { conversations: 
       </div>
     </aside>
   );
-}
+});

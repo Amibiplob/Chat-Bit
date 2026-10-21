@@ -103,3 +103,15 @@ test('poll cadence subtracts request time without overlapping slow requests', as
   assert.equal(maxActive,1);
   assert.ok(starts[1]-starts[0]<650, 'A 60 ms request should not add another full interval');
 });
+
+test('one sync loop survives conversation selection and fences an old in-flight response', async(t)=>{
+  let selected=conversationId;const requests=[],received=[],statuses=[];
+  const next=randomUUID();
+  const loop=createSyncLoop(options({getState:()=>({conversationId:selected,oldest:null}),request:input=>new Promise(resolve=>requests.push({input,resolve})),onSnapshot:(data,input)=>received.push(input.conversationId),onStatus:s=>statuses.push(s)}));
+  t.after(()=>loop.stop());loop.start();await until(()=>requests.length===1);
+  selected=next;loop.select();loop.select();assert.equal(requests.length,1);
+  requests[0].resolve(snapshot('1'));await until(()=>requests.length===2);
+  assert.equal(requests[1].input.conversationId,next);assert.equal(requests[1].input.force,true);assert.deepEqual(received,[]);
+  requests[1].resolve({...snapshot('2'),page:{messages:[],nextCursor:null}});await until(()=>received.length===1);
+  assert.deepEqual(received,[next]);assert.equal(statuses.filter(s=>s==='connecting').length,1);
+});
