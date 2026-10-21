@@ -41,7 +41,7 @@ export function CallPanel({userId}:{userId:string}) {
     };
     document.addEventListener("keydown",key);return ()=>{document.removeEventListener("keydown",key);root?.close();previous?.focus();};
   },[call?.id,modal]);
-  if(!call) return state.error ? <div role="alert" className="fixed bottom-5 left-1/2 z-50 flex w-[90%] max-w-lg -translate-x-1/2 items-center gap-3 rounded-xl border bg-background p-4 shadow-xl">{state.error}<button onClick={dismiss} aria-label="Dismiss call error"><X className="size-4"/></button></div> : state.working ? <div role="status" className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl border bg-background p-4">{state.phase}</div> : null;
+  if(!call) return state.error ? <div role="alert" className="fixed bottom-5 left-1/2 z-50 flex w-[90%] max-w-lg -translate-x-1/2 items-center gap-3 rounded-xl border bg-background p-4 shadow-xl">{state.error}<button onClick={dismiss} aria-label="Dismiss call error"><X className="size-4"/></button></div> : state.working ? <div role="status" className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl border bg-background p-4">{state.phase}<button className="ml-3 rounded-lg border px-3 py-1" onClick={()=>act("cancel")}>Cancel</button></div> : null;
   if(!modal) return <div role="status" className="fixed bottom-4 right-4 z-40 rounded-xl border bg-background p-3 shadow-lg">Call with {call.name} is open in another tab.</div>;
   const live=isLiveCall(call);
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm">

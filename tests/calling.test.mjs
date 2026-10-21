@@ -150,3 +150,54 @@ test('end action keeps dismissal and redial disabled until server termination co
   release({...row,status:'ended'});await ending;
   assert.equal(f.controller.getState().working,false);f.controller.dismiss();assert.equal(f.controller.getState().call,null);
 });
+
+test('poll timing removes request duration and wake during flight queues one immediate sync',async()=>{
+  let now=0,scheduled,delay,release,count=0,active=0,maxActive=0;
+  const f=fixture({now:()=>now,setTimer:(fn,ms)=>{scheduled=fn;delay=ms;return 1;},clearTimer:()=>{},request:async()=>{
+    count++;active++;maxActive=Math.max(maxActive,active);
+    if(count===1) await new Promise(resolve=>{release=resolve;});
+    now+=400;active--;return {call:null,signals:[]};
+  }});
+  f.controller.begin();f.controller.wake();f.controller.wake();assert.equal(count,1);
+  release();await new Promise(resolve=>setImmediate(resolve));assert.equal(delay,0);
+  await scheduled();assert.equal(delay,2600);assert.equal(maxActive,1);assert.equal(count,2);f.controller.stop();
+});
+test('accept schedules immediate offer discovery without shortening idle polling',async()=>{
+  let delay,scheduled;
+  const row=call({callerId:b,calleeId:a,owned:false});
+  const f=fixture({setTimer:(fn,ms)=>{scheduled=fn;delay=ms;return 1;},clearTimer:()=>{}});
+  await f.controller.receive({call:row,signals:[]});f.setCall(row);
+  f.controller.begin();await new Promise(resolve=>setImmediate(resolve));assert.equal(delay,1000);
+  await f.controller.act('accept');await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(typeof scheduled,'function');
+  assert.equal(f.events.filter(e=>Array.isArray(e)&&e[0]==='/api/calls/sync').length,2);
+  f.controller.stop();
+});
+test('permission cancellation releases late media without creating a call and permits redial',async()=>{
+  let release;const f=fixture({getMedia:()=>new Promise(resolve=>{release=resolve;})});
+  const starting=f.controller.start(randomUUID(),'voice');await f.controller.act('cancel');
+  assert.equal(f.controller.getState().working,false);
+  release({getTracks:()=>f.tracks});await starting;
+  assert.ok(f.events.includes('stop-audio'));
+  assert.equal(f.events.filter(e=>Array.isArray(e)&&e[0]==='/api/calls').length,0);f.controller.stop();
+});
+test('connected state waits for negotiated transport and an unmuted remote track, deduplicating writes',async()=>{
+  const f=fixture(),row=call({status:'connecting'});f.setCall(row);
+  await f.controller.receive({call:row,signals:[{sequence:1,kind:'answer',payload:{type:'answer',sdp:'v=0'}}]});
+  f.peer.connectionState='connected';f.peer.onconnectionstatechange();
+  assert.equal(f.events.filter(e=>Array.isArray(e)&&e[1].action==='connected').length,0);
+  let unmute;f.peer.ontrack({track:{id:'remote',muted:true,addEventListener:(_name,fn)=>{unmute=fn;}}});
+  assert.equal(f.controller.getState().call.status,'connecting');
+  unmute();f.peer.onconnectionstatechange();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(f.events.filter(e=>Array.isArray(e)&&e[1].action==='connected').length,1);
+  assert.equal(f.controller.getState().phase,'Connected');f.controller.stop();
+});
+test('trickle ICE is sent before complete gathering and late track events cannot restart ended calls',async()=>{
+  const f=fixture(),row=call({status:'connecting'});f.setCall(row);
+  await f.controller.receive({call:row,signals:[]});
+  f.peer.iceGatheringState='gathering';f.peer.onicecandidate({candidate:{toJSON:()=>({candidate:'test'})}});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(f.events.filter(e=>Array.isArray(e)&&e[1].signal?.kind==='ice').length,1);
+  const ontrack=f.peer.ontrack;await f.controller.act('end');
+  ontrack({track:{id:'late',muted:false}});assert.equal(f.controller.getState().local,null);assert.equal(f.controller.getState().call.status,'ended');
+});
