@@ -10,6 +10,6 @@ interface ChatLayoutProps {
 
 export default async function ChatRouteLayout({ children }: ChatLayoutProps) {
   const user = await requireUser();
-  const conversations = await getConversationList();
-  return <SettingsProvider initial={await mySettings()}><ChatLayout user={user} conversations={conversations}>{children}</ChatLayout></SettingsProvider>;
+  const [conversations, settings] = await Promise.all([getConversationList(), mySettings()]);
+  return <SettingsProvider initial={settings}><ChatLayout user={user} conversations={conversations}>{children}</ChatLayout></SettingsProvider>;
 }

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 
-const source = (await readFile(new URL('../lib/messaging-client.ts', import.meta.url), 'utf8')).replaceAll("'./messaging-response.mjs'", JSON.stringify(new URL('../lib/messaging-response.mjs', import.meta.url).href));
+const source = (await readFile(new URL('../lib/messaging-client.ts', import.meta.url), 'utf8')).replaceAll("'./messaging-response.mjs'", JSON.stringify(new URL('../lib/messaging-response.mjs', import.meta.url).href)).replaceAll("'./connection-performance.mjs'", JSON.stringify(new URL('../lib/connection-performance.mjs', import.meta.url).href));
 const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
 const { messagingRequest } = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString('base64')}`);
 
