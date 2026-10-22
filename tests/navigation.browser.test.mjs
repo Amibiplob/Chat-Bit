@@ -132,14 +132,17 @@ test('authenticated navigation, conversation identity, drafts and persistent she
         await evaluate('document.querySelector("textarea[aria-label=Message]").focus()');
         assert.ok(await evaluate('document.querySelector("textarea[aria-label=Message]").getBoundingClientRect().bottom<=innerHeight'),'Composer fits a shortened mobile viewport');
         await evaluate(`document.querySelector('a[aria-label="Back to conversations"]').click()`);await waitFor(`location.pathname==='/chat'`);
-        await evaluate(`document.querySelector('[aria-label="Mobile navigation"] a[href="/contacts"]').click()`);await waitFor(`location.pathname==='/contacts'`);
+        await evaluate(`document.querySelector('[aria-label="Mobile navigation"] a[href="/contacts"]').click()`);
+        await waitFor(`location.pathname==='/contacts' && document.querySelector('[aria-label="Mobile navigation"] a[aria-current="page"]')?.textContent.trim()==='Contacts'`);
         assert.equal(await evaluate(`document.querySelector('[aria-label="Mobile navigation"] a[aria-current="page"]').textContent.trim()`),'Contacts');
         // Fixture messages reference membership. Remove only this synthetic
         // thread's rows before simulating membership revocation.
         await pool.query('DELETE FROM messages WHERE conversation_id=$1',[chats[1]]);
         await pool.query('DELETE FROM conversation_members WHERE conversation_id=$1 AND user_id=$2',[chats[1],ids[0]]);
         await evaluate(`document.querySelector('a[href="/chat"]').click()`);await waitFor(`location.pathname==='/chat'`);
-        await evaluate(`document.querySelector('a[href="/chat/${chats[1]}"]').click()`);
+        // Sync may already have removed the revoked thread's sidebar link.
+        // Native history still exercises the private cache's authorization fence.
+        await evaluate(`history.pushState(null,'','/chat/${chats[1]}')`);
         await waitFor(`document.querySelector('[role="alert"]')?.textContent.includes('Conversation unavailable')`);
         assert.equal(await evaluate(`Boolean(document.querySelector('textarea[aria-label="Message"]'))`),false,'Membership rejection removes cached private conversation content');
         await pool.query('DELETE FROM sessions WHERE user_id=$1',[ids[0]]);

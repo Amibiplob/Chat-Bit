@@ -22,7 +22,7 @@ Next.js and eslint-config-next move together from **16.3.8 to 16.4.2**. React an
 | CVE-2026-96889 / GHSA-2464-fhr4-w9xw, critical image/SVG memory corruption | Existing explicit sharp 0.35.5 already meets the upstream workaround; `dangerouslyAllowSVG` is not enabled. Retained sharp and upgraded Next's dependency floor. |
 | GHSA-p3m5-59mp-jv5r / React GHSA-h3gv-c5rc-p453, high Server Action CPU exhaustion | Reachable framework surface: ChatBit App Router exposes `app/actions/auth.ts`. Upgraded Next/RSC handling; application authentication is not a substitute for the parser fix. |
 
-These items were identified from the maintainer bulletin even though the initial pnpm audit did not report them. Browser fetches of individual Next/React GHSA pages returned 404; the subsequent [Next maintainer advisory API](https://api.github.com/repos/vercel/next.js/security-advisories) and [React maintainer advisory API](https://api.github.com/repos/react/react/security-advisories) confirmed the affected/patched ranges. No hostile exploit was sent to production.
+These items were identified from the maintainer bulletin even though the initial pnpm audit did not report them. Some initial browser fetches of individual Next/React GHSA pages returned 404; the subsequent [Next maintainer advisory API](https://api.github.com/repos/vercel/next.js/security-advisories) and [React maintainer advisory API](https://api.github.com/repos/react/react/security-advisories) confirmed the affected/patched ranges. No hostile exploit was sent to production.
 
 Framework milestone: 132 standard tests passed (17 gated skips), lint passed and the Webpack production build, including TypeScript and page generation, passed under Node 24.22.1. No application compatibility edits were required at this milestone.
 
@@ -66,6 +66,8 @@ These are actual resolved versions, not just manifest lower bounds. Every direct
 | @types/node | 20.19.43 | 24.19.2 |
 | @modelcontextprotocol/sdk (transitive) | 1.31.0 | 1.32.1 |
 | undici (transitive npm package) | 7.30.0 | 7.30.1 |
+| @next/env, @next/eslint-plugin-next, all eight optional @next/swc platform packages | 16.3.8 | 16.4.2 |
+| undici-types (Node type dependency) | 6.21.0 | Adds 7.24.6 for Node 24 types; 6.21.0 remains for other Node 20 type consumers |
 | @aws-sdk/client-s3, s3-presigned-post, s3-request-presigner | 3.1152.0 each | Retained; no actionable finding in resolved tree |
 | @base-ui/react | 1.8.0 | Retained |
 | @node-rs/argon2 | 2.2.2 | Retained |
@@ -99,3 +101,22 @@ The [AWS advisory GHSA-6475-r3vj-m8vf](https://github.com/aws/aws-sdk-js-v3/secu
 The first expanded integration run exposed an existing session-expiry timer edge case: the private panel mounted, but remained visible when all authenticated API requests were stalled. The one-shot client timer checked `Date.now()` once; an early callback or fractional server deadline could leave it before expiry without another scheduled check. A small scheduler now rounds remaining delays upward and rechecks until the deadline, keeps one bounded timer, and cancels on disposal. Foreground checks use the same scheduler. Server-side session expiry and every API authorization check remain unchanged and authoritative.
 
 Three deterministic unit cases cover fractional deadlines/early callbacks, clock changes/foreground checks/disposal and already-expired sessions. The existing real Chrome stalled-API expiry test passed after the correction; TypeScript, lint and the Webpack production build passed. This is a correctness issue discovered during validation, not proof that the dependency update introduced it.
+
+Two navigation fixture races were also corrected: URL changes can precede React's active-link commit, so the mobile assertion now waits for the active Contacts link; membership synchronization can remove a sidebar link before a synthetic click, so the cached-conversation authorization check navigates through native history. Authorization-denial and private-content-removal assertions are preserved.
+
+## GitHub Actions and Vercel configuration
+
+The workflow reads `.nvmrc` for application Node and retains pnpm 12.3.4. Embedded action runtimes also move to Node 24 using [checkout v5](https://github.com/actions/checkout/releases/tag/v5.0.0), [setup-node v5](https://github.com/actions/setup-node/releases/tag/v5.0.0), [pnpm/action-setup v5](https://github.com/pnpm/action-setup/releases/tag/v5.0.0) and [upload-artifact v6](https://github.com/actions/upload-artifact/releases/tag/v6.0.0). Artifact v5 still declares Node 20, hence v6 is the minimal runtime update there. Official action manifests and existing input names were checked, and workflow YAML, read-only repository permissions and version inputs were validated locally. These Node 24 actions require Actions Runner 2.327.1 or later; the workflow uses GitHub-hosted `ubuntu-latest`. No remote Actions run is claimed.
+
+No new Vercel environment variables, migrations or provider changes are required. Keep the project's Node selection at 24.x, preserve `packageManager`, use frozen pnpm installation and the existing Webpack build command, and inspect the actual Node patch and deployment commit after manual push/deployment. Vercel controls the Node patch rollout. Local `.nvmrc` does not replace the user's global Node installation: use `nvm install && nvm use` inside the repository.
+
+## Final verification refresh
+
+The existing update commits were rechecked against the installed tree and fresh official advisory metadata on 2026-10-22. Node 24.22.1 was downloaded again into a temporary directory and verified against the official release SHA-256 list. The global Node installation remains unchanged. A fresh frozen installation passed without lockfile changes. The standard suite passed **135 tests, 17 skipped**, including the three added session-expiry cases. TypeScript, ESLint, the Webpack production build and whitespace checks passed. The production Chrome smoke test passed **35 public route/viewport checks**, hydration/error checks, signup validation, light/dark/system themes, simulated install lifecycle, cache isolation and offline navigation.
+
+A fresh full registry audit exits 1 for the single unresolved high `braces` advisory; the production audit exits 0 with zero known findings. The checked-in JSON retains the before/after advisory details. This audit does not prove the absence of other vulnerabilities. Official action manifests were refreshed and confirm Node 24 for all four selected action versions. Installed React, JSX accessibility and import plugins still exclude ESLint 10 in their peer ranges.
+
+
+The expanded suite under Node 24.22.1 completed with **234 passed, 0 failed, 2 skipped** against disposable loopback PostgreSQL **17.10**, Turbopack and real headless Chrome. It enabled HTTP auth, navigation, optimistic SPA messaging, push-browser and native WebRTC checks. Coverage includes registration/login/logout and Argon2id, session cookies and expiry, authorization/security grants, PostgreSQL transactions, attachment/storage mocks and private access, message persistence/edit/reply/delete/idempotency, polling, cached navigation and drafts, responsive controls, profile/password changes, and synthetic-device audio/video exchange.
+
+The two skipped cases were run separately and passed: the real Ably SDK with a loopback protocol fixture (**1 passed**) and the production first-paint theme/authentication-outage recovery browser regression (**1 passed**). The latter intentionally used an unreachable loopback database and confirmed valid-format cookies produce a server error during an outage, preserving fail-closed behavior without script/hydration warnings. No live Neon database/storage, hosted Ably service, TURN relay, physical camera/microphone, real-device install, Vercel deployment or remote GitHub Actions acceptance is claimed. The disposable PostgreSQL server is stopped after validation.
