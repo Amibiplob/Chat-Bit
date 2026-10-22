@@ -1,13 +1,17 @@
-# Fresh Neon deployment
+# Neon deployment
 
-1. Use an empty reviewed Neon PostgreSQL database. Copy its pooled and direct URLs
+1. Select the intended Neon PostgreSQL branch and review its migration history.
+   A fresh installation needs an empty reviewed database; an existing installation
+   keeps its data and applied migration history. Copy its pooled and direct URLs
    into DATABASE_URL and DATABASE_MIGRATION_URL respectively, with DATABASE_SSL=verify.
    Use the same owning role/branch/database for both. Fill the remaining values in
    [environment.md](environment.md) locally and in Vercel. Never expose secrets.
-2. Only after approving the selected live target yourself, run `pnpm db:migrate`
-   once, then `node scripts/check-database.mjs`. Builds and startup do not migrate.
+2. Check the selected target with `node scripts/check-database.mjs` if initialized.
+   Only when reviewed migrations are pending (or for a fresh database), run
+   `pnpm db:migrate` yourself against that target, then repeat the readiness check.
+   Builds and startup do not migrate.
    The runner applies 001–008 atomically with checksum history and rerun protection.
-   No old data is needed or imported. The unchanged hardening migration already
+   The unchanged hardening migration already
    tolerates absent historical client roles on plain PostgreSQL.
 3. Use the existing private production bucket chatbit-attachments. Obtain its exact
    branch endpoint and S3 region from Neon; aws-ap-southeast-1 in the Console maps
@@ -33,6 +37,6 @@
 
 No production database, bucket, credential, scheduler, deployment or push was
 changed during local preparation. A passing build/mock suite does not prove live
-Neon access, TLS, storage privacy metadata/CORS or TURN. The owner intentionally
-chose no backup setup and an empty database. These are explicit deployment choices,
-not unfinished old-data migration requirements.
+Neon access, TLS, storage privacy metadata/CORS or TURN. Backup provisioning is
+outside this repository; do not reset an existing database to repeat a fresh-install
+checklist.

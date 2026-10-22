@@ -1,6 +1,6 @@
 # Voice and video calling
 
-Milestone 6 adds one-to-one native WebRTC audio/video calls to conversation
+ChatBit supports one-to-one native WebRTC audio/video calls from conversation
 headers and the Calls page. PostgreSQL, custom ChatBit sessions and authenticated
 HTTP polling remain the application backend. Neon Object Storage remains file storage only.
 No group calling, screen sharing, recording, media storage or new provider SDK
@@ -8,9 +8,10 @@ is included. No application database or environment file was changed by this wor
 
 ## Signaling and deployment
 
-Review and apply `db/migrations/005_calling.sql` using `pnpm db:migrate` against
-your explicitly selected database before deploying the calling build. Never
-migrate during builds. Migration 005 extends the existing calls table with tab/
+Calling uses `db/migrations/005_calling.sql`. Check the selected target's
+migration history and apply only reviewed pending migrations with `pnpm db:migrate`;
+do not rerun setup against an initialized database unnecessarily. Builds never
+migrate. Migration 005 extends the calls table with tab/
 session ownership, timestamps, end reasons and bounded signal sequencing. It
 adds per-user busy slots and temporary signal records. Legacy unfinished demo
 calls are marked failed; existing history is retained. No prior migration is
@@ -21,10 +22,10 @@ Each Vercel Route Handler finishes a short request. Idle visible tabs poll every
 three seconds; calls in progress poll every second, including hidden tabs while
 browser scheduling permits. Hidden idle tabs stop requests and catch up on focus.
 This is durable HTTP signaling, not a persistent connection. It fits the existing
-Next.js 16.3.4/pg deployment without another server or dependency.
+Next.js App Router/pg deployment without another signaling server.
 [Vercel Functions support ordinary HTTP handlers](https://vercel.com/docs/functions/functions-api-reference).
-[Vercel now offers WebSocket support in public beta](https://vercel.com/changelog/websocket-support-is-now-in-public-beta),
-but this milestone reuses the existing transport and does not rely on that beta.
+The implementation uses HTTP polling for signaling and does not rely on
+a persistent WebSocket server.
 
 Signals are small SDP/ICE messages stored only until negotiation no longer needs
 them. Audio/video flows between browsers through encrypted WebRTC transports;

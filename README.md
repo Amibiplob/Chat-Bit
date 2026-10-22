@@ -1,16 +1,16 @@
 # ChatBit
 
-ChatBit is a responsive messaging application built with Next.js and PostgreSQL.
-It brings direct conversations, private file sharing, and browser voice/video
-calls into an installable web app.
+ChatBit is a responsive messaging application built with Next.js and Neon
+PostgreSQL. It combines direct conversations, private file sharing, and browser
+voice/video calls in an installable web app, with server-enforced access controls
+and an account-scoped workspace.
 
 **Live website:** [chat-bit-rouge.vercel.app](https://chat-bit-rouge.vercel.app)
 
 ## Features
 
 - Email/password authentication with Argon2id and server-managed sessions.
-- Contact discovery and one-to-one conversations with polling recovery and optional
-  [Ably invalidation delivery](docs/persistent-workspace.md),
+- Contact discovery and one-to-one conversations with PostgreSQL polling,
   presence, typing indicators, replies, edits, deletion, and read receipts.
 - Private photo, video, audio, and document sharing with previews and downloads.
 - One-to-one WebRTC voice/video calls and call history.
@@ -24,6 +24,58 @@ Next.js 16.4.2 App Router, React 19.2.9, TypeScript, Tailwind CSS 4, Base UI, an
 Server code uses `pg` with Neon PostgreSQL, Neon Object Storage through the AWS
 S3 SDK, and native WebRTC APIs. Avatars are stored in PostgreSQL; attachments use
 private object storage. Vercel hosts the web application.
+
+## Architecture
+
+```text
+Browser / installed PWA
+  ├─ Persistent workspace, private RAM cache, drafts and optimistic text outbox
+  ├─ Server Actions and authenticated API routes → Neon PostgreSQL
+  ├─ Signed uploads → private Neon Object Storage → verified completion
+  └─ WebRTC audio/video ↔ peer, with authorized PostgreSQL signaling and STUN/TURN
+```
+
+App Router pages authorize direct URLs on the server. Route Handlers validate
+sessions, conversation membership and ownership before data access; PostgreSQL
+transactions provide durable writes and idempotent message submission. Private
+messages are never placed in a shared server cache or service-worker cache.
+[Architecture and behavior details](docs/persistent-workspace.md).
+
+## Mobile experience and navigation
+
+The authenticated shell keeps the sidebar, mobile tabs and call controls mounted
+while moving between Chats, Contacts, Calls and Settings. Visited workspace panels
+retain their state. Recently loaded conversations use a bounded, account-scoped
+RAM cache, preserving drafts and reading position without a document reload.
+Uncached conversations still use authorized server navigation and honest loading
+feedback. Logout, account changes and session rejection discard private state.
+
+Phone layouts provide a separate conversation screen, attachment picker, emoji
+controls, touch message actions, and a full-screen media viewer. Dynamic viewport
+height and safe-area spacing accommodate browser chrome and resized keyboards.
+Automated viewport checks complement the real-device checklist; they cannot prove
+Android keyboard or system Back behavior on every device.
+
+## Messaging, files and calls
+
+Accepted outgoing text appears locally as **Sending…** before its request completes.
+A stable submission ID prevents duplicates after retries or lost acknowledgements;
+a failed send remains visible with a retry action. Local display, durable server
+acknowledgement and recipient display are separate stages. Newer drafts survive
+failed sends, and pending text survives conversation switching within the session.
+
+PostgreSQL polling is the default recipient-delivery transport. It runs more
+frequently after activity, slows when idle, suspends when offline/hidden unless
+background notifications are explicitly enabled, and resynchronizes on return.
+There is no guaranteed delivery latency or closed-app push. The optional Ably
+integration already in the repository remains opt-in and is not activated by setup.
+
+The attachment picker supports approved images, MP4/WebM, audio and documents,
+including PDF and Office formats. Uploads show progress, support cancellation and
+retry, and only become messages after server verification. Membership-protected
+media routes and short-lived downloads keep the storage bucket private. Browser
+codec support varies. Voice/video controls support accept/reject, mute, camera
+toggle and hangup; media tracks are released when calls end or sessions are rejected.
 
 ## Local development
 
@@ -121,6 +173,7 @@ services are not needed for a local UI check.
 | `pnpm build:turbo` | Create a production build with Turbopack. |
 | `pnpm start` | Serve an existing production build. |
 | `pnpm lint` | Run ESLint. |
+| `pnpm exec tsc --noEmit` | Check TypeScript without emitting files. |
 | `pnpm test` | Run unit tests and configured opt-in integration/browser tests. |
 | `pnpm db:migrate` | Apply migrations to the selected database. |
 | `pnpm config:check` | Validate production configuration shape without network access. |
@@ -143,7 +196,8 @@ are skipped, so a default test pass does not imply integration coverage.
 
 [The verification workflow](.github/workflows/verify.yml) provisions disposable
 PostgreSQL, prepares the security fixture, and runs integration, browser,
-typecheck, lint, dependency-audit, build, and production PWA checks. See
+typecheck, lint, dependency-audit, build, and production PWA checks. Browser
+coverage includes portrait/landscape layouts and delayed-send recovery. See
 [runtime regressions](docs/runtime-regressions.md),
 [browser checks](docs/browser-ci-verification.md), and the
 [manual release checklist](docs/manual-test-plan.md) for additional coverage.
@@ -172,6 +226,7 @@ See [authentication](docs/authentication.md) and
 - Attachments are limited to 10 MiB per file and 100 MiB per uploader.
 - Updates use polling by default. Optional Ably invalidations require manual
   configuration and hosted acceptance testing; recovery polling remains enabled.
+  No hosted push service was activated or verified in the final audit.
   Latency, background throttling and usage depend on networks and active tabs.
 - Calls require HTTPS or trusted loopback, browser media permissions, both people
   online, and suitable STUN/TURN infrastructure. Same-machine tests do not prove
@@ -179,6 +234,9 @@ See [authentication](docs/authentication.md) and
   push, native background calling, and an offline outbox are unavailable.
 - Password recovery, MFA, blocking, and self-service account deletion are unavailable.
 - Backups and cleanup scheduling are not provisioned by this repository.
+- One high-severity `braces` advisory remains in development tooling with no
+  published fix. ESLint 9 is end-of-life while required plugins exclude ESLint 10.
+  See the [dependency security review](docs/dependency-security.md).
 
 See [calling](docs/calling.md) for TURN setup, lifecycle limits, and device checks.
 
@@ -209,3 +267,12 @@ Follow the [deployment guide](docs/deployment.md) and
 [production-readiness checklist](docs/production-readiness.md), then test two
 accounts on real devices and different networks. Deployment and production
 acceptance are separate from a successful local build.
+
+## Final handoff
+
+The implementation and local verification are complete for this project phase.
+See the [final production handoff](docs/production-readiness.md) for measured
+results, remaining release prerequisites and critical-failure recovery steps.
+Production acceptance still requires the intended deployment commit, real private
+uploads/downloads, two devices on different networks, TURN, and browser installation.
+No production data or credentials were changed, and no deployment was performed.
