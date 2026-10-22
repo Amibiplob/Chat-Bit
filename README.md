@@ -212,14 +212,14 @@ optimistic display is separate from persistence and recipient delivery.
 
 | Stage | Samples | p50 | p95 |
 | --- | --- | --- | --- |
-| Click to optimistic display | 12 | 19 ms | 76 ms |
-| Send request to server acknowledgement | 12 | 97 ms | 869 ms |
-| Click to recipient display | 12 | 952 ms | 1,343 ms |
-| Warm cached chat switching | 10 | 27 ms | 39 ms |
+| Click to optimistic display | 12 | 41 ms | 180 ms |
+| Send request to server acknowledgement | 12 | 252 ms | 987 ms |
+| Click to recipient display | 12 | 1,161 ms | 1,970 ms |
+| Warm cached chat switching | 10 | 26 ms | 39 ms |
 
 Cached switches made zero RSC requests and caused zero shell remounts. The first
-uncached chat measured 516 ms to content in one local sample. A native WebRTC
-controller simulation reached remote media in 2,109 ms in one local sample.
+uncached chat measured 778 ms to content in one local sample. A native WebRTC
+controller simulation reached remote media in 2,121 ms in one local sample.
 See the [verification evidence](docs/production-readiness.md#verification-evidence)
 for scope and limitations. Physical mobile-keyboard responsiveness is unverified.
 

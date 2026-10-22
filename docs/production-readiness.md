@@ -38,11 +38,25 @@ theme/authentication-error recovery. These checks previously needed manual flags
 
 ## Verification evidence
 
+The v1.0.0 stabilization review found documentation/metadata gaps rather than a
+new confirmed critical or functional defect. `.env.example` and the environment
+reference now distinguish required settings, defaults, optional Ably, TURN,
+cleanup authentication and isolated test controls. README includes local metrics
+and the launch checklist; package metadata now identifies version 1.0.0.
+No application logic, dependency versions, migrations or private environment
+files changed in this follow-up. Import, stylesheet, configuration, script and
+documentation references were reviewed before considering cleanup; no files or
+dependencies were removed. The previously completed media-viewer and security
+fixes remain intact.
+
 Validation uses Node **24.22.1**, pnpm **12.3.4**, disposable loopback PostgreSQL
 **17.10**, real headless Chrome and the installed Brave browser. No live Neon data
 is used. Storage tests use mocks/offline SDK signing; WebRTC uses synthetic devices.
 
 - Standard suite: **135 passed, 17 infrastructure-gated skips**.
+- Environment follow-up: **34 configuration/validator tests passed**; all **51**
+  explicitly referenced environment names appear in the template/reference,
+  including framework and test-only controls. Frozen installation passes.
 - Expanded disposable PostgreSQL 17/Chrome/Turbopack suite: **236 passed,
   0 failed, 1 skipped**. The skipped production theme/authentication-outage
   browser regression passed separately (**1 passed, 0 skipped**). The expanded
@@ -50,7 +64,7 @@ is used. Storage tests use mocks/offline SDK signing; WebRTC uses synthetic devi
   cached navigation, retry/idempotency, the loopback SDK transport fixture and
   native WebRTC with synthetic media. No hosted push provider was activated.
 - TypeScript, ESLint, Webpack production build and whitespace checks pass.
-- Chrome production smoke: **56 public route/viewport checks** across 320×568,
+- Chrome and Brave production smoke: **56 public route/viewport checks each** across 320×568,
   390×844, 430×932, 768×1024, 1280×800, 568×320, 844×390 and 1024×768.
   Hydration/errors, signup validation, themes, simulated install/dismissal,
   private-cache isolation and offline navigation pass.
@@ -73,16 +87,21 @@ are measured separately; PostgreSQL polling remains the default transport.
 
 | Stage | Samples | p50 | p95 |
 | --- | --- | --- | --- |
-| Click to optimistic message DOM | 12 | 19 ms | 76 ms |
-| Send request to server acknowledgement | 12 | 97 ms | 869 ms |
-| Click to confirmed sender DOM | 12 | 150 ms | 895 ms |
-| Click to recipient DOM | 12 | 952 ms | 1,343 ms |
-| Warm cached conversation DOM | 10 | 27 ms | 39 ms |
-| Visited workspace panels with 1,500 ms delayed fetch | 30 | 16 ms | 24 ms |
+| Click to optimistic message DOM | 12 | 41 ms | 180 ms |
+| Send request to server acknowledgement | 12 | 252 ms | 987 ms |
+| Click to confirmed sender DOM | 12 | 414 ms | 1,026 ms |
+| Click to recipient DOM | 12 | 1,161 ms | 1,970 ms |
+| Warm cached conversation DOM | 10 | 26 ms | 39 ms |
+| Visited workspace panels with 1,500 ms delayed fetch | 30 | 16 ms | 20 ms |
 
 Warm cached conversation switches made zero RSC requests and caused zero shell
-remounts. The native calling-controller simulation reached negotiated transport
-and remote media in 2,109 ms in one local sample; this is not TURN or device proof.
+remounts. The uncached conversation reached content in 778 ms in one sample.
+The native calling-controller simulation reached negotiated transport and remote
+media in 2,121 ms in one local sample; this is not TURN or device proof.
+The synchronous-acceptance regression still confirms pending DOM and composer
+clearing before the click handler returns. The observed optimistic p95 is above
+100 ms in this run; these development measurements vary with browser scheduling
+and local load, and no universal sub-100-ms or sub-second-delivery claim is made.
 
 ## Known limitations and launch prerequisites
 
