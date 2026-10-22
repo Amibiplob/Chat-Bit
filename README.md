@@ -20,7 +20,7 @@ calls into an installable web app.
 
 ## Technology
 
-Next.js 16.3.8 App Router, React 19, TypeScript, Tailwind CSS 4, Base UI, and Zod.
+Next.js 16.4.2 App Router, React 19.2.9, TypeScript, Tailwind CSS 4, Base UI, and Zod.
 Server code uses `pg` with Neon PostgreSQL, Neon Object Storage through the AWS
 S3 SDK, and native WebRTC APIs. Avatars are stored in PostgreSQL; attachments use
 private object storage. Vercel hosts the web application.
