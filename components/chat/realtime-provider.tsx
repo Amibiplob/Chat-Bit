@@ -11,6 +11,7 @@ import { useConversationCache } from "@/components/conversation/conversation-cac
 import { createMessagingPollingPolicy } from "@/lib/messaging-polling-policy.mjs";
 import { startPushClient } from "@/lib/push-client";
 import { createSyncLoop } from "@/lib/realtime-client.mjs";
+import { watchSessionExpiry } from "@/lib/session-expiry.mjs";
 
 type Thread = { id: string; oldest: () => MessageCursor | null; receive: (page: MessagePage) => void };
 type RealtimeState = {
@@ -74,10 +75,10 @@ export function RealtimeProvider({ userId, sessionExpiresAt, initialConversation
 
   useEffect(()=>{
     if(!sessionExpiresAt||denied)return;
-    const check=()=>{if(Date.now()>=sessionExpiresAt)window.dispatchEvent(new CustomEvent("chatbit:session-rejected",{detail:{accountId:userId}}));};
-    const timer=setTimeout(check,Math.max(0,sessionExpiresAt-Date.now()));
+    const expiry=watchSessionExpiry(sessionExpiresAt,()=>window.dispatchEvent(new CustomEvent("chatbit:session-rejected",{detail:{accountId:userId}})));
+    const check=expiry.check;
     window.addEventListener("focus",check);window.addEventListener("pageshow",check);document.addEventListener("visibilitychange",check);
-    return()=>{clearTimeout(timer);window.removeEventListener("focus",check);window.removeEventListener("pageshow",check);document.removeEventListener("visibilitychange",check);};
+    return()=>{expiry.stop();window.removeEventListener("focus",check);window.removeEventListener("pageshow",check);document.removeEventListener("visibilitychange",check);};
   },[sessionExpiresAt,userId,denied]);
 
   useEffect(()=>{
