@@ -1,5 +1,7 @@
 # ChatBit navigation performance
 
+This records the earlier navigation milestone. For the subsequent private conversation cache, nonblocking outbox, canonical acknowledgements and bounded polling changes, see [SPA and messaging performance](spa-messaging-performance.md).
+
 ## Initial audit
 
 The baseline is commit `7a211d7`. There is one HTML root layout and one shared authenticated `(app)` layout, covering chats, conversations, contacts, calls, shared files and settings/profile. Theme and install providers are above route groups. Public/authenticated route groups do not define competing HTML roots.

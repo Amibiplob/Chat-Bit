@@ -11,6 +11,7 @@ import { useConversationCache } from "./conversation-cache-provider";
 import { useConversationView, useOutgoingMessages } from "./conversation-view-provider";
 import { useRealtime } from "@/components/chat/realtime-provider";
 import { uploadAttachment } from "@/lib/attachment-client";
+import { mergeOutgoingMessages } from "@/lib/outgoing-messages.mjs";
 
 export function ConversationLayout({ conversation, initialPage, currentUserId }: {
   conversation: Conversation; initialPage: MessagePage; currentUserId: string;
@@ -94,7 +95,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
   async function handleSend(content: string) {
     if (busy.current) return false;
     if (!editingMessage) {
-      const failed=outgoingMessages.find(message=>message.delivery==="failed"&&message.content===content&&(message.reply?.id??null)===(replyingTo?.id??null));
+      const failed=outgoingMessages.find(message=>message.delivery==="failed"&&message.content===content&&(!replyingTo||message.reply?.id===replyingTo.id));
       if(failed?.clientId){outgoing.retry(conversation.id,failed.clientId);viewStore.setDraft(conversation.id,"");setReplyingTo(null);return true;}
       const clientId=crypto.randomUUID();
       const accepted=outgoing.enqueue({id:clientId,clientId,conversationId:conversation.id,senderId:currentUserId,senderName:"You",content,createdAt:new Date().toISOString(),status:"sent",delivery:"sending",edited:false,deleted:false,attachments:[],reply:replyingTo?{id:replyingTo.id,senderName:replyingTo.senderName,content:replyingTo.content,deleted:false}:null});
@@ -163,7 +164,7 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
     finally { busy.current = false; setPending(false); }
   }
 
-  const displayed = [...messages, ...outgoingMessages.filter(local => !messages.some(row => row.id === local.id || row.clientId && row.clientId === local.clientId))].filter(row => row.content.toLowerCase().includes(search.toLowerCase()) && (filter === "all" || filter === "saved" && saved.includes(row.id) || filter === "media" && row.attachments.some(file => /^(image|video)\//.test(file.mimeType)) || filter === "files" && row.attachments.some(file => !/^(image|video)\//.test(file.mimeType))));
+  const displayed = mergeOutgoingMessages(messages,outgoingMessages).filter(row => row.content.toLowerCase().includes(search.toLowerCase()) && (filter === "all" || filter === "saved" && saved.includes(row.id) || filter === "media" && row.attachments.some(file => /^(image|video)\//.test(file.mimeType)) || filter === "files" && row.attachments.some(file => !/^(image|video)\//.test(file.mimeType))));
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-muted/20" aria-label={`Conversation with ${conversation.name}`}>
       <ConversationHeader conversation={conversations.find((row) => row.id === conversation.id) ?? conversation}

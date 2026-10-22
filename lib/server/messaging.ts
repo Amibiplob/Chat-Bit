@@ -7,10 +7,13 @@ import * as queries from "./messaging-queries.mjs";
 import { MessagingError } from "./messaging-validation.mjs";
 import { requestRateLimit } from "./request-rate-limit.mjs";
 import { rateLimitSecret } from "./auth-request.mjs";
+import { headers } from "next/headers";
 
 async function context(write = false) {
   const user = await getCurrentUser();
   if (!user) throw new MessagingError("Sign in to continue.", 401);
+  const expected=(await headers()).get('X-ChatBit-Account');
+  if(expected&&expected.toLowerCase()!==user.id)throw new MessagingError("Account changed. Sign in again.",401);
   const pool = await diagnosticStep("database-config", async () => getDatabase());
   await diagnosticStep("rate-limit", () => requestRateLimit(pool,user.id,write?"messaging-write":"messaging-read",write?90:180,rateLimitSecret()));
   return { pool, userId: user.id };

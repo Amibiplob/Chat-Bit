@@ -12,7 +12,7 @@ export function ConversationViewProvider({children}:{children:React.ReactNode}) 
   const [store]=useState(()=>createConversationViewStore());
   const router=useRouter();const cache=useConversationCache();
   const [outgoing]=useState(()=>createOutgoingMessages({
-    request:async(message,signal)=>(await messagingRequest<{message:Message}>(`/api/conversations/${message.conversationId}/messages`,{method:'POST',body:JSON.stringify({content:message.content,clientId:message.clientId,replyToId:message.reply?.id??null}),signal})).message,
+    request:async(message,signal)=>(await messagingRequest<{message:Message}>(`/api/conversations/${message.conversationId}/messages`,{method:'POST',headers:{'X-ChatBit-Account':message.senderId},body:JSON.stringify({content:message.content,clientId:message.clientId,replyToId:message.reply?.id??null}),signal})).message,
     onFailure:message=>{if(!store.read(message.conversationId).draft)store.setDraft(message.conversationId,message.content);},
     onConfirmed:()=>window.dispatchEvent(new Event('chatbit:message-saved')),
     onUnauthorized:()=>{cache?.clear();router.replace('/login');},

@@ -445,7 +445,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
           await fill('textarea[aria-label="Message"]', 'Browser persistence message');
           await waitFor(`!document.querySelector('button[aria-label="Send message"]').disabled`);
           await evaluate(`document.querySelector('button[aria-label="Send message"]').click()`);
-          await waitFor(`document.body.innerText.includes('Browser persistence message') && document.querySelector('textarea').value === '' && !document.querySelector('textarea').disabled`);
+          await waitFor(`Array.from(document.querySelectorAll('[data-message-delivery=sent],[data-message-delivery=read]')).some(row=>row.textContent.includes('Browser persistence message')) && document.querySelector('textarea').value === '' && !document.querySelector('textarea').disabled`);
           diagnostic('message sent');
           await evaluate('window.__chatbitReloadMarker=true');
           await command('Page.reload');
@@ -464,7 +464,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
           diagnostic('failed draft retained');
           await command('Network.setBlockedURLs', { urls: [] });
           await evaluate(`document.querySelector('button[aria-label="Send message"]').click()`);
-          await waitFor(`document.body.innerText.includes('Draft kept after failure') && document.querySelector('textarea').value === '' && !document.querySelector('textarea').disabled`);
+          await waitFor(`Array.from(document.querySelectorAll('[data-message-delivery=sent],[data-message-delivery=read]')).some(row=>row.textContent.includes('Draft kept after failure')) && document.querySelector('textarea').value === '' && !document.querySelector('textarea').disabled`);
           diagnostic('draft retried');
           await evaluate(`document.querySelector('[aria-label="Messages"]').scrollTop=0; Array.from(document.querySelectorAll('button')).find(button=>button.textContent.includes('Load older messages')).click()`);
           await waitFor(`document.body.innerText.includes('Browser older message 0') && !document.querySelector('textarea').disabled`);

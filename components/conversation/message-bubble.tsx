@@ -55,7 +55,7 @@ export function MessageBubble({
   }
 
   return (
-    <div className={`group flex ${isOwn ? "justify-end" : "justify-start"}`}>
+    <div data-message-delivery={message.delivery ?? message.status} className={`group flex ${isOwn ? "justify-end" : "justify-start"}`}>
       <div
         className={`flex max-w-[88%] items-end gap-2 sm:max-w-[75%] ${
           isOwn ? "flex-row-reverse" : "flex-row"
@@ -199,7 +199,7 @@ export function MessageBubble({
               {message.edited && <span className="text-[10px]">edited</span>}
 
               {message.delivery === "sending" && <span role="status" className="text-[10px]">Sending…</span>}
-              {message.delivery === "failed" && <><span role="status" className="text-[10px] text-destructive">Not sent</span><button aria-label="Retry message" onClick={()=>onRetry(message)} className="min-h-11 px-2 text-xs underline">Retry</button></>}
+              {message.delivery === "failed" && <><span role="alert" className="text-[10px] text-destructive">Not sent</span><button aria-label="Retry message" onClick={()=>onRetry(message)} className="min-h-11 px-2 text-xs underline">Retry</button></>}
               {isOwn && !message.delivery &&
                 (message.status === "read" ? (
                   <CheckCheck aria-label="Read" className="size-3" />

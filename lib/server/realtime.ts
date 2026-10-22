@@ -3,8 +3,8 @@ import { diagnosticStep } from "./messaging-diagnostics.mjs";
 import { cookies } from "next/headers";
 import { getCurrentUser } from "./auth";
 import { getDatabase } from "./db";
-import { MessagingError } from "./messaging-validation.mjs";
-import { realtimeRateLimit, synchronize, updateActivity } from "./realtime-queries.mjs";
+import { MessagingError, validated } from "./messaging-validation.mjs";
+import { realtimeRateLimit, synchronize, updateActivity, syncSchema } from "./realtime-queries.mjs";
 import { sessionCookieName } from "./session-core.mjs";
 import { rateLimitSecret } from "./auth-request.mjs";
 
@@ -17,8 +17,10 @@ async function context(purpose: "sync" | "activity") {
 }
 
 export async function sync(input: unknown) {
+  const state=validated(syncSchema,input);
   const { pool, userId } = await context("sync");
-  return synchronize(pool, userId, input);
+  if(state.accountId&&state.accountId!==userId)throw new MessagingError("Account changed. Sign in again.",401);
+  return synchronize(pool, userId, state);
 }
 
 export async function activity(input: unknown) {

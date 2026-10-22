@@ -51,11 +51,11 @@ test('authenticated navigation, conversation identity, drafts and persistent she
         window.__requests=[];window.__syncActive=0;window.__maxSyncActive=0;const nativeFetch=window.fetch;window.fetch=async(...args)=>{const raw=args[0] instanceof Request?args[0].url:String(args[0]);const u=new URL(raw,location.href);const kind=u.searchParams.has('_rsc')?'rsc':u.pathname==='/api/realtime/sync'?'sync':u.pathname.startsWith('/api/')?'api':'other';window.__requests.push({kind});if(kind==='sync'){window.__syncActive++;window.__maxSyncActive=Math.max(window.__maxSyncActive,window.__syncActive);}try{return await nativeFetch(...args);}finally{if(kind==='sync')window.__syncActive--;}};`);
       const switchTo=async(index)=>{
         const target='/chat/'+chats[index];
-        await evaluate(`window.__requests=[];window.__navStart=performance.now();window.__feedback=null;
-          window.__observer=new MutationObserver(()=>{if(window.__feedback===null&&(document.querySelector('[data-navigation-pending="true"], [data-route-loading]') || Array.from(document.querySelectorAll('[role="status"]')).some(el=>/^Loading (conversation|ChatBit)/.test(el.textContent))))window.__feedback=performance.now()-window.__navStart;});window.__observer.observe(document.body,{subtree:true,attributes:true,childList:true});
+        await evaluate(`window.__requests=[];window.__navStart=performance.now();window.__feedback=null;window.__contentMs=null;
+          window.__observer=new MutationObserver(()=>{if(window.__contentMs===null&&location.pathname===${JSON.stringify(target)}&&document.querySelector('textarea')&&document.querySelector('header h1')?.textContent.trim()===${JSON.stringify('Partner '+(index===0?'One':'Two'))})window.__contentMs=performance.now()-window.__navStart;if(window.__feedback===null&&(document.querySelector('[data-navigation-pending="true"], [data-route-loading]') || Array.from(document.querySelectorAll('[role="status"]')).some(el=>/^Loading (conversation|ChatBit)/.test(el.textContent))))window.__feedback=performance.now()-window.__navStart;});window.__observer.observe(document.body,{subtree:true,attributes:true,childList:true});
           document.querySelector('a[href="${target}"]').click();`);
         await waitFor(`location.pathname===${JSON.stringify(target)} && document.querySelector('textarea[aria-label="Message"]') && document.querySelector('header h1')?.textContent.trim()===${JSON.stringify('Partner '+(index===0?'One':'Two'))}`);
-        return evaluate(`(()=>{window.__observer.disconnect();return {transitionMs:Math.round(performance.now()-window.__navStart),feedbackMs:window.__feedback===null?null:Math.round(window.__feedback),rscRequests:window.__requests.filter(r=>r.kind==='rsc').length,syncRequests:window.__requests.filter(r=>r.kind==='sync').length,apiRequests:window.__requests.filter(r=>r.kind==='api').length,shellRemounts:document.querySelector('.cb-app-shell')===window.__shell?0:1,documentReloads:window.__documentMarker===1?0:1};})()`);
+        return evaluate(`(()=>{window.__observer.disconnect();return {contentMs:Math.round(window.__contentMs??performance.now()-window.__navStart),transitionMs:Math.round(performance.now()-window.__navStart),feedbackMs:window.__feedback===null?null:Math.round(window.__feedback),rscRequests:window.__requests.filter(r=>r.kind==='rsc').length,syncRequests:window.__requests.filter(r=>r.kind==='sync').length,apiRequests:window.__requests.filter(r=>r.kind==='api').length,shellRemounts:document.querySelector('.cb-app-shell')===window.__shell?0:1,documentReloads:window.__documentMarker===1?0:1};})()`);
       };
       await fill('textarea[aria-label="Message"]','Unsent local draft');
       const first=await switchTo(1);assert.equal(await evaluate('document.querySelector("textarea").value'),'');
@@ -72,6 +72,9 @@ test('authenticated navigation, conversation identity, drafts and persistent she
         assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),'Navigation fits viewport');
       }
       console.log('Isolated navigation measurements:',JSON.stringify({networkLatencyMs,first,return:second,draftRestored,sidebarPreserved}));
+        const warm=[];for(let i=0;i<10;i++)warm.push(await switchTo(i%2===0?1:0));
+        const durations=warm.map(row=>row.contentMs).sort((a,b)=>a-b);
+        console.log('Warm visited navigation DOM measurements:',JSON.stringify({samples:durations.length,p50:durations[4],p95:durations[9],rscRequests:warm.reduce((sum,row)=>sum+row.rscRequests,0),shellRemounts:warm.reduce((sum,row)=>sum+row.shellRemounts,0)}));
       if(process.env.TEST_NAVIGATION_BASELINE!=='1'){
         assert.equal(draftRestored,true);assert.equal(sidebarPreserved,true);
         assert.ok(await evaluate('window.__maxSyncActive<=1'),'Conversation transitions keep synchronization requests serialized');
@@ -100,6 +103,14 @@ test('authenticated navigation, conversation identity, drafts and persistent she
         await evaluate(`document.querySelector('a[aria-label="Back to conversations"]').click()`);await waitFor(`location.pathname==='/chat'`);
         await evaluate(`document.querySelector('[aria-label="Mobile navigation"] a[href="/contacts"]').click()`);await waitFor(`location.pathname==='/contacts'`);
         assert.equal(await evaluate(`document.querySelector('[aria-label="Mobile navigation"] a[aria-current="page"]').textContent.trim()`),'Contacts');
+        // Fixture messages reference membership. Remove only this synthetic
+        // thread's rows before simulating membership revocation.
+        await pool.query('DELETE FROM messages WHERE conversation_id=$1',[chats[1]]);
+        await pool.query('DELETE FROM conversation_members WHERE conversation_id=$1 AND user_id=$2',[chats[1],ids[0]]);
+        await evaluate(`document.querySelector('a[href="/chat"]').click()`);await waitFor(`location.pathname==='/chat'`);
+        await evaluate(`document.querySelector('a[href="/chat/${chats[1]}"]').click()`);
+        await waitFor(`document.querySelector('[role="alert"]')?.textContent.includes('Conversation unavailable')`);
+        assert.equal(await evaluate(`Boolean(document.querySelector('textarea'))`),false,'Membership rejection removes cached private conversation content');
         await pool.query('DELETE FROM sessions WHERE user_id=$1',[ids[0]]);
         await evaluate(`window.dispatchEvent(new Event('online'))`);await waitFor(`location.pathname==='/login'`);
         assert.equal(await evaluate('Boolean(document.querySelector("textarea"))'),false,'Expired session leaves the private shell');

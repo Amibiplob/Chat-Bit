@@ -24,7 +24,7 @@ export function useRealtime() {
   return value;
 }
 
-export function RealtimeProvider({ initialConversations, children }: { initialConversations: Conversation[]; children: React.ReactNode }) {
+export function RealtimeProvider({ userId, initialConversations, children }: { userId:string; initialConversations: Conversation[]; children: React.ReactNode }) {
   const {profile}=useSettings();
   const cache=useConversationCache();
   const settings=useRef(profile);
@@ -63,7 +63,7 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
     const sync = createSyncLoop({
       request: (input, signal) => messagingRequest(`/api/realtime/sync?state=${encodeURIComponent(JSON.stringify(input))}`, { signal }),
       loadPage: (id, cursor, signal) => messagingRequest(`/api/conversations/${id}/messages?limit=100&cursor=${encodeURIComponent(JSON.stringify(cursor))}`, { signal }),
-      getState: () => ({ conversationId: selection.current, oldest: thread.current?.id === selection.current ? thread.current.oldest() : null }),
+      getState: () => ({ accountId:userId, conversationId: selection.current, oldest: thread.current?.id === selection.current ? thread.current.oldest() : null }),
       isVisible: () => navigator.onLine && (document.visibilityState === "visible" || (settings.current.notifyMessages && typeof Notification!=="undefined" && Notification.permission==="granted")),
       getInterval: () => polling.interval(selection.current, document.visibilityState === "visible"),
       onSnapshot: (snapshot, input) => {
@@ -78,6 +78,11 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
         }
         setPresence({ conversationId: input.conversationId, value: snapshot.presence });
         if (snapshot.page) {
+          if(input.conversationId){
+            const conversation=snapshot.conversations?.find(row=>row.id===input.conversationId);
+            if(conversation)cache?.put({conversation,initialPage:snapshot.page,currentUserId:userId},true);
+            else cache?.refreshPage(input.conversationId,snapshot.page);
+          }
           const id=snapshot.page.messages.at(-1)?.id??"";
           if(id && (lastArrival.current.conversationId!==input.conversationId || lastArrival.current.id!==id))polling.activate();
           lastArrival.current={conversationId:input.conversationId,id};
@@ -110,7 +115,7 @@ export function RealtimeProvider({ initialConversations, children }: { initialCo
       document.removeEventListener("pointerdown", interact);
       document.removeEventListener("keydown", interact);
     };
-  }, [router, cache, polling]);
+  }, [router, cache, polling, userId]);
 
   // One lease per mounted tab. Sequence numbers fence delayed navigation/leave
   // requests so an older heartbeat cannot resurrect stale typing or presence.

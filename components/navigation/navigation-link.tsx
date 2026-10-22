@@ -21,9 +21,11 @@ export function NavigationLink({ children, className, onNavigate, ...props }: Co
     let cancelled = false;
     onNavigate?.({preventDefault: () => { cancelled = true; event.preventDefault(); }});
     if (cancelled) return;
-    const id = typeof props.href === "string" ? /^\/chat\/([a-f0-9-]{36})$/i.exec(props.href)?.[1] : null;
+    const id = typeof props.href === "string" ? /^\/chat\/([a-f0-9-]{36})$/i.exec(props.href)?.[1]?.toLowerCase() : null;
     if (id && cache?.get(id)) {
-      event.preventDefault(); beginPageNavigation(); cache.enable();
+      event.preventDefault();
+      if(window.location.pathname.toLowerCase()===(props.href as string).toLowerCase())return;
+      beginPageNavigation(); cache.enable();
       window.history.pushState(null, "", props.href as string);
     }
   }} className={cn("relative", className)}>{children}<PendingHint /></Link>;

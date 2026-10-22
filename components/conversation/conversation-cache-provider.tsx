@@ -1,6 +1,6 @@
 "use client";
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { createContext, useContext, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { usePathname } from 'next/navigation';
 import { createConversationCache } from '@/lib/conversation-cache.mjs';
 import { recordCachedContent } from '@/lib/connection-performance.mjs';
 import type { Conversation, MessagePage } from '@/lib/messaging-types';
@@ -26,16 +26,15 @@ export function ConversationRoute(props:Props){
   const cache=useCacheState();
   const pathname=usePathname();
   const seeded=useRef<MessagePage | null>(null);
-  useLayoutEffect(()=>{if(seeded.current!==props.initialPage && pathname===`/chat/${props.conversation.id}`){seeded.current=props.initialPage;cache.put(props);}},[cache,props,pathname]);
+  useLayoutEffect(()=>{if(seeded.current!==props.initialPage && pathname.toLowerCase()===`/chat/${props.conversation.id}`){seeded.current=props.initialPage;cache.put(props,true);}},[cache,props,pathname]);
   if(cache.enabled())return null;
-  if(pathname!==`/chat/${props.conversation.id}`)return <RouteLoading label="conversation"/>;
+  if(pathname.toLowerCase()!==`/chat/${props.conversation.id}`)return <RouteLoading label="conversation"/>;
   return <ConversationLayout {...props}/>;
 }
 export function ConversationViewport({children}:{children:React.ReactNode}){
-  const cache=useCacheState();const pathname=usePathname();const router=useRouter();
-  const id=/^\/chat\/([a-f0-9-]{36})$/i.exec(pathname)?.[1];
+  const cache=useCacheState();const pathname=usePathname();
+  const id=/^\/chat\/([a-f0-9-]{36})$/i.exec(pathname)?.[1]?.toLowerCase();
   const client=Boolean(id&&cache.enabled());const entry=id?cache.get(id):null;
-  useEffect(()=>{if(client&&!entry)router.refresh();},[client,entry,router,pathname]);
   const cachedReady=Boolean(entry);
   useLayoutEffect(()=>{if(client&&cachedReady)recordCachedContent();},[client,cachedReady,id]);
   if(!client)return children;
