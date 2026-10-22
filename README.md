@@ -27,7 +27,7 @@ private object storage. Vercel hosts the web application.
 
 ## Local development
 
-Use **Node.js 24** and **pnpm 12.3.4**. Clone the repository, enter its directory,
+Use **Node.js 24.22.1** (`nvm install && nvm use`) and **pnpm 12.3.4**. Clone the repository, enter its directory,
 then install dependencies and create a local configuration file:
 
 ```sh
@@ -199,7 +199,7 @@ docs/         Architecture, setup, security, and manual verification guides
 ## Deployment
 
 Configure equivalent server-only values in the intended Vercel environment, use
-Node.js 24 and pnpm 12.3.4, install with the frozen lockfile, and build with
+Node.js 24 LTS (local/CI pin: `.nvmrc`) and pnpm 12.3.4, install with the frozen lockfile, and build with
 `pnpm build`. Apply reviewed migrations separately before releasing code that
 needs them. Configure private bucket CORS and an external authenticated cleanup
 scheduler: calls every minute, attachments every five minutes, maintenance hourly.
