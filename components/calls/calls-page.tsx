@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/navigation/navigation-link";
 import { Avatar } from "@/components/profile/avatar";
 import { Phone, PhoneMissed, Video } from "lucide-react";
 import { useCalling } from "./calling-provider";

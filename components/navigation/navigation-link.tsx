@@ -22,7 +22,8 @@ export function NavigationLink({ children, className, onNavigate, ...props }: Co
     onNavigate?.({preventDefault: () => { cancelled = true; event.preventDefault(); }});
     if (cancelled) return;
     const id = typeof props.href === "string" ? /^\/chat\/([a-f0-9-]{36})$/i.exec(props.href)?.[1]?.toLowerCase() : null;
-    if (id && cache?.get(id)) {
+    const section = typeof props.href === "string" && ["/chat", "/calls", "/contacts", "/settings"].includes(props.href);
+    if (cache && (section || id && cache.get(id))) {
       event.preventDefault();
       if(window.location.pathname.toLowerCase()===(props.href as string).toLowerCase())return;
       beginPageNavigation(); cache.enable();

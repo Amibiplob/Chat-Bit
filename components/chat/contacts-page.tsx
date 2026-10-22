@@ -1,5 +1,5 @@
 "use client";
-import Link from 'next/link';
+import { NavigationLink as Link } from '@/components/navigation/navigation-link';
 import { useRealtime } from './realtime-provider';
 import { Avatar } from '@/components/profile/avatar';
 import { NewConversation } from './new-conversation';

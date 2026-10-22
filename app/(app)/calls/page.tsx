@@ -1,7 +1,7 @@
-import { CallsPage } from "@/components/calls/calls-page";
 import { requireUser } from "@/lib/server/auth";
 
-export default async function CallsRoute() {
+// The authenticated shell owns the persistent workspace panel.
+export default async function Page() {
   await requireUser();
-  return <CallsPage/>;
+  return null;
 }

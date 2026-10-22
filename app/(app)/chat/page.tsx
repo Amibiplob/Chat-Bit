@@ -1,16 +1,7 @@
 import { requireUser } from "@/lib/server/auth";
 
-export default async function ChatPage() {
+// The authenticated shell owns the persistent workspace panel.
+export default async function Page() {
   await requireUser();
-  return (
-    <div className="flex flex-1 items-center justify-center">
-      <div className="px-6 text-center">
-        <h2 className="text-lg font-semibold">Select a conversation</h2>
-
-        <p className="mt-1 text-sm text-muted-foreground">
-          Choose a conversation to start messaging.
-        </p>
-      </div>
-    </div>
-  );
+  return null;
 }

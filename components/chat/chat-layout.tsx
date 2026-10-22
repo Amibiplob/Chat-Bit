@@ -2,6 +2,7 @@
 
 import { ConversationCacheProvider, ConversationViewport } from "@/components/conversation/conversation-cache-provider";
 import { ConversationViewProvider } from "@/components/conversation/conversation-view-provider";
+import { WorkspaceViewport } from "./workspace-viewport";
 import { AppSidebar } from "./app-sidebar";
 import { ConversationSidebar } from "./conversation-sidebar";
 import { CallingProvider } from "@/components/calls/calling-provider";
@@ -43,7 +44,7 @@ function LiveChatLayout({ children, user }: { children: React.ReactNode; user: A
       <div style={{ display: activeSection === "chats" && pathname !== "/calls" ? undefined : "none" }} className={`${conversationOpen ? "hidden md:flex" : "flex"} ${pathname === "/chat" ? "w-full md:w-auto" : "w-auto"} shrink-0`}>
         <ConversationSidebar conversations={conversations} status={status} />
       </div>
-      <main className={`${pathname === "/chat" ? "hidden md:flex" : "flex"} min-h-0 min-w-0 flex-1 flex-col overflow-y-auto`}><ConversationViewport>{children}</ConversationViewport></main>
+      <main className={`${pathname === "/chat" ? "hidden md:flex" : "flex"} min-h-0 min-w-0 flex-1 flex-col overflow-y-auto`}><WorkspaceViewport><ConversationViewport>{children}</ConversationViewport></WorkspaceViewport></main>
       </div>
       <MobileNavigation hidden={conversationOpen || callOpen} pathname={pathname} unread={conversations.some(conversation => conversation.unread > 0)}/>
     </div>

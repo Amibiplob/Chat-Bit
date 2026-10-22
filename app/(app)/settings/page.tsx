@@ -1,7 +1,7 @@
-import { SettingsLayout } from "@/components/settings/settings-layout";
 import { requireUser } from "@/lib/server/auth";
 
-export default async function SettingsPage() {
+// The authenticated shell owns the persistent workspace panel.
+export default async function Page() {
   await requireUser();
-  return <SettingsLayout />;
+  return null;
 }
