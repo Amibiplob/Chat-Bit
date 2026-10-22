@@ -1,5 +1,26 @@
 # Dependency security review — 2026-10-22
 
+## Final audit refresh — 2026-10-23
+
+The final full registry audit also identified moderate
+[GHSA-rxp7-6hxx-x8q5](https://github.com/beaugunderson/ip-address/security/advisories/GHSA-rxp7-6hxx-x8q5)
+in development-only `ip-address@10.7.2`, reached through shadcn's SOCKS and
+express-rate-limit dependencies. The maintainer fixes quadratic IPv6 zone parsing
+in **10.7.4**. A targeted lockfile refresh updates only that package and its
+references within the parents' declared ranges; no direct dependency, override,
+application feature or provider is added. Earlier audit snapshots below describe
+their original review and are not the current full-audit result.
+
+Frozen installation with lifecycle scripts disabled passes. Both SOCKS and
+express-rate-limit resolve 10.7.4; valid IPv6 and zone inputs still validate,
+and each path rejects the advisory's 100,000-percent-character plus newline input
+in approximately 1 ms locally. The refreshed production audit reports no known
+vulnerabilities; the full audit now reports only the existing high `braces` finding.
+
+The unresolved high `braces` tooling advisory and ESLint support limitation remain.
+See the [final handoff](production-readiness.md) for current application verification
+and the separate production/device acceptance requirements.
+
 ## Runtime
 
 The starting runtime was Node.js 24.21.0. Local development and CI now select **24.22.1** through `.nvmrc`; GitHub Actions reads that file. The official [Node.js release](https://nodejs.org/en/blog/release/v24.22.1) and [October security bulletin](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) identify the latest available Node 24 LTS security patch on the review date. Local validation uses an official Linux binary checked against the release SHA-256 checksum, without replacing the user's global runtime.
