@@ -6,14 +6,16 @@ import { test } from 'node:test';
 test('offline worker fetches private routes without caching them and only falls back on navigation failure', async () => {
   const listeners = {};
   const cached = [];
+  const removed = [];
+  let claimed = false;
   let offline = false;
   const fallback = new Response('public offline');
   const context = {
-    self: { location: { origin: 'https://chatbit.test' }, addEventListener: (name, fn) => { listeners[name] = fn; }, skipWaiting() {} },
+    self: { location: { origin: 'https://chatbit.test' }, addEventListener: (name, fn) => { listeners[name] = fn; }, skipWaiting() {}, clients: { claim() { claimed = true; } } },
     Request: class { constructor(path, options) { this.path = path; this.options = options; } },
     Response,
     URL,
-    caches: { open: async () => ({ add: async request => cached.push(request) }), match: async path => { assert.equal(path, '/offline.html'); return fallback; } },
+    caches: { keys: async () => ['chatbit-public-offline-v1', 'chatbit-public-offline-v2', 'unrelated-app-cache'], delete: async name => { removed.push(name); return true; }, open: async () => ({ add: async request => cached.push(request) }), match: async path => { assert.equal(path, '/offline.html'); return fallback; } },
     fetch: async () => { if (offline) throw new Error('offline'); return new Response('network'); },
   };
   vm.runInNewContext(await readFile(new URL('../public/sw.js', import.meta.url), 'utf8'), context);
@@ -21,6 +23,9 @@ test('offline worker fetches private routes without caching them and only falls 
   assert.equal(cached.length, 1);
   assert.equal(cached[0].path, '/offline.html');
   assert.equal(cached[0].options.credentials, 'omit');
+  await new Promise((resolve, reject) => listeners.activate({ waitUntil: promise => promise.then(resolve, reject) }));
+  assert.deepEqual(removed, ['chatbit-public-offline-v1'], 'An update retires only ChatBit public fallback caches');
+  assert.equal(claimed, true, 'Existing tabs receive the activated worker');
   let response;
   const event = { request: { method: 'GET', mode: 'navigate', url: 'https://chatbit.test/chat' }, respondWith: value => { response = value; } };
   listeners.fetch(event);

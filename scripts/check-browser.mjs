@@ -5,8 +5,9 @@ const origin = new URL(process.env.CHATBIT_BROWSER_ORIGIN ?? 'http://127.0.0.1:3
 assert.ok(['localhost', '127.0.0.1'].includes(origin.hostname), 'Use an isolated local app, never production');
 await withBrowser(async ({ command, evaluate, waitFor }) => {
   await command('Page.addScriptToEvaluateOnNewDocument', { source: `window.browserFailures=[];addEventListener('error',e=>browserFailures.push(e.message));addEventListener('unhandledrejection',e=>browserFailures.push(String(e.reason)));const originalError=console.error;console.error=(...args)=>{browserFailures.push(args.map(String).join(' '));originalError(...args);};addEventListener('beforeinstallprompt',event=>{if(event.isTrusted){event.preventDefault();event.stopImmediatePropagation();}},true);` });
-  for (const width of [320, 390, 430, 768, 1280]) {
-    await command('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: width < 768 });
+  const viewports = [[320, 568], [390, 844], [430, 932], [768, 1024], [1280, 800], [568, 320], [844, 390], [1024, 768]];
+  for (const [width, height] of viewports) {
+    await command('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: Math.min(width, height) < 768 });
     for (const path of ['/', '/login', '/signup', '/help', '/about', '/offline', '/does-not-exist']) {
       await command('Page.navigate', { url: new URL(path, origin).href });
       await waitFor(`document.readyState==='complete' && document.querySelector('h1')`);
@@ -55,5 +56,5 @@ await withBrowser(async ({ command, evaluate, waitFor }) => {
   await command('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
   await command('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: 0, uploadThroughput: 0 }, sessionId);
   await command('Target.detachFromTarget', { sessionId });
-  console.log('PASS: 35 public route/viewport checks, errors/hydration, signup validation, theme changes, simulated install lifecycle, cache isolation and offline navigation. No real-device/native-install/production proof.');
+  console.log('PASS: 56 public route/viewport checks (portrait and landscape), errors/hydration, signup validation, theme changes, simulated install lifecycle, cache isolation and offline navigation. No real-device/native-install/production proof.');
 });

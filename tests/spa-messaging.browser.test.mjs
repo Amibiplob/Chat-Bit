@@ -105,9 +105,12 @@ test('two-account latency and recoverable optimistic messaging in isolated Chrom
       await sender.fill('textarea[aria-label="Message"]','Recoverable failure fixture');
       await sender.evaluate(`document.querySelector('button[aria-label="Send message"]').click()`);
       await sender.fill('textarea[aria-label="Message"]','Newer draft while saving');
-      await sender.waitFor(`document.querySelector('button[aria-label="Retry message"]')`);
+      // A previous lost acknowledgement can still briefly expose its own Retry.
+      // Wait for this submission's failure, then retry this exact row.
+      const failedRow = `Array.from(document.querySelectorAll('[data-message-delivery=failed]')).find(row=>row.textContent.includes('Recoverable failure fixture'))`;
+      await sender.waitFor(`${failedRow}?.querySelector('button[aria-label="Retry message"]')`);
       assert.equal(await sender.evaluate(`document.querySelector('textarea').value`),'Newer draft while saving');
-      await sender.evaluate(`window.fetch=window.__workingFetch;document.querySelector('button[aria-label="Retry message"]').click()`);
+      await sender.evaluate(`window.fetch=window.__workingFetch;${failedRow}.querySelector('button[aria-label="Retry message"]').click()`);
       await sender.waitFor(`Array.from(document.querySelectorAll('[data-message-delivery=sent],[data-message-delivery=read]')).some(row=>row.textContent.includes('Recoverable failure fixture'))`);
       assert.equal(await sender.evaluate(`document.querySelector('textarea').value`),'Newer draft while saving');
       assert.equal((await pool.query('SELECT count(*)::int AS n FROM messages WHERE conversation_id=$1 AND body=$2',[chats[0],'Recoverable failure fixture'])).rows[0].n,1);

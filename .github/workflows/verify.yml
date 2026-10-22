@@ -55,6 +55,14 @@ jobs:
           TEST_SECURITY_DATABASE_URL: postgresql://chatbit:isolated-ci-only@127.0.0.1:5432/chatbit_test
           TEST_SECURITY_DATABASE_SSL: disable
           TEST_AUTH_HTTP: '1'
+          TEST_NEXT_TURBOPACK: '1'
+          TEST_NAVIGATION_BROWSER: '1'
+          TEST_WORKSPACE_BROWSER: '1'
+          TEST_SPA_BROWSER: '1'
+          TEST_SPA_SYNC_ACCEPTANCE: '1'
+          TEST_CALLING_BROWSER: '1'
+          TEST_PUSH_TRANSPORT: '1'
+          TEST_PUSH_BROWSER: '1'
           CHROME_BIN: /usr/bin/google-chrome
       - run: pnpm exec tsc --noEmit
       - run: pnpm lint
@@ -76,6 +84,8 @@ jobs:
           done
           test "$ready" = true
           node scripts/check-browser.mjs
+          # A synthetic cookie must fail closed with no production DB configuration.
+          TEST_RUNTIME_ORIGIN=http://127.0.0.1:3187 TEST_RUNTIME_PRODUCTION=1 TEST_RUNTIME_DATABASE_FAILURE=1 node --test tests/runtime.browser.test.mjs
       - run: git diff --check
       - name: Preserve regression and security test results
         if: always()
