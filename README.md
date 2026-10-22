@@ -1,4 +1,4 @@
-# ChatBit
+# ChatBit v1.0.0
 
 ChatBit is a responsive messaging application built with Next.js and Neon
 PostgreSQL. It combines direct conversations, private file sharing, and browser
@@ -107,6 +107,7 @@ server secrets in `NEXT_PUBLIC_` variables.
 | `NEON_STORAGE_BUCKET` | Private attachment bucket; defaults to `chatbit-attachments`. |
 | `AUTH_RATE_LIMIT_SECRET` | Independent random secret for shared authentication/API rate limits. |
 | `CRON_SECRET` | Independent secret for authenticated GET cleanup jobs. |
+| `CHATBIT_REALTIME_PROVIDER`, `ABLY_API_KEY` | Optional `ably` invalidation hints; empty provider uses polling only. |
 | `CALL_STUN_URLS`, `CALL_TURN_URLS`, `CALL_TURN_SHARED_SECRET` | ICE configuration; TURN is needed for reliable cross-network calling. |
 
 Generate independent secrets of at least 32 characters, for example with
@@ -203,6 +204,25 @@ coverage includes portrait/landscape layouts and delayed-send recovery. See
 [manual release checklist](docs/manual-test-plan.md) for additional coverage.
 Local tests do not prove deployed Neon, storage CORS, TURN, or real-device behavior.
 
+### Local performance evidence
+
+The final isolated PostgreSQL 17/Turbopack/Chrome run measured the following on a
+loopback development server. These small samples are not production guarantees;
+optimistic display is separate from persistence and recipient delivery.
+
+| Stage | Samples | p50 | p95 |
+| --- | --- | --- | --- |
+| Click to optimistic display | 12 | 19 ms | 76 ms |
+| Send request to server acknowledgement | 12 | 97 ms | 869 ms |
+| Click to recipient display | 12 | 952 ms | 1,343 ms |
+| Warm cached chat switching | 10 | 27 ms | 39 ms |
+
+Cached switches made zero RSC requests and caused zero shell remounts. The first
+uncached chat measured 516 ms to content in one local sample. A native WebRTC
+controller simulation reached remote media in 2,109 ms in one local sample.
+See the [verification evidence](docs/production-readiness.md#verification-evidence)
+for scope and limitations. Physical mobile-keyboard responsiveness is unverified.
+
 ## Install as a PWA
 
 Open the HTTPS website in a supported browser. Use **Install app** or
@@ -276,3 +296,8 @@ results, remaining release prerequisites and critical-failure recovery steps.
 Production acceptance still requires the intended deployment commit, real private
 uploads/downloads, two devices on different networks, TURN, and browser installation.
 No production data or credentials were changed, and no deployment was performed.
+
+Before launch, run `pnpm config:check`, confirm the intended database migration
+history and private bucket CORS, configure cleanup scheduling, then complete the
+[two-account/device checklist](docs/manual-test-plan.md). Confirm the deployed
+commit and Node runtime after your manual push and deployment.
