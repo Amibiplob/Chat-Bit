@@ -20,6 +20,8 @@ test('two-account latency and recoverable optimistic messaging in isolated Chrom
   skip: !(process.env.TEST_SPA_BROWSER==='1' && process.env.TEST_DATABASE_URL && process.env.CHROME_BIN) && 'Requires disposable loopback PostgreSQL and Chrome',
   timeout:300000,
 },async()=>{
+  const samples=Number(process.env.TEST_SPA_SAMPLES??12);assert.ok(Number.isInteger(samples)&&samples>=12&&samples<=60);
+  const sendDelay=Number(process.env.TEST_SPA_SEND_DELAY_MS??0);assert.ok(Number.isFinite(sendDelay)&&sendDelay>=0&&sendDelay<=3000);
   const url=new URL(process.env.TEST_DATABASE_URL);
   assert.ok(['127.0.0.1','localhost'].includes(url.hostname));
   const admin=new pg.Pool({connectionString:url.href,ssl:false});
@@ -57,12 +59,13 @@ test('two-account latency and recoverable optimistic messaging in isolated Chrom
         await browser.waitFor(`document.querySelector('textarea') && Object.keys(document.querySelector('textarea')).some(k=>k.startsWith('__reactFiber$'))`);
         await browser.evaluate(`window.__seen={};window.__confirmed={};window.__observer=new MutationObserver(()=>{for(const p of document.querySelectorAll('[aria-label="Messages"] p')){if(p.textContent.startsWith('Latency fixture ')&&!window.__seen[p.textContent])window.__seen[p.textContent]=performance.timeOrigin+performance.now();if(p.textContent.startsWith('Latency fixture ')&&!window.__confirmed[p.textContent]&&['sent','read'].includes(p.closest('[data-message-delivery]')?.dataset.messageDelivery))window.__confirmed[p.textContent]=performance.timeOrigin+performance.now();}});window.__observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['data-message-delivery']});`);
       }
-      await sender.evaluate(`window.__acks=[];window.__requests={sync:0,rsc:0,other:0};const original=window.fetch;window.fetch=async(...args)=>{const u=new URL(args[0] instanceof Request?args[0].url:String(args[0]),location.href);window.__requests[u.pathname==='/api/realtime/sync'?'sync':u.searchParams.has('_rsc')?'rsc':'other']++;const start=performance.now();const response=await original(...args);if(args[1]?.method==='POST'&&u.pathname.endsWith('/messages')){const elapsed=performance.now()-start;const bytes=new TextEncoder().encode(await response.clone().text()).length;window.__acks.push({elapsed,bytes,status:response.status,timing:response.headers.get('Server-Timing')});}return response;};`);
+      await sender.evaluate(`window.__acks=[];window.__requests={sync:0,rsc:0,other:0};const original=window.fetch;window.fetch=async(...args)=>{const u=new URL(args[0] instanceof Request?args[0].url:String(args[0]),location.href);window.__requests[u.pathname==='/api/realtime/sync'?'sync':u.searchParams.has('_rsc')?'rsc':'other']++;const start=performance.now();if(args[1]?.method==='POST'&&u.pathname.endsWith('/messages'))await new Promise(resolve=>setTimeout(resolve,${sendDelay}));const response=await original(...args);if(args[1]?.method==='POST'&&u.pathname.endsWith('/messages')){const elapsed=performance.now()-start;const bytes=new TextEncoder().encode(await response.clone().text()).length;window.__acks.push({elapsed,bytes,status:response.status,timing:response.headers.get('Server-Timing')});}return response;};`);
       const optimistic=[],confirmation=[],confirmedRender=[],recipient=[],database=[],responseBytes=[];
-      for(let i=0;i<12;i++){
+      for(let i=0;i<samples;i++){
         const text=`Latency fixture ${i}`;
         await sender.fill('textarea[aria-label="Message"]',text);
-        const start=await sender.evaluate(`(()=>{window.__start=performance.timeOrigin+performance.now();document.querySelector('button[aria-label="Send message"]').click();return window.__start;})()`);
+        const start=await sender.evaluate(`(()=>{window.__start=performance.timeOrigin+performance.now();document.querySelector('button[aria-label="Send message"]').click();window.__acceptedSynchronously=Array.from(document.querySelectorAll('[data-message-delivery=sending]')).some(row=>row.textContent.includes(${JSON.stringify(text)}))&&document.querySelector('textarea[aria-label="Message"]').value==='';return window.__start;})()`);
+        if(process.env.TEST_SPA_SYNC_ACCEPTANCE==='1')assert.equal(await sender.evaluate('window.__acceptedSynchronously'),true,'Pending DOM and empty composer exist before click handler returns');
         try { await sender.waitFor(`window.__seen[${JSON.stringify(text)}] && window.__acks.length>=${i+1}`); }
         catch(error){console.log('Synthetic send diagnostics:',await sender.evaluate(`({seen:Object.keys(window.__seen).length,acks:window.__acks.map(a=>a.status),pending:document.querySelectorAll('[role="status"]').length,empty:document.querySelector('textarea').value==='',hasAlert:!!document.querySelector('[role="alert"]')})`));throw error;}
         await receiver.waitFor(`window.__seen[${JSON.stringify(text)}]`);
@@ -80,7 +83,7 @@ test('two-account latency and recoverable optimistic messaging in isolated Chrom
       const persisted=[...spans.values()].filter(trace=>Number.isFinite(trace.insert));
       const serverStages={};for(const stage of ['authentication','rate-limit','validation','insert','commit','pool']){const values=persisted.map(trace=>trace[stage]).filter(Number.isFinite);if(values.length)serverStages[stage]=summary(values);}
       console.log('Isolated SPA messaging measurements:',JSON.stringify({optimisticMs:summary(optimistic),responseMs:summary(confirmation),confirmedDomMs:summary(confirmedRender),recipientMs:summary(recipient),warmRecipientMs:summary(recipient.slice(1)),transactionMs:summary(database),acknowledgementBytes:summary(responseBytes),serverStages,senderRequests:counts}));
-      assert.equal((await pool.query('SELECT count(*)::int AS n FROM messages WHERE conversation_id=$1',[chats[0]])).rows[0].n,12);
+      assert.equal((await pool.query('SELECT count(*)::int AS n FROM messages WHERE conversation_id=$1',[chats[0]])).rows[0].n,samples);
       if(process.env.TEST_SPA_BASELINE==='1')return;
       // Delay/fail the acknowledgement only after the real commit. Retry must
       // reuse the submission ID and reconcile a response lost after persistence.

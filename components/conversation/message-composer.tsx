@@ -6,7 +6,7 @@ import { attachmentFileError } from '@/lib/attachment-policy.mjs';
 import { MAX_MESSAGE_LENGTH } from '@/lib/form-validation.mjs';
 import { useConversationDraft } from './conversation-view-provider';
 import { LocalFilePreview } from '@/components/media/local-file-preview';
-interface Props {conversationId:string;onSend:(content:string)=>Promise<boolean>;pending:boolean;replyingTo:Message|null;editingMessage:Message|null;onCancel:()=>void;onTyping:(active:boolean)=>void;onSendAttachment:(file:File,caption:string,onProgress:(value:number)=>void,signal:AbortSignal)=>Promise<boolean>}
+interface Props {conversationId:string;onSend:(content:string)=>boolean|Promise<boolean>;pending:boolean;replyingTo:Message|null;editingMessage:Message|null;onCancel:()=>void;onTyping:(active:boolean)=>void;onSendAttachment:(file:File,caption:string,onProgress:(value:number)=>void,signal:AbortSignal)=>Promise<boolean>}
 const emojis=['😀','😂','😍','👍','❤️','🔥','🎉','👋','😊','😎','🙏','👏'];
 export function MessageComposer({conversationId, onSend,pending,replyingTo,editingMessage,onCancel,onTyping,onSendAttachment}:Props){
  const {store,draft}=useConversationDraft(conversationId);
@@ -27,7 +27,7 @@ export function MessageComposer({conversationId, onSend,pending,replyingTo,editi
   try{
    if(files.length){const controller=new AbortController();upload.current=controller;setUploading(true);let caption=content;
     for(const file of files){controller.signal.throwIfAborted();setActiveFile(file);setProgress(0);const saved=await onSendAttachment(file,caption,setProgress,controller.signal);if(!saved)throw new Error('File was not confirmed. Try sending again.');setFiles(current=>current.filter(item=>item!==file));caption='';setValue('');}
-   }else if(!await onSend(content))return;
+   }else {const accepted=onSend(content);if(!(typeof accepted==='boolean'?accepted:await accepted))return;}
    setValue('');setEmojiOpen(false);onTyping(false);
   }catch(error){setFileError((error as Error).name==='AbortError'?'Upload cancelled. Unsent files are kept.':error instanceof Error?error.message:'Upload failed. Unsent files are kept; send again to retry.');}
   finally{sending.current=false;upload.current=null;setUploading(false);setActiveFile(null);setProgress(0);}

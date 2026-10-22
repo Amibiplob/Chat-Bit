@@ -1,4 +1,5 @@
 "use client";
+import { flushSync } from "react-dom";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Conversation, Message, MessagePage } from "@/lib/messaging-types";
@@ -92,16 +93,22 @@ export function ConversationLayout({ conversation, initialPage, currentUserId }:
     finally { busy.current = false; setPending(false); }
   }
 
-  async function handleSend(content: string) {
+  function handleSend(content: string) {
     if (busy.current) return false;
     if (!editingMessage) {
       const failed=outgoingMessages.find(message=>message.delivery==="failed"&&message.content===content&&(!replyingTo||message.reply?.id===replyingTo.id));
       if(failed?.clientId){outgoing.retry(conversation.id,failed.clientId);viewStore.setDraft(conversation.id,"");setReplyingTo(null);return true;}
       const clientId=crypto.randomUUID();
-      const accepted=outgoing.enqueue({id:clientId,clientId,conversationId:conversation.id,senderId:currentUserId,senderName:"You",content,createdAt:new Date().toISOString(),status:"sent",delivery:"sending",edited:false,deleted:false,attachments:[],reply:replyingTo?{id:replyingTo.id,senderName:replyingTo.senderName,content:replyingTo.content,deleted:false}:null});
+      let accepted=false;
+      flushSync(()=>{accepted=outgoing.enqueue({id:clientId,clientId,conversationId:conversation.id,senderId:currentUserId,senderName:"You",content,createdAt:new Date().toISOString(),status:"sent",delivery:"sending",edited:false,deleted:false,attachments:[],reply:replyingTo?{id:replyingTo.id,senderName:replyingTo.senderName,content:replyingTo.content,deleted:false}:null});if(accepted){viewStore.setDraft(conversation.id, "");setReplyingTo(null);}});
       if(!accepted){setError("The send queue is full. Wait for pending messages or retry a failed message.");return false;}
-      viewStore.setDraft(conversation.id, "");setReplyingTo(null);return true;
+      return true;
     }
+    return saveEdit(content);
+  }
+
+  async function saveEdit(content:string) {
+    if(!editingMessage)return false;
     busy.current=true;setPending(true);setError("");
     try {
       await messagingRequest(`${base}/messages/${editingMessage.id}`,{method:"PATCH",body:JSON.stringify({content})});

@@ -8,7 +8,7 @@ const until=async predicate=>{for(let i=0;i<100&&!predicate();i++)await delay(5)
 test('local acceptance is immediate, serializes each thread and confirms canonical identities',async t=>{
   const requests=[];const store=createOutgoingMessages({request:(row,signal)=>new Promise(resolve=>requests.push({row,signal,resolve}))});t.after(()=>store.stop());
   const a=message(),b=message(),c=message('b');assert.ok(store.enqueue(a));assert.ok(store.enqueue(b));assert.ok(store.enqueue(c));
-  assert.equal(store.read('a').length,2);assert.equal(requests.length,2);
+  assert.equal(store.read('a').length,2);assert.equal(requests.length,0,'Local acceptance precedes network work');await Promise.resolve();assert.equal(requests.length,2);
   requests[0].resolve({...a,id:'server',delivery:undefined});await until(()=>requests.length===3);
   assert.equal(store.read('a')[0].id,'server');store.reconcile('a',[{...a,id:'server'}]);assert.equal(store.read('a').length,1);
   assert.equal(store.enqueue(b),false);
@@ -18,7 +18,7 @@ test('lost acknowledgement retries with same key; a snapshot fences a later fail
   const store=createOutgoingMessages({retryDelay:1,request:async row=>{attempts++;assert.equal(row.clientId,a.clientId);if(attempts===1)throw new TypeError('network');return {...row,id:'server',delivery:undefined};}});t.after(()=>store.stop());
   store.enqueue(a);await until(()=>store.read('a')[0]?.id==='server');assert.equal(attempts,2);
   const blocked=[];const other=createOutgoingMessages({request:()=>new Promise((resolve,reject)=>blocked.push({resolve,reject})),onFailure:()=>failures++});t.after(()=>other.stop());
-  other.enqueue(a);other.reconcile('a',[{...a,id:'server'}]);blocked[0].reject({status:400});await delay(10);assert.equal(other.read('a').length,0);assert.equal(failures,0);
+  other.enqueue(a);await Promise.resolve();other.reconcile('a',[{...a,id:'server'}]);blocked[0].reject({status:400});await delay(10);assert.equal(other.read('a').length,0);assert.equal(failures,0);
 });
 test('failure remains retryable after navigation, duplicate retries are rejected and teardown aborts',async()=>{
   let attempts=0,failed=0,signal;const a=message();
@@ -30,7 +30,7 @@ test('failure remains retryable after navigation, duplicate retries are rejected
 test('session rejection clears the outbox and stops queued sends',async()=>{
   let reject,requests=0,unauthorized=0;
   const store=createOutgoingMessages({request:()=>{requests++;return new Promise((resolve,r)=>reject=r);},onUnauthorized:()=>unauthorized++});
-  store.enqueue(message());store.enqueue(message());reject({status:401});
+  store.enqueue(message());store.enqueue(message());await Promise.resolve();reject({status:401});
   await until(()=>unauthorized===1);assert.equal(requests,1);assert.equal(store.read('a').length,0);assert.equal(store.enqueue(message()),false);
 });
 test('canonical acknowledgements retain server order and other senders cannot reconcile a submission',()=>{
