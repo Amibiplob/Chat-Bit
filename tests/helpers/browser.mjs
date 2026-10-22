@@ -95,6 +95,7 @@ export async function withBrowser(operation, extraArgs = []) {
       if (child.exitCode === null && child.signalCode === null) { process.kill(-child.pid, 'SIGKILL'); await stopped; }
     }
     diagnostic('process stopped');
-    await rm(profile, { recursive: true, force: true });
+    // Chromium descendants can finish profile writes just after launcher exit.
+    await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }

@@ -92,9 +92,10 @@ export async function browserJourney(origin) {
     assert.ok(await alice.evaluate(`document.querySelector('[aria-label="Messages"]').innerText.includes(${JSON.stringify(reply)})`));
     await alice.evaluate(`(()=>{const select=document.querySelector('[aria-label="Filter loaded messages"]');select.value='all';select.dispatchEvent(new Event('change',{bubbles:true}));})()`);
 
-    for(const width of [320,390,430,768,1280]) {
-      await bob.command('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<768});
-      assert.ok(await bob.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),`Conversation fits ${width}px`);
+    for(const [width,height] of [[320,568],[390,844],[430,932],[768,1024],[1280,800],[568,320],[844,390],[1024,768]]) {
+      await bob.command('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:Math.min(width,height)<768});
+      assert.ok(await bob.evaluate('document.documentElement.scrollWidth<=innerWidth+1'),`Conversation fits ${width}x${height}`);
+      assert.ok(await bob.evaluate(`(()=>{const box=document.querySelector('textarea[aria-label="Message"]').getBoundingClientRect();return box.top>=0&&box.bottom<=innerHeight;})()`),`Composer stays visible at ${width}x${height}`);
     }
     await alice.command('Page.navigate',{url:`${origin}/settings`});
     await alice.waitFor(`document.querySelector('button[aria-label="Sign out"]') && Object.keys(document.querySelector('button[aria-label="Sign out"]')).some(k=>k.startsWith('__reactFiber$'))`);

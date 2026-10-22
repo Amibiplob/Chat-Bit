@@ -12,6 +12,7 @@ import { migrate } from '../scripts/migrate.mjs';
 import { createSession, sessionHash } from '../lib/server/session-core.mjs';
 import { registerAccount, loginAccount } from '../lib/server/auth-service.mjs';
 import { sendMessage } from '../lib/server/messaging-queries.mjs';
+import { reserveAttachment, finalizeAttachment } from '../lib/server/attachment-queries.mjs';
 import { withBrowser } from './helpers/browser.mjs';
 import { browserJourney } from './helpers/journey.mjs';
 import { frontendJourney } from './helpers/frontend.mjs';
@@ -314,8 +315,8 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
           await waitFor(`document.documentElement.classList.contains('dark')`);
           await command('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'light'}]});
           await waitFor(`!document.documentElement.classList.contains('dark')`);
-          for(const width of [320,390,768,1280]) {
-            await command('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:width<768});
+          for(const [width,height] of [[320,568],[390,844],[430,932],[768,1024],[1280,800],[568,320],[844,390],[1024,768]]) {
+            await command('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:Math.min(width,height)<768});
             assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'),`Settings fits ${width}px`);
           }
           await navigate('Privacy');await waitFor(`document.body.innerText.includes('Show online status')`);
@@ -506,6 +507,46 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
           await evaluate(`document.querySelector('a[aria-label="Back to conversations"]').click()`);
           await waitFor(`location.pathname === '/chat' && document.body.innerText.includes('Messaging Partner')`);
           assert.ok(await evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'), 'Mobile conversation list must fit');
+        });
+      });
+      await messageTest.test('attachment picker errors and full-screen history work with synthetic metadata', {
+        skip: !process.env.CHROME_BIN && 'Requires Chrome; no live object storage is used',
+      }, async () => {
+        // Seed metadata only. Unavailable storage deliberately exercises preview errors;
+        // byte validation and durable uploads are covered by the storage suites.
+        const file = await reserveAttachment(pool, me, id, { filename: 'viewer-fixture.png', mimeType: 'image/png', byteSize: 1 });
+        await finalizeAttachment(pool, me, id, file.id, { clientId: randomUUID(), caption: 'Viewer metadata fixture' });
+        await withBrowser(async ({ command, evaluate, waitFor }) => {
+          await command('Network.setCookie', { name: 'chatbit_session', value: a.token, url: origin, httpOnly: true, sameSite: 'Lax' });
+          await command('Emulation.setDeviceMetricsOverride', { width: 320, height: 568, deviceScaleFactor: 1, mobile: true });
+          await command('Page.navigate', { url: `${origin}/chat/${id}` });
+          await waitFor(`document.querySelector('textarea') && Object.keys(document.querySelector('textarea')).some(key=>key.startsWith('__reactFiber$'))`);
+          await waitFor(`document.body.innerText.includes('Preview unavailable. Retry or download the file.')`);
+          const historyLength = await evaluate('history.length');
+          const open = async () => {
+            await evaluate(`document.querySelector('button[aria-label="View viewer-fixture.png full screen"]').click()`);
+            await waitFor(`document.querySelector('dialog[open][aria-label="viewer-fixture.png"]') && history.state?.chatbitViewer`);
+            assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), 'Full-screen viewer fits a small phone');
+          };
+          await open();
+          assert.equal(await evaluate('history.length'), historyLength + 1, 'Strict Mode creates exactly one viewer history entry');
+          await evaluate(`document.querySelector('button[aria-label="Close media viewer"]').click()`);
+          await waitFor(`!document.querySelector('dialog[open]') && !history.state?.chatbitViewer`);
+          await open();
+          await evaluate('history.back()');
+          await waitFor(`!document.querySelector('dialog[open]') && document.querySelector('textarea')`);
+          assert.equal(await evaluate('location.pathname'), `/chat/${id}`, 'Web Back closes the viewer without leaving the conversation');
+          await evaluate(`document.querySelector('button[aria-label="Add attachment"]').click()`);
+          await waitFor(`document.querySelector('[aria-label="Attachment sources"]')`);
+          await evaluate(`document.querySelector('[aria-label="Attachment sources"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);
+          await waitFor(`!document.querySelector('[aria-label="Attachment sources"]')`);
+          await evaluate(`(()=>{const input=document.querySelector('input[type=file]'),files=new DataTransfer();for(const [name,type] of [['phone.png','image/png'],['clip.mp4','video/mp4'],['document.pdf','application/pdf']])files.items.add(new File(['fixture'],name,{type}));input.files=files.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+          await waitFor(`document.querySelector('button[aria-label="Remove document.pdf"]')`);
+          assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth+1'), 'Queued photo/video/document controls fit a small phone');
+          for (const name of ['phone.png', 'clip.mp4', 'document.pdf']) await evaluate(`document.querySelector('button[aria-label="Remove ${name}"]').click()`);
+          await waitFor(`!document.querySelector('button[aria-label^="Remove "]')`);
+          await evaluate(`(()=>{const input=document.querySelector('input[type=file]'),files=new DataTransfer();files.items.add(new File(['fixture'],'blocked.exe'));input.files=files.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+          await waitFor(`Array.from(document.querySelectorAll('[role="alert"]')).some(alert=>alert.textContent.includes('Unsupported file type'))`);
         });
       });
     });

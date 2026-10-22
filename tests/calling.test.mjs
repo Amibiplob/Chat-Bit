@@ -165,7 +165,8 @@ test('poll timing removes request duration and wake during flight queues one imm
 test('accept schedules immediate offer discovery without shortening idle polling',async()=>{
   let delay,scheduled;
   const row=call({callerId:b,calleeId:a,owned:false});
-  const f=fixture({setTimer:(fn,ms)=>{scheduled=fn;delay=ms;return 1;},clearTimer:()=>{}});
+  // A fixed clock tests the exact interval independently of real request timing.
+  const f=fixture({now:()=>0,setTimer:(fn,ms)=>{scheduled=fn;delay=ms;return 1;},clearTimer:()=>{}});
   await f.controller.receive({call:row,signals:[]});f.setCall(row);
   f.controller.begin();await new Promise(resolve=>setImmediate(resolve));assert.equal(delay,1000);
   await f.controller.act('accept');await new Promise(resolve=>setImmediate(resolve));
