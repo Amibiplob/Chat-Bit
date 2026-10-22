@@ -22,6 +22,74 @@ Next.js and eslint-config-next move together from **16.3.8 to 16.4.2**. React an
 | CVE-2026-96889 / GHSA-2464-fhr4-w9xw, critical image/SVG memory corruption | Existing explicit sharp 0.35.5 already meets the upstream workaround; `dangerouslyAllowSVG` is not enabled. Retained sharp and upgraded Next's dependency floor. |
 | GHSA-p3m5-59mp-jv5r / React GHSA-h3gv-c5rc-p453, high Server Action CPU exhaustion | Reachable framework surface: ChatBit App Router exposes `app/actions/auth.ts`. Upgraded Next/RSC handling; application authentication is not a substitute for the parser fix. |
 
-These items were identified from the maintainer bulletin even though the initial pnpm audit did not report them. The individual linked Next/React GHSA pages returned 404 during review; no additional CVE identifiers or advisory details were inferred. No hostile exploit was sent to production.
+These items were identified from the maintainer bulletin even though the initial pnpm audit did not report them. Browser fetches of individual Next/React GHSA pages returned 404; the subsequent [Next maintainer advisory API](https://api.github.com/repos/vercel/next.js/security-advisories) and [React maintainer advisory API](https://api.github.com/repos/react/react/security-advisories) confirmed the affected/patched ranges. No hostile exploit was sent to production.
 
 Framework milestone: 132 standard tests passed (17 gated skips), lint passed and the Webpack production build, including TypeScript and page generation, passed under Node 24.22.1. No application compatibility edits were required at this milestone.
+
+## Transitive findings and reachability
+
+The initial full pnpm audit reported **3 high and 2 moderate** advisories. All four MCP SDK findings came through the development dependency `shadcn@4.21.0 > @modelcontextprotocol/sdk@1.31.0`. A targeted `pnpm update @modelcontextprotocol/sdk --depth 100` resolves **1.32.1**, inside the existing parent's `^1.26.0` range, without a shadcn feature update or override. The official patched floor for these four findings is **1.32.0**.
+
+| Advisory | Severity | Trigger / ChatBit reachability |
+| --- | --- | --- |
+| [GHSA-22jm-h49p-29qw](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-22jm-h49p-29qw) | High | Shared experimental task store crosses sessions. No ChatBit MCP server/task store; only the development CLI dependency. |
+| [GHSA-6prh-2h8m-c8cw](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-6prh-2h8m-c8cw) | Moderate | HTTP/OAuth cross-origin redirects forward sensitive data. Potential CLI MCP client surface, absent from application routes. |
+| [GHSA-46jr-4wx8-v453](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-46jr-4wx8-v453) | High | HTTP validation exhausts memory. No application MCP HTTP listener; relevant if the CLI's MCP server is explicitly started. |
+| [GHSA-rvq5-wwqv-78pq](https://github.com/modelcontextprotocol/typescript-sdk/security/advisories/GHSA-rvq5-wwqv-78pq) | Moderate | Bearer tokens lack resource binding. No application SDK bearer middleware; do not expose development MCP tooling as a public service. |
+| [GHSA-vfj7-8cjw-p6xm / CVE-2026-93687](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) | High | `braces@3.0.3` nested glob parsing can exhaust the stack. Remains unresolved; details below. |
+
+Maintainer review also found [Undici 7.30.1 security fixes](https://github.com/nodejs/undici/releases/tag/v7.30.1) absent from the initial registry audit. The starting CLI tree has `shadcn` and `@dotenvx/dotenvx > undici@7.30.0`. These are separate from Node's built-in fetch, patched through Node 24.22.1 (bundled Undici 7.30.1). No application code imports npm Undici or its interceptors. CLI outbound HTTP is a potential exposure; optional interceptor triggers were not established in ChatBit.
+
+| Advisory / CVE | Trigger |
+| --- | --- |
+| GHSA-qrxm-fqhp-jwvm / CVE-2026-87018 | TLS renegotiation crash |
+| GHSA-2m5v-pch6-74hx / CVE-2026-109383 | Agent drops TLS callbacks |
+| GHSA-4w7w-5xrc-9h26 / CVE-2026-109829 | Redirect/cache interceptor disclosure |
+| GHSA-xjj6-f33q-929c / CVE-2026-109869 | Excess content-encoding crash |
+| GHSA-55wc-3pg8-jfw6 / CVE-2026-87029 | Decompress interceptor crash |
+| GHSA-f72v-6w45-q472 / CVE-2026-109841 | Mixed-case SRI bypass |
+| GHSA-4qv8-2p9j-2685 / CVE-2026-109924 | EventSource memory growth |
+| GHSA-9fm3-97px-rjf6 / CVE-2026-109932 | WebSocket PONG buffer growth |
+
+`pnpm update undici --depth 100` resolves **7.30.1** within the existing CLI ranges. Both npm Undici paths and Node's bundled copy now meet the patched floor; no new override was needed. Node types move from **20.19.43 to 24.19.2** to match runtime APIs. The CLI version smoke test, TypeScript, lint, frozen installation and 132 standard tests passed (17 gated skips). The full audit now reports **one high** (`braces`); production audit reports **zero known findings**. This does not establish absence of vulnerabilities.
+
+## Installed version inventory
+
+These are actual resolved versions, not just manifest lower bounds. Every direct dependency and the complete lockfile were included in the registry audit. Published maintainer advisory APIs were additionally checked for Next, React, AWS SDK, Ably, node-rs, node-postgres, sharp, Zod, Base UI, Tailwind, TypeScript, shadcn, ESLint and Undici. An empty published advisory list is not proof that a package is safe.
+
+| Package | Before | After / decision |
+| --- | --- | --- |
+| Node.js | 24.21.0 | 24.22.1 |
+| pnpm | 12.3.4 | Retained; compatible, no applicable published advisory |
+| next / eslint-config-next | 16.3.8 | 16.4.2 |
+| react / react-dom | 19.2.8 | 19.2.9 |
+| @types/node | 20.19.43 | 24.19.2 |
+| @modelcontextprotocol/sdk (transitive) | 1.31.0 | 1.32.1 |
+| undici (transitive npm package) | 7.30.0 | 7.30.1 |
+| @aws-sdk/client-s3, s3-presigned-post, s3-request-presigner | 3.1152.0 each | Retained; no actionable finding in resolved tree |
+| @base-ui/react | 1.8.0 | Retained |
+| @node-rs/argon2 | 2.2.2 | Retained |
+| ably | 2.29.0 | Retained |
+| class-variance-authority | 0.7.1 | Retained |
+| cn | 0.2.6 | Retained |
+| dotenv | 18.0.4 | Retained |
+| lucide-react | 1.48.0 | Retained |
+| pg / @types/pg | 8.23.1 | Retained |
+| react-icons | 5.7.0 | Retained |
+| server-only | 0.0.1 | Retained |
+| sharp | 0.35.5 | Retained; already patched, Linux libvips package 1.3.4 |
+| tw-animate-css | 1.4.0 | Retained |
+| zod | 4.6.5 | Retained |
+| tailwindcss / @tailwindcss/postcss | 4.3.3 | Retained |
+| @types/react / @types/react-dom | 19.3.0 | Retained; no new React 19.3 runtime APIs introduced |
+| eslint | 9.39.5 | Retained; maintenance limitation below |
+| shadcn | 4.21.0 | Retained; targeted transitive updates suffice |
+| typescript | 5.9.3 | Retained; within typescript-eslint's supported range; no unnecessary major |
+
+The [AWS advisory GHSA-6475-r3vj-m8vf](https://github.com/aws/aws-sdk-js-v3/security/advisories/GHSA-6475-r3vj-m8vf) affects `@smithy/config-resolver <4.4.0`; that package is absent from this resolved tree. The [sharp maintainer advisories](https://github.com/lovell/sharp/security/advisories) have patched floors at or below 0.35.5, already installed. The existing targeted `source-map-js@1.2.2` override for GHSA-68fv-2mgg-jv7q remains. Other available feature releases were not taken merely because they are newer.
+
+## Remaining limitations
+
+**The full audit remains nonzero.** `braces` has no published fixed version: the maintainer/database list all releases through 3.0.3 as affected. Paths are `eslint-config-next > @next/eslint-plugin-next > fast-glob@3.3.1 > micromatch@4.0.8 > braces` and `shadcn > fast-glob@3.3.3 > micromatch > braces`, including shadcn's `ts-morph > @ts-morph/common` path. No application route imports these glob parsers or passes request data into them; they remain build/development tooling. Use only trusted CLI/config glob patterns, run untrusted changes in isolated CI without production secrets, and recheck upstream for a published fix. No advisory suppression, severity change, blanket override, fabricated fixed version or unreviewed parser fork is used.
+
+**ESLint 9 is end-of-life**, per the [official support policy](https://eslint.org/version-support/). Latest ESLint 10 is outside the latest published peer ranges for `eslint-plugin-react@7.37.5` (`^9.7` maximum), `eslint-plugin-jsx-a11y@6.10.2` (`^9` maximum) and `eslint-plugin-import@2.32.0` (`^9` maximum), all required by Next's config. ESLint 9.39.5 is retained as a documented maintenance limitation, not described as supported or vulnerability-free. Removing these checks, ignoring peer constraints or forcing the major would undermine a compatible verification toolchain. Revisit when upstream plugins support ESLint 10; no paid extended-support service was purchased.
