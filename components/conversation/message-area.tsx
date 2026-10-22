@@ -30,6 +30,8 @@ export function MessageArea({ initialScroll, onSaveScroll, saved, onToggleSaved,
   const restore = useRef(initialScroll);
   const [showLatest, setShowLatest] = useState(false);
   const previous = useRef({ first: "", last: "", height: 0 });
+  // Existing submissions on a revisit must not override restored reading position.
+  const previousSubmissions = useRef(new Set(messages.filter(message => message.senderId === currentUserId).map(message => message.clientId)));
   useEffect(() => {
     if (!content.current || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => {
@@ -46,15 +48,21 @@ export function MessageArea({ initialScroll, onSaveScroll, saved, onToggleSaved,
     if (!element) return;
     const first = messages[0]?.id ?? "";
     const last = messages.at(-1)?.id ?? "";
+    const accepted = messages.some(message => message.senderId === currentUserId && message.delivery === "sending" && message.clientId && !previousSubmissions.current.has(message.clientId));
+    previousSubmissions.current = new Set(messages.filter(message => message.senderId === currentUserId).map(message => message.clientId));
     if (restore.current) {
       element.scrollTop = restore.current.pinned ? element.scrollHeight : restore.current.top;
       setShowLatest(!restore.current.pinned);
       restore.current = null;
+    } else if (accepted) {
+      pinned.current = true;
+      element.scrollTop = element.scrollHeight;
+      setShowLatest(false);
     } else if (previous.current.last === last && previous.current.first !== first) {
       element.scrollTop += element.scrollHeight - previous.current.height;
     } else if (previous.current.last !== last && (pinned.current || !previous.current.last)) element.scrollTop = element.scrollHeight;
     previous.current = { first, last, height: element.scrollHeight };
-  }, [messages]);
+  }, [messages, currentUserId]);
 
   return (
     <div ref={area} onScroll={event=>{const el=event.currentTarget; pinned.current=el.scrollHeight-el.scrollTop-el.clientHeight<96;onSaveScroll?.({top:el.scrollTop,pinned:pinned.current});setShowLatest(!pinned.current);}} className="cb-thread relative min-h-0 flex-1 overflow-y-auto px-4 py-5 md:px-6" aria-label="Messages">

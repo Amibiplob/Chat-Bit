@@ -111,9 +111,17 @@ test('authenticated navigation, conversation identity, drafts and persistent she
         assert.ok(await evaluate(`document.querySelector('[aria-label="Messages"]').scrollTop<30`),'Returning to a reading position preserves scroll');
         await evaluate('history.back()');await waitFor(`location.pathname===${JSON.stringify('/chat/'+chats[1])} && document.querySelector('[aria-label^="Conversation with"] header h1')?.textContent.trim()==='Partner Two'`);
         await evaluate('history.forward()');await waitFor(`location.pathname===${JSON.stringify('/chat/'+chats[0])} && document.querySelector('[aria-label^="Conversation with"] header h1')?.textContent.trim()==='Partner One'`);
+        // Incoming messages preserve reading position; a locally accepted send
+        // must be visible immediately, even when reading older history.
+        await evaluate(`document.querySelector('[aria-label="Messages"]').scrollTop=0`);await delay(200);
+        await sendMessage(pool,ids[1],chats[0],{content:'Incoming while reading fixture',clientId:randomUUID()});
+        await evaluate(`window.dispatchEvent(new Event('online'))`);
+        await waitFor(`document.querySelector('[aria-label="Messages"]').textContent.includes('Incoming while reading fixture')`);
+        assert.ok(await evaluate(`document.querySelector('[aria-label="Messages"]').scrollTop<30`),'Incoming messages preserve reading position');
         // Hold only the synthetic send acknowledgement while navigating away/back.
         await fill('textarea[aria-label="Message"]','Navigation send fixture');
         await evaluate(`window.__previousFetch=window.fetch;window.fetch=async(...args)=>{const response=await window.__previousFetch(...args);if(args[1]?.method==='POST'&&String(args[0]).endsWith('/messages')){window.__sendHeld=true;await new Promise(resolve=>{window.__releaseSend=resolve;});}return response;};document.querySelector('button[aria-label="Send message"]').click()`);
+        assert.ok(await evaluate(`(()=>{const area=document.querySelector('[aria-label="Messages"]');return area.scrollHeight-area.scrollTop-area.clientHeight<2&&Array.from(document.querySelectorAll('[data-message-delivery="sending"]')).some(row=>row.textContent.includes('Navigation send fixture'));})()`),'Accepted pending send is visible before its acknowledgement');
         await waitFor('window.__sendHeld');await switchTo(1);await switchTo(0);
         assert.equal(await evaluate('document.querySelector("textarea[aria-label=Message]").disabled'),false,'Text composer stays usable after a pending-send remount');
         assert.ok(await evaluate(`document.querySelector('[aria-label="Messages"]').textContent.includes('Navigation send fixture')`),'Pending or already reconciled outgoing message survives remount');

@@ -4,6 +4,28 @@
 
 On 2026-10-22 the user identified `https://chat-bit-rouge.vercel.app` as production, but its deployed commit is **not independently verified**. Local starting revision is `892cb60`. No production latency cause or resolution is established. The user will check the active Vercel deployment commit manually; this work does not push, deploy or modify production data.
 
+## Local continuation on 2026-10-22
+
+This continuation started from clean local commit `c280941`, which already includes the persistent workspace, synchronous text acceptance and optional push integration after `892cb60`. This does not identify the Vercel deployment revision.
+
+Sending while reading older history previously appended the pending bubble outside the visible viewport. A newly accepted own text submission now scrolls to the bottom during the layout commit. Incoming messages preserve the reading position, and existing submissions on conversation revisits do not override restored scroll. Submission identities distinguish local acceptance from canonical acknowledgement.
+
+Real Chrome regressions against disposable loopback PostgreSQL 16.15 passed incoming-message scroll preservation, visible pending sends before acknowledgement, navigation/history, drafts, pending-send remounts, membership denial and session rejection. Thirty workspace switches with all fetches delayed by 1,500 ms measured panel readiness at **10/14 ms p50/p95**, with zero RSC requests and retained Settings input and Calls search. Ten warm conversation switches measured **33/67 ms**, with zero RSC requests or shell remounts. These are local development measurements, not production or cold-load guarantees.
+
+The separate two-account Chrome test passed 30 sends with `TEST_SPA_SAMPLES=30 TEST_SPA_SEND_DELAY_MS=1500 TEST_SPA_SYNC_ACCEPTANCE=1 TEST_NEXT_TURBOPACK=1`, including synchronous pending DOM and composer clearing, lost acknowledgement, retries, duplicate prevention, newer-draft preservation and changed-account rejection. Local p50/p95 stages were:
+
+| Stage | Milliseconds |
+| --- | ---: |
+| Pending DOM from click | 44/270 |
+| Response headers from request start, including injected delay | 1,577/2,347 |
+| Confirmed DOM from click | 1,663/2,550 |
+| Recipient DOM from click, polling | 2,185/3,707 |
+| Database transaction | 8/121 |
+
+These samples establish behavior under delayed requests, not a measured latency improvement over earlier runs. Hosted push was disabled in the fixtures. Neon, Object Storage, authentication and security implementation were unchanged; no live provider acceptance is claimed. Lint and the Webpack production build passed. The standard suite passed 132 tests with 17 gated cases skipped on rerun; its first run hit an unchanged calling test's exact timing assertion (999 ms versus 1,000 ms). The two explicitly enabled application browser suites ran separately.
+
+Reproduce navigation with `TEST_NAVIGATION_BROWSER=1 TEST_WORKSPACE_BROWSER=1 TEST_NEXT_TURBOPACK=1`; run `tests/navigation.browser.test.mjs` and `tests/spa-messaging.browser.test.mjs` sequentially with Chrome and an explicitly disposable loopback `TEST_DATABASE_URL`. Both share the isolated Next.js test output directory. Production latency remains unverified until the intended commit is manually deployed and tested.
+
 ## Persistent workspace
 
 The previous shell persisted, but Calls, Contacts and Settings still depended on destination RSC navigation and their page components remounted. Only visited conversations could use the private RAM path. The shell now owns four bounded, account-keyed workspace panels. Each mounts on its first selection and remains mounted while hidden. Native Next.js history integration selects a panel immediately, including first visits, while calls history still displays honest loading until its authorized API returns. Settings subsection state, form edits and call search/history survive tab changes. Uncached conversation URLs and shared files retain normal authorized App Router navigation. Direct section loads still pass server authentication and SSR the selected shell panel.
