@@ -23,6 +23,9 @@ No secrets use NEXT_PUBLIC_. This work does not modify actual environment files.
 | CALL_TURN_SHARED_SECRET | Independent 32+ character secret matching your TURN server's REST authentication configuration. |
 | CALL_RELAY_ONLY | Optional 0/1; default 0. 1 requires TURN. |
 | MAINTENANCE_CLEANUP_SECRET, ATTACHMENT_CLEANUP_SECRET, CALL_CLEANUP_SECRET | Optional alternatives to CRON_SECRET for independent POST cleanup jobs. Each must be an independent 32+ character secret. |
+| CHATBIT_REALTIME_PROVIDER | Optional; empty disables hosted invalidations, `ably` enables the existing integration. Other values fail validation. |
+| ABLY_API_KEY | Required only with provider `ably`; full server-only `app.key:secret` credential. It does not replace ChatBit sessions. |
+| CHATBIT_PERFORMANCE | Optional `1` enables bounded server timing diagnostics; otherwise disabled. Browser timing uses the separate `chatbit.performance` localStorage flag. |
 
 Generate independent secrets locally with a password manager or
 `openssl rand -hex 32`; never send them to chat or commit them. Neon publicly
@@ -35,12 +38,8 @@ Cleanup paths are /api/maintenance/cleanup, /api/attachments/cleanup and
 Send `Authorization: Bearer <secret>` in headers, never query strings. No scheduler
 is provisioned automatically. See deployment.md for cadence and free-plan limits.
 
-Only isolated tests need TEST_DATABASE_URL / TEST_DATABASE_SSL,
-TEST_SECURITY_DATABASE_URL / TEST_SECURITY_DATABASE_SSL, TEST_AUTH_HTTP=1 and
-CHROME_BIN. TEST_SECURITY_DATABASE_URL must be loopback with tests/fixtures/security.sql
-loaded. CHATBIT_BROWSER_ORIGIN selects a loopback server for production PWA checks.
-Do not configure test variables against a live database. No backup or old-data-copy
-variables are required. `pnpm config:check` checks shapes without network access.
+`pnpm config:check` checks shapes without network access. It intentionally rejects
+STUN-only configuration. No backup or old-data-copy variables are required.
 
 The production checker requires the pooled runtime hostname, a matching direct
 migration URL, explicit remote URL credentials and a region matching the storage
@@ -58,3 +57,34 @@ DATABASE_SSL and NEON_STORAGE_BUCKET have secure defaults; you may omit them if
 those defaults are intended. The three POST cleanup secrets replace CRON_SECRET
 only when using that alternative scheduling mode. Tests and optional tuning do
 not add mandatory Vercel variables.
+
+## Isolated tests and measurement controls
+
+These switches are read by repository tests/scripts, not production features.
+Never point their database URLs at live data. Test suites create schemas, apply
+migrations to fixtures and write/delete data. `.env.example` shows common switches;
+CI supplies the expanded suite gates explicitly.
+
+| Names | Accepted value / purpose |
+| --- | --- |
+| `TEST_DATABASE_URL`, `TEST_DATABASE_SSL` | Disposable PostgreSQL URL and `verify` (default) or loopback-only `disable`. |
+| `TEST_SECURITY_DATABASE_URL`, `TEST_SECURITY_DATABASE_SSL` | Disposable loopback PostgreSQL 17 with `tests/fixtures/security.sql`; TLS choice as above. |
+| `TEST_AUTH_HTTP`, `CHROME_BIN` | `1` enables real local Next.js HTTP journeys; browser checks also need an installed executable path. |
+| `TEST_NEXT_TURBOPACK` | `1` selects Turbopack for isolated development servers; otherwise Webpack. |
+| `TEST_NAVIGATION_BROWSER`, `TEST_WORKSPACE_BROWSER` | `1` enables navigation and persistent-panel browser coverage. |
+| `TEST_SPA_BROWSER`, `TEST_SPA_SYNC_ACCEPTANCE` | `1` enables optimistic/retry browser journeys and synchronous pending-DOM assertions. |
+| `TEST_CALLING_BROWSER` | `1` enables the native WebRTC controller simulation with synthetic media. |
+| `TEST_PUSH_TRANSPORT`, `TEST_PUSH_BROWSER` | `1` enables loopback SDK protocol and browser invalidation fixtures; no hosted Ably service is used. |
+| `CHATBIT_BROWSER_ORIGIN` | Production PWA smoke origin; loopback only, default `http://127.0.0.1:3187`. |
+| `TEST_RUNTIME_ORIGIN` | Loopback origin for first-paint theme and authentication recovery checks. |
+| `TEST_RUNTIME_PRODUCTION`, `TEST_RUNTIME_DATABASE_FAILURE` | `1` selects production cookies / an intentionally unavailable local database. The flags must match the test server. |
+| `TEST_SPA_SAMPLES`, `TEST_SPA_SEND_DELAY_MS` | Integer 12–60 samples (default 12), delay 0–3,000 ms (default 0). |
+| `TEST_NAVIGATION_LATENCY_MS` | Synthetic navigation latency in milliseconds; default 0. |
+| `TEST_SPA_BASELINE`, `TEST_NAVIGATION_BASELINE`, `TEST_WORKSPACE_BASELINE` | `1` selects historical comparison behavior; omit for release regressions. |
+| `TEST_CALLING_BASELINE_FILE` | Optional historical calling module path for comparisons; omit for release verification. |
+| `DEBUG_CHATBIT_BROWSER`, `TEST_PUSH_DEBUG` | `1` enables synthetic-fixture diagnostics; optional, normally omitted. |
+
+`NODE_ENV` and `VERCEL` are framework/hosting signals. `NEXT_TELEMETRY_DISABLED=1`
+is an optional Next.js tooling setting used by isolated servers.
+`CHATBIT_AUTH_HTTP_TEST=1` is an internal harness switch for a separate development
+build directory and test TypeScript configuration; do not set it on a deployment.
