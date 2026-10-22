@@ -8,7 +8,7 @@ import { useConversationCache } from './conversation-cache-provider';
 import { createConversationViewStore } from '@/lib/conversation-view-store.mjs';
 const OutgoingContext=createContext<ReturnType<typeof createOutgoingMessages>|null>(null);
 const Context=createContext<ReturnType<typeof createConversationViewStore>|null>(null);
-export function ConversationViewProvider({children}:{children:React.ReactNode}) {
+export function ConversationViewProvider({children,userId}:{children:React.ReactNode;userId:string}) {
   const [store]=useState(()=>createConversationViewStore());
   const router=useRouter();const cache=useConversationCache();
   const [outgoing]=useState(()=>createOutgoingMessages({
@@ -17,6 +17,15 @@ export function ConversationViewProvider({children}:{children:React.ReactNode}) 
     onConfirmed:()=>window.dispatchEvent(new Event('chatbit:message-saved')),
     onUnauthorized:()=>{cache?.clear();router.replace('/login');},
   }));
+  useEffect(()=>{
+    const rejected=(event:Event)=>{
+      const expected=(event as CustomEvent<{accountId:string|null}>).detail?.accountId;
+      if(expected&&expected!==userId)return;
+      outgoing.stop();store.clear();cache?.clear();
+    };
+    window.addEventListener('chatbit:session-rejected',rejected);
+    return()=>window.removeEventListener('chatbit:session-rejected',rejected);
+  },[outgoing,store,cache,userId]);
   const cleanup=useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(()=>{clearTimeout(cleanup.current);return()=>{cleanup.current=setTimeout(()=>outgoing.stop(),0);};},[outgoing]);
   return <Context.Provider value={store}><OutgoingContext.Provider value={outgoing}>{children}</OutgoingContext.Provider></Context.Provider>;

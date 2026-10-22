@@ -36,7 +36,7 @@ test('authenticated navigation, conversation identity, drafts and persistent she
     url.searchParams.set('options',`-c search_path=${schema}`);
     child=spawn(process.execPath,['node_modules/next/dist/bin/next','dev',process.env.TEST_NEXT_TURBOPACK==='1'?'--turbopack':'--webpack','--hostname','127.0.0.1','--port',String(port)],{
       detached:true,stdio:['ignore','ignore','ignore'],
-      env:{...process.env,NODE_ENV:'development',DATABASE_URL:url.href,DATABASE_SSL:'disable',AUTH_RATE_LIMIT_SECRET:randomUUID().replaceAll('-',''),CHATBIT_AUTH_HTTP_TEST:'1',NEXT_TELEMETRY_DISABLED:'1',VERCEL:'0',CALL_STUN_URLS:'[]',CALL_TURN_URLS:'[]',CALL_TURN_SHARED_SECRET:'',AWS_ENDPOINT_URL_S3:'',AWS_ACCESS_KEY_ID:'',AWS_SECRET_ACCESS_KEY:''},
+      env:{...process.env,NODE_ENV:'development',DATABASE_URL:url.href,DATABASE_SSL:'disable',AUTH_RATE_LIMIT_SECRET:randomUUID().replaceAll('-',''),CHATBIT_AUTH_HTTP_TEST:'1',CHATBIT_REALTIME_PROVIDER:'',ABLY_API_KEY:'',NEXT_TELEMETRY_DISABLED:'1',VERCEL:'0',CALL_STUN_URLS:'[]',CALL_TURN_URLS:'[]',CALL_TURN_SHARED_SECRET:'',AWS_ENDPOINT_URL_S3:'',AWS_ACCESS_KEY_ID:'',AWS_SECRET_ACCESS_KEY:''},
     });
     let ready=false;for(let i=0;i<120;i++){try{if((await fetch(origin+'/login',{signal:AbortSignal.timeout(2000)})).ok){ready=true;break;}}catch{}await delay(500);}
     assert.ok(ready,'Isolated Next.js server starts');
@@ -76,17 +76,25 @@ test('authenticated navigation, conversation identity, drafts and persistent she
         const durations=warm.map(row=>row.contentMs).sort((a,b)=>a-b);
         console.log('Warm visited navigation DOM measurements:',JSON.stringify({samples:durations.length,p50:durations[4],p95:durations[9],rscRequests:warm.reduce((sum,row)=>sum+row.rscRequests,0),shellRemounts:warm.reduce((sum,row)=>sum+row.shellRemounts,0)}));
       if(process.env.TEST_WORKSPACE_BROWSER==='1'){
-        await evaluate(`window.__workspaceFetch=window.fetch;window.fetch=(...args)=>new Promise(resolve=>setTimeout(resolve,1500)).then(()=>window.__workspaceFetch(...args));window.__workspaceSamples=[];`);
+        await evaluate(`window.__workspaceFetch=window.fetch;window.fetch=(...args)=>new Promise(resolve=>setTimeout(resolve,1500)).then(()=>window.__workspaceFetch(...args));window.__workspaceSamples=[];window.__requests=[];`);
         for(let i=0;i<30;i++){
           const path=['/settings','/contacts','/calls','/chat'][i%4];
-          await evaluate(`window.__workspaceStart=performance.now();window.__workspaceReady=null;window.__workspaceObserver=new MutationObserver(()=>{const panel=document.querySelector('[data-workspace-panel="${path}"]');if(location.pathname==='${path}'&&panel&&!panel.hidden&&window.__workspaceReady===null)window.__workspaceReady=performance.now()-window.__workspaceStart;});window.__workspaceObserver.observe(document.body,{subtree:true,attributes:true,childList:true});document.querySelector('a[href="${path}"]').click();`);
+          const heading={'/settings':'Settings','/contacts':'Conversation partners','/calls':'Calls','/chat':'Select a conversation'}[path];
+          await evaluate(`window.__workspaceStart=performance.now();window.__workspaceReady=null;window.__workspaceObserver=new MutationObserver(()=>{const panel=document.querySelector('[data-workspace-panel="${path}"]');const ready=panel?!panel.hidden:Array.from(document.querySelectorAll('h1,h2')).some(el=>el.getClientRects().length>0&&el.textContent.trim()===${JSON.stringify(heading)});if(location.pathname==='${path}'&&ready&&window.__workspaceReady===null)window.__workspaceReady=performance.now()-window.__workspaceStart;});window.__workspaceObserver.observe(document.body,{subtree:true,attributes:true,childList:true});document.querySelector('a[href="${path}"]').click();`);
           await waitFor(`window.__workspaceReady!==null`);
           await evaluate(`window.__workspaceSamples.push(window.__workspaceReady);window.__workspaceObserver.disconnect();`);
+          if(process.env.TEST_WORKSPACE_BASELINE!=='1'&&i===0){await fill('#bio','Unsubmitted workspace profile draft');await evaluate(`window.__settingsPanel=document.querySelector('[data-workspace-panel="/settings"]');void 0`);}
+          if(process.env.TEST_WORKSPACE_BASELINE!=='1'&&i===2){await fill('[aria-label="Search calls"]','Retained call filter');await evaluate(`window.__callsPanel=document.querySelector('[data-workspace-panel="/calls"]');void 0`);}
+
         }
         const result=await evaluate(`(()=>{const a=window.__workspaceSamples.sort((a,b)=>a-b);return {samples:a.length,p50:Math.round(a[14]),p95:Math.round(a[28]),rscRequests:window.__requests.filter(r=>r.kind==='rsc').length};})()`);
         console.log('Persistent workspace with 1500 ms delayed fetch:',JSON.stringify(result));
-        assert.ok(result.p95<1500,'Destination panels do not wait for delayed fetch');
-        assert.equal(result.rscRequests,0,'Workspace tabs do not request destination RSC');
+        if(process.env.TEST_WORKSPACE_BASELINE!=='1'){
+          assert.ok(result.p95<1500,'Destination panels do not wait for delayed fetch');
+          assert.equal(result.rscRequests,0,'Workspace tabs do not request destination RSC');
+          assert.equal(await evaluate(`document.querySelector('[data-workspace-panel="/settings"]')===window.__settingsPanel&&document.querySelector('#bio').value==='Unsubmitted workspace profile draft'`),true,'Settings panel and unsaved input survive tab changes');
+          assert.equal(await evaluate(`document.querySelector('[data-workspace-panel="/calls"]')===window.__callsPanel&&document.querySelector('[aria-label="Search calls"]').value==='Retained call filter'`),true,'Calls panel and search survive tab changes');
+        }
         await evaluate(`window.fetch=window.__workspaceFetch;document.querySelector('a[href="/chat/${chats[0]}"]').click()`);
         await waitFor(`document.querySelector('textarea[aria-label="Message"]')`);
       }
@@ -129,6 +137,7 @@ test('authenticated navigation, conversation identity, drafts and persistent she
         await pool.query('DELETE FROM sessions WHERE user_id=$1',[ids[0]]);
         await evaluate(`window.dispatchEvent(new Event('online'))`);await waitFor(`location.pathname==='/login'`);
         assert.equal(await evaluate('Boolean(document.querySelector("textarea[aria-label=Message]"))'),false,'Expired session leaves the private shell');
+        assert.equal(await evaluate(`Boolean(document.querySelector('[data-workspace-panel]'))`),false,'Session rejection unmounts retained private panels');
       }
     });
   } finally {

@@ -28,8 +28,9 @@ test('authentication against isolated PostgreSQL', {
     await t.test('registration normalizes email and creates a hashed seven-day session', async () => {
       registered = await registerAccount(pool, credentials, context());
       const user = await resolveSession(pool, registered.token);
-      assert.deepEqual(Object.keys(user).sort(), ['displayName', 'email', 'id']);
+      assert.deepEqual(Object.keys(user).sort(), ['displayName', 'email', 'id', 'sessionExpiresAt']);
       assert.equal(user.displayName, 'Test User');
+      assert.ok(user.sessionExpiresAt>Date.now());
       assert.equal(user.email, 'test@example.com');
       assert.deepEqual(await verifySession(() => pool, registered.token), user);
       const row = (await pool.query('SELECT * FROM sessions WHERE token_hash = $1', [sessionHash(registered.token)])).rows[0];

@@ -19,8 +19,9 @@ export function CallingProvider({userId,children}:{userId:string;children:React.
   const [state,setState]=useState(initial);
   const controller=useRef<Controller|null>(null);
   useEffect(()=> {
-    let notified="";
+    let notified="";let rejected=false;
     const current=createCallingController({userId,tabId:crypto.randomUUID(),onChange:(next)=>{
+      if(rejected)return;
       if(next.call?.status==='ringing' && next.call.calleeId===userId && next.call.id!==notified) {notified=next.call.id;notify('call',next.call.id,settings.current.notifyCalls);}
       setState(next);
     },
@@ -29,11 +30,17 @@ export function CallingProvider({userId,children}:{userId:string;children:React.
         return navigator.mediaDevices.getUserMedia(constraints);
       },createPeer:(config)=>new RTCPeerConnection(config),makeStream:()=>new MediaStream(),visible:()=>document.visibilityState==="visible" || (settings.current.notifyCalls && typeof Notification!=="undefined" && Notification.permission==="granted")});
     controller.current=current;current.begin();
-    const wake=()=>current.wake();const leave=()=>current.stop();
+    const wake=()=>{if(!rejected)current.wake();};const leave=()=>current.stop();
+    const reject=(event:Event)=>{
+      const expected=(event as CustomEvent<{accountId:string|null}>).detail?.accountId;
+      if(expected&&expected!==userId)return;
+      rejected=true;current.stop();controller.current=null;setState(initial);
+    };
+    window.addEventListener("chatbit:session-rejected",reject);
     window.addEventListener("online",wake);window.addEventListener("focus",wake);
     document.addEventListener("visibilitychange",wake);window.addEventListener("pagehide",leave);
-    const show=(event:PageTransitionEvent)=>{if(event.persisted) current.begin();};window.addEventListener("pageshow",show);
-    return ()=>{current.stop();controller.current=null;window.removeEventListener("online",wake);window.removeEventListener("focus",wake);
+    const show=(event:PageTransitionEvent)=>{if(event.persisted&&!rejected) current.begin();};window.addEventListener("pageshow",show);
+    return ()=>{current.stop();controller.current=null;window.removeEventListener("chatbit:session-rejected",reject);window.removeEventListener("online",wake);window.removeEventListener("focus",wake);
       document.removeEventListener("visibilitychange",wake);window.removeEventListener("pagehide",leave);window.removeEventListener("pageshow",show);};
   },[userId]);
   const value:ContextValue={userId,state,start:(id,kind)=>{void controller.current?.start(id,kind);},act:(action)=>{void controller.current?.act(action);},

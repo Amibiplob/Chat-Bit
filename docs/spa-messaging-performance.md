@@ -1,5 +1,9 @@
 # SPA and messaging performance
 
+For the subsequent persistent section panels, synchronous send commit and optional
+Ably integration, see [Persistent workspace and push delivery](persistent-workspace.md).
+The measurements and transport boundaries below describe the earlier milestones.
+
 ## Baseline and measurement contract
 
 Starting revision: `f1a6992`. The existing persistent shell already avoids document reloads. Conversation contents still wait for destination RSC data. Drafts survive navigation, but message pages and optimistic bubbles do not. A text send creates a local pending bubble, disables the composer, and clears the draft only after acknowledgement. Receivers discover changes through serialized polling with a nominal 2,000 ms interval.

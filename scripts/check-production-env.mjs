@@ -1,3 +1,4 @@
+import { pushConfig } from '../lib/server/push-core.mjs';
 import { fileURLToPath } from 'node:url';
 import { config } from 'dotenv';
 import { databaseConfig, migrationDatabaseConfig } from '../lib/server/database-config.mjs';
@@ -12,6 +13,7 @@ export function productionConfigurationErrors(env) {
   check('DATABASE_URL / DATABASE_SSL / DATABASE_POOL_MAX',()=>databaseConfig({...env,NODE_ENV:'production'}));
   check('DATABASE_URL pooled endpoint',()=>{if(!new URL(env.DATABASE_URL).hostname.includes('-pooler.'))throw new Error();});
   check('DATABASE_MIGRATION_URL TLS/direct endpoint configuration',()=>migrationDatabaseConfig({...env,NODE_ENV:'production'}));
+  check('CHATBIT_REALTIME_PROVIDER / ABLY_API_KEY (optional)',()=>pushConfig(env));
   check('AUTH_RATE_LIMIT_SECRET',()=>rateLimitSecret({...env,NODE_ENV:'production'}));
   check('AWS_ENDPOINT_URL_S3 / AWS_REGION / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / NEON_STORAGE_BUCKET',()=>attachmentStorageConfiguration(env));
   check('CALL_STUN_URLS / CALL_TURN_URLS / CALL_TURN_SHARED_SECRET',()=>{

@@ -1,4 +1,5 @@
 import "server-only";
+import { schedulePush } from "./push";
 import { performanceRequest } from "./connection-performance.mjs";
 import { timedOperation } from "./request-timing.mjs";
 import { MessagingError } from "./messaging-validation.mjs";
@@ -32,6 +33,7 @@ export async function messagingResponse(request: Request, operation: () => Promi
     try {
       if (request.method !== "GET") assertSameOrigin(request.headers);
       const result = await timedOperation(operation);
+      schedulePush(request);
       return Response.json(result.value, { headers: { "Cache-Control": "no-store", "Server-Timing": result.serverTiming } });
     } catch (error) {
       const { status, message, requestId } = failureDetails(error, requestOperation(request.method, request.url));

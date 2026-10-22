@@ -2,7 +2,7 @@
 
 import { ArrowLeft, History, Phone, RefreshCw, Video } from "lucide-react";
 import { useCalling } from "@/components/calls/calling-provider";
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/navigation/navigation-link";
 import { Avatar } from "@/components/profile/avatar";
 import type { Conversation } from "@/lib/messaging-types";
 import type { Presence, ConnectionStatus } from "@/lib/realtime-types";

@@ -23,3 +23,7 @@ test('pending sends prevent duplicate mutations across views and retain retry ID
 test('late acknowledgement never removes a different newer draft',()=>{
   const store=createConversationViewStore();store.setDraft('one','new draft');store.confirm('one','old draft');assert.equal(store.read('one').draft,'new draft');
 });
+test('session rejection can discard every draft, scroll and send reservation',()=>{
+  const store=createConversationViewStore();store.setDraft('one','private fixture');store.beginSend('one');
+  store.clear();assert.equal(store.size(),0);assert.equal(store.read('one').draft,'');assert.equal(store.isSending('one'),false);
+});

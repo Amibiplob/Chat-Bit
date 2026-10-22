@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import pg from 'pg';
 import { databaseConfig } from '../lib/server/database-config.mjs';
 import { migrate } from '../scripts/migrate.mjs';
-import { sessionHash } from '../lib/server/session-core.mjs';
+import { createSession, sessionHash } from '../lib/server/session-core.mjs';
 import { registerAccount, loginAccount } from '../lib/server/auth-service.mjs';
 import { sendMessage } from '../lib/server/messaging-queries.mjs';
 import { withBrowser } from './helpers/browser.mjs';
@@ -62,7 +62,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
     let startupLog = '';
     child = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev', process.env.TEST_NEXT_TURBOPACK === '1' ? '--turbopack' : '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], {
       cwd: new URL('../', import.meta.url), detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, NODE_ENV: 'development', DATABASE_URL: databaseUrl.toString(), DATABASE_SSL: process.env.TEST_DATABASE_SSL ?? 'verify', AUTH_RATE_LIMIT_SECRET: randomUUID().replaceAll('-', ''), VERCEL: '0', NEXT_TELEMETRY_DISABLED: '1', CHATBIT_AUTH_HTTP_TEST: '1', CALL_STUN_URLS: '[]', CALL_TURN_URLS: '[]', CALL_TURN_SHARED_SECRET: '', CALL_RELAY_ONLY: '0', CRON_SECRET:'', MAINTENANCE_CLEANUP_SECRET:'', ATTACHMENT_CLEANUP_SECRET:'', CALL_CLEANUP_SECRET:'', AWS_ENDPOINT_URL_S3:'', AWS_ACCESS_KEY_ID:'', AWS_SECRET_ACCESS_KEY:'' },
+      env: { ...process.env, NODE_ENV: 'development', DATABASE_URL: databaseUrl.toString(), DATABASE_SSL: process.env.TEST_DATABASE_SSL ?? 'verify', AUTH_RATE_LIMIT_SECRET: randomUUID().replaceAll('-', ''), VERCEL: '0', NEXT_TELEMETRY_DISABLED: '1', CHATBIT_AUTH_HTTP_TEST: '1', CHATBIT_REALTIME_PROVIDER:'', ABLY_API_KEY:'', CALL_STUN_URLS: '[]', CALL_TURN_URLS: '[]', CALL_TURN_SHARED_SECRET: '', CALL_RELAY_ONLY: '0', CRON_SECRET:'', MAINTENANCE_CLEANUP_SECRET:'', ATTACHMENT_CLEANUP_SECRET:'', CALL_CLEANUP_SECRET:'', AWS_ENDPOINT_URL_S3:'', AWS_ACCESS_KEY_ID:'', AWS_SECRET_ACCESS_KEY:'' },
     });
     for (const stream of [child.stdout, child.stderr]) stream.on('data', (chunk) => { startupLog = `${startupLog}${chunk}`.slice(-1500); });
     const request = (path, options = {}) => fetch(`${origin}${path}`, { redirect: 'manual', signal: AbortSignal.any([t.signal, AbortSignal.timeout(60000)]), ...options });
@@ -182,6 +182,15 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
       assert.equal((await (await api('/api/conversations', a, 'POST', { participantId })).json()).id, id);
       const me = (await pool.query('SELECT user_id FROM sessions WHERE token_hash=$1', [sessionHash(a.token)])).rows[0].user_id;
       assert.equal((await api('/api/conversations', a, 'POST', { participantId: me })).status, 400);
+      await messageTest.test('push token endpoint requires same-origin session and matching account even while disabled',async()=>{
+        const tokenRequest=(session,expected,requestOrigin=origin)=>request('/api/realtime/token',{method:'POST',headers:{Origin:requestOrigin,...(session?{Cookie:actor(session)}:{}),...(expected?{'X-ChatBit-Account':expected}:{})}});
+        assert.equal((await tokenRequest(null,me)).status,401);
+        assert.equal((await tokenRequest(a,participantId)).status,401);
+        assert.equal((await tokenRequest(a,null)).status,401);
+        assert.equal((await tokenRequest(a,me,'https://untrusted.example')).status,403);
+        const disabled=await tokenRequest(a,me);assert.equal(disabled.status,200);assert.deepEqual(await disabled.json(),{enabled:false});
+        assert.equal(disabled.headers.get('cache-control'),'no-store');
+      });
       const base = `/api/conversations/${id}`;
       const syncPath = (state) => `/api/realtime/sync?state=${encodeURIComponent(JSON.stringify(state))}`;
       assert.equal((await api(syncPath({ conversationId: id }), null)).status, 401);
@@ -242,6 +251,20 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
       assert.equal(deleted.messages[0].content, '');
       assert.equal(deleted.messages[1].reply.deleted, true);
       assert.equal(deleted.messages[1].reply.content, '');
+      await messageTest.test('known session expiry removes the workspace while authenticated APIs are stalled',{
+        skip:!process.env.CHROME_BIN&&'Requires Chrome',
+      },async()=>{
+        const expiring=await createSession(pool,me);
+        await pool.query("UPDATE sessions SET expires_at=now()+interval '8 seconds' WHERE token_hash=$1",[sessionHash(expiring.token)]);
+        await withBrowser(async({command,evaluate,waitFor})=>{
+          await command('Page.addScriptToEvaluateOnNewDocument',{source:`const original=window.fetch;window.fetch=(...args)=>String(args[0]).startsWith('/api/')?new Promise(()=>{}):original(...args);`});
+          await command('Network.setCookie',{name:'chatbit_session',value:expiring.token,url:origin,httpOnly:true,sameSite:'Lax'});
+          await command('Page.navigate',{url:origin+'/settings'});
+          await waitFor(`document.querySelector('[data-workspace-panel="/settings"]')`);
+          await waitFor(`!document.querySelector('.cb-app-shell')`);
+          assert.equal(await evaluate(`Boolean(document.querySelector('[data-workspace-panel]'))`),false);
+        });
+      });
       await messageTest.test('settings APIs authorize actors and persist profile/preferences',async()=> {
         assert.equal((await api('/api/settings',null)).status,401);
         assert.equal((await api('/api/settings',a,'PATCH',{displayName:'Spoofed',bio:'',userId:randomUUID()})).status,400);
@@ -337,7 +360,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
           await command('Network.setCookie',{name:'chatbit_session',value:a.token,url:origin,httpOnly:true,sameSite:'Lax'});
           await command('Page.addScriptToEvaluateOnNewDocument',{source:mock});
           await command('Page.navigate',{url:`${origin}/chat/${id}`});
-          await waitFor(`document.querySelector('[aria-label="Start audio call"]') && Object.keys(document.querySelector('textarea')??{}).some(key=>key.startsWith('__reactFiber$'))`);
+          await waitFor(`document.querySelector('[aria-label="Start audio call"]') && Object.keys(document.querySelector('textarea[aria-label="Message"]')??{}).some(key=>key.startsWith('__reactFiber$'))`);
           assert.equal(await evaluate('window.__captured.length'),0);
           await evaluate(`document.querySelector('[aria-label="Start audio call"]').click()`);
           await waitFor(`document.querySelector('[role="dialog"]')?.textContent.includes('Ringing')`);
@@ -382,7 +405,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
               await browser.command('Network.setCookie',{name:'chatbit_session',value:session.token,url:origin,httpOnly:true,sameSite:'Lax'});
               await browser.command('Page.addScriptToEvaluateOnNewDocument',{source});
               await browser.command('Page.navigate',{url:`${origin}/chat/${id}`});
-              await browser.waitFor(`document.querySelector('[aria-label="Start video call"]') && Object.keys(document.querySelector('textarea')??{}).some(key=>key.startsWith('__reactFiber$'))`);
+              await browser.waitFor(`document.querySelector('[aria-label="Start video call"]') && Object.keys(document.querySelector('textarea[aria-label="Message"]')??{}).some(key=>key.startsWith('__reactFiber$'))`);
             }
             await caller.evaluate(`document.querySelector('[aria-label="Start video call"]').click()`);
             await recipient.waitFor(`document.querySelector('[aria-label="Incoming call"]')`);
@@ -408,7 +431,7 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
         await withBrowser(async ({ command, evaluate, waitFor, fill }) => {
           await command('Network.setCookie', { name: 'chatbit_session', value: a.token, url: origin, httpOnly: true, sameSite: 'Lax' });
           await command('Page.navigate', { url: `${origin}/chat/${id}` });
-          await waitFor(`document.querySelector('textarea[aria-label="Message"]') && Object.keys(document.querySelector('textarea')).some(key=>key.startsWith('__reactFiber$')) && !document.querySelector('textarea').disabled`);
+          await waitFor(`document.querySelector('textarea[aria-label="Message"]') && Object.keys(document.querySelector('textarea[aria-label="Message"]')).some(key=>key.startsWith('__reactFiber$')) && !document.querySelector('textarea[aria-label="Message"]').disabled`);
           diagnostic('conversation hydrated');
           await evaluate('window.__chatbitRealtimeMarker=true');
           const partnerTab = randomUUID();
@@ -445,33 +468,33 @@ test('real Next.js forms, session cookies and protected HTTP routes', {
           await fill('textarea[aria-label="Message"]', 'Browser persistence message');
           await waitFor(`!document.querySelector('button[aria-label="Send message"]').disabled`);
           await evaluate(`document.querySelector('button[aria-label="Send message"]').click()`);
-          await waitFor(`Array.from(document.querySelectorAll('[data-message-delivery=sent],[data-message-delivery=read]')).some(row=>row.textContent.includes('Browser persistence message')) && document.querySelector('textarea').value === '' && !document.querySelector('textarea').disabled`);
+          await waitFor(`Array.from(document.querySelectorAll('[data-message-delivery=sent],[data-message-delivery=read]')).some(row=>row.textContent.includes('Browser persistence message')) && document.querySelector('textarea[aria-label="Message"]').value === '' && !document.querySelector('textarea[aria-label="Message"]').disabled`);
           diagnostic('message sent');
           await evaluate('window.__chatbitReloadMarker=true');
           await command('Page.reload');
-          await waitFor(`!window.__chatbitReloadMarker && document.body.innerText.includes('Browser persistence message') && document.querySelector('textarea') && Object.keys(document.querySelector('textarea')).some(key=>key.startsWith('__reactFiber$')) && !document.querySelector('textarea').disabled`);
+          await waitFor(`!window.__chatbitReloadMarker && document.body.innerText.includes('Browser persistence message') && document.querySelector('textarea[aria-label="Message"]') && Object.keys(document.querySelector('textarea[aria-label="Message"]')).some(key=>key.startsWith('__reactFiber$')) && !document.querySelector('textarea[aria-label="Message"]').disabled`);
           diagnostic('refresh persistence verified');
           await evaluate(`Array.from(document.querySelectorAll('[role="group"]')).find(element=>element.textContent.includes('Browser persistence message')).querySelector('button[title="Edit"]').click()`);
-          await waitFor(`document.querySelector('textarea').value === 'Browser persistence message'`);
+          await waitFor(`document.querySelector('textarea[aria-label="Message"]').value === 'Browser persistence message'`);
           await fill('textarea[aria-label="Message"]', 'Browser edited message');
           await evaluate(`document.querySelector('button[aria-label="Save message"]').click()`);
-          await waitFor(`document.body.innerText.includes('Browser edited message') && document.querySelector('textarea').value === ''`);
+          await waitFor(`document.body.innerText.includes('Browser edited message') && document.querySelector('textarea[aria-label="Message"]').value === ''`);
           diagnostic('message edited');
           await command('Network.setBlockedURLs', { urls: [`${origin}/api/conversations/${id}/messages`] });
           await fill('textarea[aria-label="Message"]', 'Draft kept after failure');
           await evaluate(`document.querySelector('button[aria-label="Send message"]').click()`);
-          await waitFor(`document.querySelector('[role="alert"]') && document.querySelector('textarea').value === 'Draft kept after failure' && !document.querySelector('textarea').disabled`);
+          await waitFor(`document.querySelector('[role="alert"]') && document.querySelector('textarea[aria-label="Message"]').value === 'Draft kept after failure' && !document.querySelector('textarea[aria-label="Message"]').disabled`);
           diagnostic('failed draft retained');
           await command('Network.setBlockedURLs', { urls: [] });
           await evaluate(`document.querySelector('button[aria-label="Send message"]').click()`);
-          await waitFor(`Array.from(document.querySelectorAll('[data-message-delivery=sent],[data-message-delivery=read]')).some(row=>row.textContent.includes('Draft kept after failure')) && document.querySelector('textarea').value === '' && !document.querySelector('textarea').disabled`);
+          await waitFor(`Array.from(document.querySelectorAll('[data-message-delivery=sent],[data-message-delivery=read]')).some(row=>row.textContent.includes('Draft kept after failure')) && document.querySelector('textarea[aria-label="Message"]').value === '' && !document.querySelector('textarea[aria-label="Message"]').disabled`);
           diagnostic('draft retried');
           await evaluate(`document.querySelector('[aria-label="Messages"]').scrollTop=0; Array.from(document.querySelectorAll('button')).find(button=>button.textContent.includes('Load older messages')).click()`);
-          await waitFor(`document.body.innerText.includes('Browser older message 0') && !document.querySelector('textarea').disabled`);
+          await waitFor(`document.body.innerText.includes('Browser older message 0') && !document.querySelector('textarea[aria-label="Message"]').disabled`);
           diagnostic('older messages loaded');
           assert.ok(await evaluate(`(() => { const area=document.querySelector('[aria-label="Messages"]'); return area.scrollTop < area.scrollHeight - area.clientHeight - 100; })()`));
           await evaluate(`Array.from(document.querySelectorAll('[role="group"]')).find(element=>element.textContent.includes('Browser edited message')).querySelector('button[title="Delete"]').click()`);
-          await waitFor(`!document.body.innerText.includes('Browser edited message') && !document.querySelector('textarea').disabled`);
+          await waitFor(`!document.body.innerText.includes('Browser edited message') && !document.querySelector('textarea[aria-label="Message"]').disabled`);
           await command('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
           assert.ok(await evaluate('document.documentElement.scrollWidth <= window.innerWidth + 1'), 'Mobile conversation must not overflow horizontally');
           await evaluate(`Array.from(document.querySelectorAll('[role="group"]')).find(element=>element.querySelector('button[title="Edit"]')).querySelector('button[aria-label="Message actions"]').click()`);

@@ -13,6 +13,6 @@ export default async function ChatRouteLayout({ children }: ChatLayoutProps) {
   return performanceRequest(async () => {
     const user = await requireUser();
     const [conversations, settings] = await Promise.all([getConversationList(), performanceStep("settings", () => mySettings())]);
-    return <SettingsProvider initial={settings}><ChatLayout user={user} conversations={conversations}>{children}</ChatLayout></SettingsProvider>;
+    return <SettingsProvider key={user.id} initial={settings}><ChatLayout user={user} conversations={conversations}>{children}</ChatLayout></SettingsProvider>;
   });
 }

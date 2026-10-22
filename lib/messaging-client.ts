@@ -14,6 +14,10 @@ export async function messagingRequest<T>(url: string, options: RequestInit = {}
       signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000),
       headers: { ...(options.body ? { "Content-Type": "application/json" } : {}), ...options.headers },
     });
+    if(typeof window!=="undefined" && response.status===401 && !options.signal?.aborted){
+      const expected=new Headers(options.headers).get("X-ChatBit-Account");
+      window.dispatchEvent(new CustomEvent("chatbit:session-rejected",{detail:{accountId:expected}}));
+    }
     return await readMessagingResponse(response) as T;
   });
 }

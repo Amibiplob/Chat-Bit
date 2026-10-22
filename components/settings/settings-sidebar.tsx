@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { NavigationLink as Link } from "@/components/navigation/navigation-link";
 import { useSettings } from "./settings-provider";
 import { Avatar } from "@/components/profile/avatar";
 import {

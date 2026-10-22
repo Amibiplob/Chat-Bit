@@ -20,7 +20,7 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({ children, user, conversations }: ChatLayoutProps) {
-  return <ConversationCacheProvider key={user.id}><ConversationViewProvider><CallingProvider userId={user.id}><RealtimeProvider userId={user.id} initialConversations={conversations}><LiveChatLayout user={user}>{children}</LiveChatLayout></RealtimeProvider></CallingProvider></ConversationViewProvider></ConversationCacheProvider>;
+  return <ConversationCacheProvider key={user.id}><ConversationViewProvider userId={user.id}><CallingProvider userId={user.id}><RealtimeProvider sessionExpiresAt={user.sessionExpiresAt} userId={user.id} initialConversations={conversations}><LiveChatLayout user={user}>{children}</LiveChatLayout></RealtimeProvider></CallingProvider></ConversationViewProvider></ConversationCacheProvider>;
 }
 
 function LiveChatLayout({ children, user }: { children: React.ReactNode; user: AuthUser }) {

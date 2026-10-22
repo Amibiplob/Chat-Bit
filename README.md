@@ -9,7 +9,8 @@ calls into an installable web app.
 ## Features
 
 - Email/password authentication with Argon2id and server-managed sessions.
-- Contact discovery and one-to-one conversations with polling-based updates,
+- Contact discovery and one-to-one conversations with polling recovery and optional
+  [Ably invalidation delivery](docs/persistent-workspace.md),
   presence, typing indicators, replies, edits, deletion, and read receipts.
 - Private photo, video, audio, and document sharing with previews and downloads.
 - One-to-one WebRTC voice/video calls and call history.
@@ -169,8 +170,9 @@ See [authentication](docs/authentication.md) and
 
 - Messages are **not end-to-end encrypted**; the server stores their contents.
 - Attachments are limited to 10 MiB per file and 100 MiB per uploader.
-- Updates use HTTP polling, so latency, background throttling, and hosting usage
-  depend on network conditions and active tabs.
+- Updates use polling by default. Optional Ably invalidations require manual
+  configuration and hosted acceptance testing; recovery polling remains enabled.
+  Latency, background throttling and usage depend on networks and active tabs.
 - Calls require HTTPS or trusted loopback, browser media permissions, both people
   online, and suitable STUN/TURN infrastructure. Same-machine tests do not prove
   cross-network reliability. Group calls, screen sharing, recording, closed-app

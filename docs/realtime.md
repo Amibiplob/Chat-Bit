@@ -1,5 +1,10 @@
 # Automatic messaging, presence and typing
 
+This records the original polling milestone. For the current persistent workspace,
+bounded polling policy and optional Ably integration, see
+[Persistent workspace and push delivery](persistent-workspace.md). Hosted Ably
+delivery remains unverified; the protocol fixtures are local evidence only.
+
 ## Architecture decision
 
 Milestone 4 uses authenticated short HTTP polling, with PostgreSQL revision
